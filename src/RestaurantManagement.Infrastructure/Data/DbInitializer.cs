@@ -8,8 +8,7 @@ public static class DbInitializer
 {
     public static void SeedData(RestaurantDbContext context)
     {
-        context.Database.EnsureCreated();
-
+        // Migrations are applied in Program.cs via dbContext.Database.Migrate()
         if (context.Users.Any()) return; // Database has already been seeded
 
         // 1. Seed Restaurant Settings

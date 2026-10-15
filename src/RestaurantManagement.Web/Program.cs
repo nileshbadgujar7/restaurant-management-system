@@ -15,10 +15,10 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 builder.Host.UseSerilog();
 
-// Add DbContext
+// Add DbContext — SQL Server with Windows Authentication
 builder.Services.AddDbContext<RestaurantDbContext>(options =>
 {
-    options.UseInMemoryDatabase("RestaurantDb");
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 
 // Register Repositories and Services
@@ -55,10 +55,11 @@ builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
 
-// Seed Database
+// Apply EF Core migrations & seed data on startup
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+    dbContext.Database.Migrate(); // Creates DB if not exists + runs all pending migrations
     DbInitializer.SeedData(dbContext);
 }
 
