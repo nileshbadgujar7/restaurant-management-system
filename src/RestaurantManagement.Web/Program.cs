@@ -19,6 +19,7 @@ builder.Host.UseSerilog();
 builder.Services.AddDbContext<RestaurantDbContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+    options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
 });
 
 // Register Repositories and Services
