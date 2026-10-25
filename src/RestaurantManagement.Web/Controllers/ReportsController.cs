@@ -14,12 +14,9 @@ public class ReportsController : Controller
         _reportService = reportService;
     }
 
-    public async Task<IActionResult> Index(DateTime? startDate, DateTime? endDate)
+    public async Task<IActionResult> Index(string period = "DayWise", int? year = null, int? month = null, DateTime? startDate = null, DateTime? endDate = null)
     {
-        var start = startDate ?? DateTime.UtcNow.AddDays(-30);
-        var end = endDate ?? DateTime.UtcNow;
-
-        var report = await _reportService.GetSalesReportAsync(start, end);
+        var report = await _reportService.GetComprehensiveReportAsync(period, year, month, startDate, endDate);
         return View(report);
     }
 }

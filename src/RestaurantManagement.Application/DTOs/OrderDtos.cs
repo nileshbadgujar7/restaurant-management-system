@@ -281,3 +281,12 @@ public class BillFromPOSRequestDto
     public string? CustomerGstin { get; set; }
 }
 
+public class CreateParcelOrderDto
+{
+    public string CustomerName { get; set; } = string.Empty;
+    public string CustomerPhone { get; set; } = string.Empty;
+    public string? OrderNote { get; set; }
+    public List<CreateOrderItemDto> Items { get; set; } = new();
+}
+
+

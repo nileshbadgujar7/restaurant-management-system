@@ -45,6 +45,8 @@ public interface IUnitOfWork : IDisposable
     IRepository<Expense> Expenses { get; }
     IRepository<AuditLog> AuditLogs { get; }
     IRepository<RestaurantSetting> RestaurantSettings { get; }
+    IRepository<EmployeeLedger> EmployeeLedgers { get; }
+    IRepository<PayrollRecord> PayrollRecords { get; }
 
     Task<int> SaveChangesAsync();
 }

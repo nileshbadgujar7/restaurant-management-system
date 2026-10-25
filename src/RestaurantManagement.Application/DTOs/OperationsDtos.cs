@@ -163,3 +163,152 @@ public class DailySalesSummaryDto
     public decimal SalesAmount { get; set; }
     public int OrdersCount { get; set; }
 }
+
+public class EmployeeLedgerDto
+{
+    public int Id { get; set; }
+    public int EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string EmployeeRole { get; set; } = string.Empty;
+    public DateTime TransactionDate { get; set; }
+    public string TransactionType { get; set; } = "Advance"; // Advance, Repayment, SalaryPayment, Deduction
+    public decimal Amount { get; set; }
+    public string PaymentMethod { get; set; } = "Cash";
+    public string ReferenceNumber { get; set; } = string.Empty;
+    public string Notes { get; set; } = string.Empty;
+    public string RecordedBy { get; set; } = string.Empty;
+    public decimal RunningBalance { get; set; }
+}
+
+public class EmployeeLedgerSummaryDto
+{
+    public int EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    public decimal BaseSalary { get; set; }
+    public decimal TotalAdvanceGiven { get; set; }
+    public decimal TotalRepaidOrDeducted { get; set; }
+    public decimal OutstandingAdvance => Math.Max(0, TotalAdvanceGiven - TotalRepaidOrDeducted);
+    public List<EmployeeLedgerDto> Transactions { get; set; } = new();
+}
+
+public class CreateLedgerTransactionDto
+{
+    public int EmployeeId { get; set; }
+    public string TransactionType { get; set; } = "Advance"; // Advance or Repayment
+    public decimal Amount { get; set; }
+    public string PaymentMethod { get; set; } = "Cash";
+    public string ReferenceNumber { get; set; } = string.Empty;
+    public string Notes { get; set; } = string.Empty;
+    public string RecordedBy { get; set; } = "Admin";
+}
+
+public class PayrollCalculationDto
+{
+    public int EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    public decimal BaseSalary { get; set; }
+    public int Month { get; set; }
+    public int Year { get; set; }
+    public int TotalDaysInMonth { get; set; } = 30;
+    public decimal PresentDays { get; set; }
+    public decimal HalfDays { get; set; }
+    public decimal PaidLeaveDays { get; set; }
+    public decimal UnpaidLeaveDays { get; set; }
+    public decimal EffectivePaidDays => PresentDays + (HalfDays * 0.5m) + PaidLeaveDays;
+    public decimal DailyRate { get; set; }
+    public decimal GrossSalary { get; set; }
+    public decimal OutstandingAdvance { get; set; }
+    public decimal AdvanceDeduction { get; set; }
+    public decimal OtherDeductions { get; set; }
+    public decimal Bonus { get; set; }
+    public decimal NetSalary { get; set; }
+    public string Status { get; set; } = "Pending"; // Pending, Paid
+    public bool IsPaid { get; set; }
+    public int? PayrollRecordId { get; set; }
+    public DateTime? PaymentDate { get; set; }
+    public string PaymentMethod { get; set; } = "Cash";
+}
+
+public class DisburseSalaryDto
+{
+    public int EmployeeId { get; set; }
+    public int Month { get; set; }
+    public int Year { get; set; }
+    public decimal AdvanceDeduction { get; set; }
+    public decimal OtherDeductions { get; set; }
+    public decimal Bonus { get; set; }
+    public string PaymentMethod { get; set; } = "Cash";
+    public string Notes { get; set; } = string.Empty;
+}
+
+public class StockMovementLogDto
+{
+    public int Id { get; set; }
+    public int InventoryItemId { get; set; }
+    public string ItemName { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public string Unit { get; set; } = "KG";
+    public decimal Quantity { get; set; }
+    public string TransactionType { get; set; } = "IN";
+    public string Notes { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+}
+
+public class ComprehensiveReportDto
+{
+    public string PeriodType { get; set; } = "DayWise"; // DayWise, MonthWise, YearWise, Custom
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public int SelectedYear { get; set; } = DateTime.UtcNow.Year;
+    public int SelectedMonth { get; set; } = DateTime.UtcNow.Month;
+    
+    // High Level KPIs
+    public decimal TotalRevenue { get; set; }
+    public int TotalOrders { get; set; }
+    public decimal AverageOrderValue => TotalOrders > 0 ? Math.Round(TotalRevenue / TotalOrders, 2) : 0m;
+    public decimal DineInSales { get; set; }
+    public decimal TakeawaySales { get; set; }
+    public decimal DeliverySales { get; set; }
+    public decimal TotalTax { get; set; }
+    public decimal TotalCGST { get; set; }
+    public decimal TotalSGST { get; set; }
+    public decimal TotalDiscount { get; set; }
+
+    // Breakdown Rows
+    public List<ReportPeriodSummaryDto> BreakdownList { get; set; } = new();
+    public List<PaymentMethodSummaryDto> PaymentBreakdown { get; set; } = new();
+    public List<CategorySalesSummaryDto> CategoryBreakdown { get; set; } = new();
+}
+
+public class ReportPeriodSummaryDto
+{
+    public string PeriodLabel { get; set; } = string.Empty; // e.g. "25 Oct 2026", "October 2026", "2026"
+    public DateTime Date { get; set; }
+    public int OrdersCount { get; set; }
+    public decimal GrossSales { get; set; }
+    public decimal TaxCollected { get; set; }
+    public decimal DiscountGiven { get; set; }
+    public decimal NetRevenue { get; set; }
+    public int DineInCount { get; set; }
+    public int TakeawayCount { get; set; }
+}
+
+public class PaymentMethodSummaryDto
+{
+    public string Method { get; set; } = string.Empty;
+    public decimal TotalAmount { get; set; }
+    public int TransactionCount { get; set; }
+    public decimal Percentage { get; set; }
+}
+
+public class CategorySalesSummaryDto
+{
+    public string CategoryName { get; set; } = string.Empty;
+    public decimal TotalSales { get; set; }
+    public int ItemsSold { get; set; }
+    public decimal Percentage { get; set; }
+}
+

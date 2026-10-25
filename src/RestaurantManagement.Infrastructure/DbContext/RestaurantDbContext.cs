@@ -40,6 +40,8 @@ public class RestaurantDbContext : Microsoft.EntityFrameworkCore.DbContext
     public DbSet<Expense> Expenses => Set<Expense>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<RestaurantSetting> RestaurantSettings => Set<RestaurantSetting>();
+    public DbSet<EmployeeLedger> EmployeeLedgers => Set<EmployeeLedger>();
+    public DbSet<PayrollRecord> PayrollRecords => Set<PayrollRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -92,5 +94,17 @@ public class RestaurantDbContext : Microsoft.EntityFrameworkCore.DbContext
             .WithOne(o => o.Bill)
             .HasForeignKey<Bill>(b => b.OrderId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<EmployeeLedger>()
+            .HasOne(el => el.Employee)
+            .WithMany(e => e.Ledgers)
+            .HasForeignKey(el => el.EmployeeId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PayrollRecord>()
+            .HasOne(pr => pr.Employee)
+            .WithMany(e => e.PayrollRecords)
+            .HasForeignKey(pr => pr.EmployeeId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

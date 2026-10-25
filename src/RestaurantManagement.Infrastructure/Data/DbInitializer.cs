@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using RestaurantManagement.Domain.Entities;
 using RestaurantManagement.Domain.Enums;
 using RestaurantManagement.Infrastructure.DbContext;
@@ -8,8 +9,70 @@ public static class DbInitializer
 {
     public static void SeedData(RestaurantDbContext context)
     {
+        // Ensure new tables exist in SQL Server if migrating incrementally
+        try
+        {
+            context.Database.ExecuteSqlRaw(@"
+                IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'EmployeeLedgers')
+                BEGIN
+                    CREATE TABLE [EmployeeLedgers] (
+                        [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                        [EmployeeId] INT NOT NULL,
+                        [TransactionDate] DATETIME2 NOT NULL,
+                        [TransactionType] NVARCHAR(50) NOT NULL,
+                        [Amount] DECIMAL(18,2) NOT NULL,
+                        [PaymentMethod] NVARCHAR(50) NOT NULL,
+                        [ReferenceNumber] NVARCHAR(100) NOT NULL,
+                        [Notes] NVARCHAR(MAX) NOT NULL,
+                        [RecordedBy] NVARCHAR(100) NOT NULL,
+                        [CreatedAt] DATETIME2 NOT NULL,
+                        [UpdatedAt] DATETIME2 NULL,
+                        [IsDeleted] BIT NOT NULL
+                    );
+                END;
+
+                IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'PayrollRecords')
+                BEGIN
+                    CREATE TABLE [PayrollRecords] (
+                        [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                        [EmployeeId] INT NOT NULL,
+                        [Month] INT NOT NULL,
+                        [Year] INT NOT NULL,
+                        [BaseSalary] DECIMAL(18,2) NOT NULL,
+                        [TotalDaysInMonth] INT NOT NULL,
+                        [PresentDays] DECIMAL(18,2) NOT NULL,
+                        [HalfDays] DECIMAL(18,2) NOT NULL,
+                        [PaidLeaveDays] DECIMAL(18,2) NOT NULL,
+                        [UnpaidLeaveDays] DECIMAL(18,2) NOT NULL,
+                        [DailyRate] DECIMAL(18,2) NOT NULL,
+                        [GrossSalary] DECIMAL(18,2) NOT NULL,
+                        [AdvanceDeducted] DECIMAL(18,2) NOT NULL,
+                        [OtherDeductions] DECIMAL(18,2) NOT NULL,
+                        [Bonus] DECIMAL(18,2) NOT NULL,
+                        [NetSalary] DECIMAL(18,2) NOT NULL,
+                        [Status] NVARCHAR(50) NOT NULL,
+                        [PaymentDate] DATETIME2 NULL,
+                        [PaymentMethod] NVARCHAR(50) NOT NULL,
+                        [Notes] NVARCHAR(MAX) NOT NULL,
+                        [ProcessedBy] NVARCHAR(100) NOT NULL,
+                        [CreatedAt] DATETIME2 NOT NULL,
+                        [UpdatedAt] DATETIME2 NULL,
+                        [IsDeleted] BIT NOT NULL
+                    );
+                END;
+            ");
+        }
+        catch
+        {
+            // Ignore in-memory testing or provider limitations
+        }
+
         // Migrations are applied in Program.cs via dbContext.Database.Migrate()
-        if (context.Users.Any()) return; // Database has already been seeded
+        if (context.Users.Any())
+        {
+            SeedSampleLedgersAndAttendance(context);
+            return; // Database base data has already been seeded
+        }
 
         // 1. Seed Restaurant Settings
         context.RestaurantSettings.Add(new RestaurantSetting
@@ -103,5 +166,142 @@ public static class DbInitializer
         );
 
         context.SaveChanges();
+        SeedSampleLedgersAndAttendance(context);
+    }
+
+    private static void SeedSampleLedgersAndAttendance(RestaurantDbContext context)
+    {
+        try
+        {
+            var employees = context.Employees.Where(e => !e.IsDeleted).ToList();
+            if (!employees.Any()) return;
+
+            // Seed Sample Advances & Repayments if none exist
+            if (!context.EmployeeLedgers.Any())
+            {
+                var amit = employees.FirstOrDefault(e => e.Name.Contains("Amit"));
+                var ramesh = employees.FirstOrDefault(e => e.Name.Contains("Ramesh"));
+                var suresh = employees.FirstOrDefault(e => e.Name.Contains("Suresh"));
+                var sanjeev = employees.FirstOrDefault(e => e.Name.Contains("Sanjeev"));
+
+                if (amit != null)
+                {
+                    context.EmployeeLedgers.Add(new EmployeeLedger
+                    {
+                        EmployeeId = amit.Id,
+                        TransactionDate = DateTime.UtcNow.AddDays(-15),
+                        TransactionType = "Advance",
+                        Amount = 4000m,
+                        PaymentMethod = "Cash",
+                        ReferenceNumber = "ADV-001",
+                        Notes = "Festival advance requested by employee",
+                        RecordedBy = "Admin",
+                        CreatedAt = DateTime.UtcNow.AddDays(-15)
+                    });
+                    context.EmployeeLedgers.Add(new EmployeeLedger
+                    {
+                        EmployeeId = amit.Id,
+                        TransactionDate = DateTime.UtcNow.AddDays(-5),
+                        TransactionType = "Repayment",
+                        Amount = 1000m,
+                        PaymentMethod = "Cash",
+                        ReferenceNumber = "REP-001",
+                        Notes = "Cash repayment from tip savings",
+                        RecordedBy = "Cashier",
+                        CreatedAt = DateTime.UtcNow.AddDays(-5)
+                    });
+                }
+
+                if (ramesh != null)
+                {
+                    context.EmployeeLedgers.Add(new EmployeeLedger
+                    {
+                        EmployeeId = ramesh.Id,
+                        TransactionDate = DateTime.UtcNow.AddDays(-10),
+                        TransactionType = "Advance",
+                        Amount = 3000m,
+                        PaymentMethod = "UPI",
+                        ReferenceNumber = "UPI-ADV-789",
+                        Notes = "Family emergency advance",
+                        RecordedBy = "Admin",
+                        CreatedAt = DateTime.UtcNow.AddDays(-10)
+                    });
+                }
+
+                if (suresh != null)
+                {
+                    context.EmployeeLedgers.Add(new EmployeeLedger
+                    {
+                        EmployeeId = suresh.Id,
+                        TransactionDate = DateTime.UtcNow.AddDays(-20),
+                        TransactionType = "Advance",
+                        Amount = 5000m,
+                        PaymentMethod = "Bank Transfer",
+                        ReferenceNumber = "NEFT-9912",
+                        Notes = "House rent advance",
+                        RecordedBy = "Manager",
+                        CreatedAt = DateTime.UtcNow.AddDays(-20)
+                    });
+                }
+
+                if (sanjeev != null)
+                {
+                    context.EmployeeLedgers.Add(new EmployeeLedger
+                    {
+                        EmployeeId = sanjeev.Id,
+                        TransactionDate = DateTime.UtcNow.AddDays(-12),
+                        TransactionType = "Advance",
+                        Amount = 8000m,
+                        PaymentMethod = "Bank Transfer",
+                        ReferenceNumber = "NEFT-8841",
+                        Notes = "Advance against monthly salary",
+                        RecordedBy = "Admin",
+                        CreatedAt = DateTime.UtcNow.AddDays(-12)
+                    });
+                }
+
+                context.SaveChanges();
+            }
+
+            // Seed Sample Attendance for past 25 days of current month if employee attendances are sparse
+            var startOfMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+            int todayDay = DateTime.UtcNow.Day;
+            if (context.Attendances.Count(a => a.Date >= startOfMonth) < 10)
+            {
+                var rand = new Random(42);
+                foreach (var emp in employees)
+                {
+                    for (int day = 1; day < todayDay; day++)
+                    {
+                        var attDate = startOfMonth.AddDays(day - 1);
+                        if (attDate.DayOfWeek == DayOfWeek.Sunday) continue; // Restaurant weekly off or rotation
+
+                        // Check if already exists
+                        if (context.Attendances.Any(a => a.EmployeeId == emp.Id && a.Date == attDate)) continue;
+
+                        int roll = rand.Next(100);
+                        string status;
+                        if (roll < 80) status = "Present";
+                        else if (roll < 90) status = "Half day";
+                        else if (roll < 95) status = "Leave";
+                        else status = "Absent";
+
+                        context.Attendances.Add(new Attendance
+                        {
+                            EmployeeId = emp.Id,
+                            Date = attDate,
+                            CheckInTime = attDate.AddHours(9).AddMinutes(rand.Next(0, 30)),
+                            CheckOutTime = status == "Half day" ? attDate.AddHours(14) : attDate.AddHours(19),
+                            Status = status
+                        });
+                    }
+                }
+                context.SaveChanges();
+            }
+        }
+        catch
+        {
+            // Non-critical seed fallback
+        }
     }
 }

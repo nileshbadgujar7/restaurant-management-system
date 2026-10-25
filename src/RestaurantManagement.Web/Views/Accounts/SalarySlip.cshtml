@@ -1,0 +1,175 @@
+@model PayrollCalculationDto
+@{
+    Layout = null;
+    var setting = ViewBag.Setting as RestaurantManagement.Domain.Entities.RestaurantSetting;
+    string restaurantName = setting?.RestaurantName ?? "Girana Garden Fine Dine & Bar";
+    string address = setting?.Address ?? "101 Grand Galleria, MG Road, Ahmedabad";
+    string phone = setting?.Phone ?? "+91 98765 43210";
+    string gstin = setting?.GSTIN ?? "24AAACG1234F1Z9";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Salary Voucher - @Model.EmployeeName (@Model.Month/@Model.Year)</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; padding: 30px; }
+        .voucher-box { max-width: 800px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        @@media print {
+            body { background: #fff; padding: 0; }
+            .voucher-box { border: none; box-shadow: none; padding: 20px; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="voucher-box">
+        <div class="d-flex justify-content-between align-items-center mb-4 no-print border-bottom pb-3">
+            <a href="/Accounts?tab=payroll&month=@Model.Month&year=@Model.Year" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                <i class="fa-solid fa-arrow-left me-1"></i> Back to Accounts
+            </a>
+            <button onclick="window.print()" class="btn btn-sm btn-primary rounded-pill px-4">
+                <i class="fa-solid fa-print me-1"></i> Print Pay Slip
+            </button>
+        </div>
+
+        <div class="text-center border-bottom pb-4 mb-4">
+            <h3 class="fw-bold text-dark mb-1">@restaurantName</h3>
+            <div class="text-secondary small">@address &bull; Phone: @phone</div>
+            <div class="text-secondary small">GSTIN: @gstin</div>
+            <div class="badge bg-success-subtle text-success fs-6 mt-3 px-4 py-2 rounded-pill border border-success-subtle">
+                SALARY & ATTENDANCE SLIP &bull; @(new DateTime(Model.Year, Model.Month, 1).ToString("MMMM yyyy").ToUpper())
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-6">
+                <table class="table table-sm table-borderless mb-0">
+                    <tr><td class="text-muted small">Employee ID:</td><td class="fw-bold">EMP-@Model.EmployeeId.ToString("D4")</td></tr>
+                    <tr><td class="text-muted small">Employee Name:</td><td class="fw-bold text-dark fs-6">@Model.EmployeeName</td></tr>
+                    <tr><td class="text-muted small">Designation / Role:</td><td class="fw-bold">@Model.Role</td></tr>
+                    <tr><td class="text-muted small">Payment Mode:</td><td>@Model.PaymentMethod</td></tr>
+                </table>
+            </div>
+            <div class="col-6">
+                <table class="table table-sm table-borderless mb-0">
+                    <tr><td class="text-muted small">Pay Period:</td><td class="fw-bold">@(new DateTime(Model.Year, Model.Month, 1).ToString("MMMM yyyy"))</td></tr>
+                    <tr><td class="text-muted small">Voucher Ref:</td><td class="fw-bold text-primary">SLIP-@(Model.PayrollRecordId ?? Model.EmployeeId)-@Model.Month/@Model.Year</td></tr>
+                    <tr><td class="text-muted small">Payment Date:</td><td>@(Model.PaymentDate?.ToString("dd MMM yyyy") ?? DateTime.UtcNow.ToString("dd MMM yyyy"))</td></tr>
+                    <tr><td class="text-muted small">Payment Status:</td><td><span class="badge bg-success rounded-pill px-2">PAID</span></td></tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Attendance Breakdown -->
+        <h6 class="fw-bold text-dark border-bottom pb-2 mb-3"><i class="fa-solid fa-calendar-check text-success me-2"></i>Attendance Summary (Month Total: @Model.TotalDaysInMonth Days)</h6>
+        <div class="row g-2 text-center mb-4">
+            <div class="col">
+                <div class="p-2 border rounded-3 bg-light">
+                    <div class="small text-muted">Present (100%)</div>
+                    <div class="fw-bold text-success fs-6">@Model.PresentDays Days</div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="p-2 border rounded-3 bg-light">
+                    <div class="small text-muted">Half Day (50%)</div>
+                    <div class="fw-bold text-warning fs-6">@Model.HalfDays Days</div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="p-2 border rounded-3 bg-light">
+                    <div class="small text-muted">Paid Leaves</div>
+                    <div class="fw-bold text-info fs-6">@Model.PaidLeaveDays Days</div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="p-2 border rounded-3 bg-light">
+                    <div class="small text-muted">Unpaid Absences</div>
+                    <div class="fw-bold text-danger fs-6">@Model.UnpaidLeaveDays Days</div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="p-2 border rounded-3 bg-light">
+                    <div class="small text-muted">Effective Paid Days</div>
+                    <div class="fw-bold text-dark fs-6">@Model.EffectivePaidDays Days</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Financial Breakdown -->
+        <div class="row g-4 mb-4">
+            <div class="col-6">
+                <div class="border rounded-4 p-3 h-100">
+                    <h6 class="fw-bold text-success mb-3"><i class="fa-solid fa-plus-circle me-1"></i> Earnings</h6>
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <td>Basic Fixed Salary</td>
+                            <td class="text-end fw-bold">₹@Model.BaseSalary.ToString("N0")</td>
+                        </tr>
+                        <tr>
+                            <td>Calculated Daily Rate</td>
+                            <td class="text-end text-muted small">₹@Model.DailyRate.ToString("N2")/day</td>
+                        </tr>
+                        <tr>
+                            <td>Earned Gross Pay</td>
+                            <td class="text-end fw-bold text-dark">₹@Model.GrossSalary.ToString("N0")</td>
+                        </tr>
+                        @if (Model.Bonus > 0)
+                        {
+                            <tr>
+                                <td>Performance Bonus</td>
+                                <td class="text-end text-success fw-bold">+₹@Model.Bonus.ToString("N0")</td>
+                            </tr>
+                        }
+                    </table>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="border rounded-4 p-3 h-100">
+                    <h6 class="fw-bold text-danger mb-3"><i class="fa-solid fa-minus-circle me-1"></i> Deductions</h6>
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <td>Advance Salary Recovery</td>
+                            <td class="text-end text-danger fw-bold">@(Model.AdvanceDeduction > 0 ? $"-₹{Model.AdvanceDeduction:N0}" : "₹0")</td>
+                        </tr>
+                        @if (Model.OtherDeductions > 0)
+                        {
+                            <tr>
+                                <td>Other Deductions</td>
+                                <td class="text-end text-danger fw-bold">-₹@Model.OtherDeductions.ToString("N0")</td>
+                            </tr>
+                        }
+                        <tr>
+                            <td>Remaining Advance Balance</td>
+                            <td class="text-end text-warning fw-semibold">₹@Model.OutstandingAdvance.ToString("N0")</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Net Payable Amount -->
+        <div class="p-3 bg-success-subtle rounded-4 text-center border border-success-subtle mb-5">
+            <div class="small text-secondary fw-bold text-uppercase">Net Disbursed Take-Home Salary</div>
+            <div class="display-6 fw-bold text-success">₹@Model.NetSalary.ToString("N0")</div>
+            <div class="small text-muted mt-1">Processed via @Model.PaymentMethod</div>
+        </div>
+
+        <!-- Signature Lines -->
+        <div class="d-flex justify-content-between text-center pt-5 mt-4 border-top">
+            <div style="width: 200px;">
+                <div class="border-top border-dark pt-2 small text-muted">Employee Signature</div>
+            </div>
+            <div style="width: 200px;">
+                <div class="border-top border-dark pt-2 small text-muted">Manager / Cashier Signature</div>
+            </div>
+            <div style="width: 200px;">
+                <div class="border-top border-dark pt-2 small text-muted">Authorized Signatory</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

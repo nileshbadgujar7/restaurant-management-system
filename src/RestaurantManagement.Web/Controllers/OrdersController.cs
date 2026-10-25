@@ -411,21 +411,199 @@ public class OrdersController : Controller
     {
         try
         {
-            var allOrders = await _orderService.GetOrdersAsync(type: OrderType.Takeaway);
-            var activeOrders = allOrders
-                .Where(o => o.Status != OrderStatus.Completed && o.Status != OrderStatus.Cancelled)
+            var parcelOrders = (await _unitOfWork.Orders.FindAsync(o => 
+                !o.IsDeleted && 
+                !o.IsDraft && 
+                o.OrderType == OrderType.Takeaway && 
+                o.Status != OrderStatus.Completed && 
+                o.Status != OrderStatus.Cancelled))
                 .OrderByDescending(o => o.CreatedAt)
-                .Select(o => new {
+                .ToList();
+
+            var orderIds = parcelOrders.Select(o => o.Id).ToList();
+            var allItems = (await _unitOfWork.OrderItems.FindAsync(i => !i.IsDeleted && orderIds.Contains(i.OrderId))).ToList();
+            var allKots = (await _unitOfWork.KOTs.FindAsync(k => !k.IsDeleted && orderIds.Contains(k.OrderId))).ToList();
+
+            var result = parcelOrders.Select(o =>
+            {
+                var items = allItems.Where(i => i.OrderId == o.Id).ToList();
+                int totalQty = items.Sum(i => i.Quantity);
+                string itemsSummary = string.Join(", ", items.Take(3).Select(i => $"{i.Quantity}x {i.ItemName}"));
+                if (items.Count > 3) itemsSummary += $" +{items.Count - 3} more";
+
+                var kot = allKots.Where(k => k.OrderId == o.Id).OrderByDescending(k => k.CreatedAt).FirstOrDefault();
+
+                return new
+                {
                     id = o.Id,
                     orderNumber = o.OrderNumber,
-                    customerName = o.CustomerName,
-                    customerPhone = o.CustomerPhone,
-                    totalItems = o.Items.Count,
+                    kotNumber = kot?.KOTNumber ?? "-",
+                    customerName = string.IsNullOrWhiteSpace(o.CustomerName) ? "Walk-in Guest" : o.CustomerName,
+                    customerPhone = string.IsNullOrWhiteSpace(o.CustomerPhone) ? "-" : o.CustomerPhone,
+                    orderNote = o.OrderNote,
+                    totalItems = totalQty > 0 ? totalQty : items.Count,
+                    itemsSummary = string.IsNullOrWhiteSpace(itemsSummary) ? "Items ordered" : itemsSummary,
                     grandTotal = o.GrandTotal,
                     status = o.Status.ToString(),
                     createdAt = o.CreatedAt
-                });
-            return Json(new { success = true, orders = activeOrders });
+                };
+            }).ToList();
+
+            return Json(new { success = true, orders = result });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> CreateParcelOrder([FromBody] CreateParcelOrderDto dto)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(dto.CustomerName))
+            {
+                return Json(new { success = false, message = "Customer name is required for Parcel/Takeaway order." });
+            }
+            if (string.IsNullOrWhiteSpace(dto.CustomerPhone) || !System.Text.RegularExpressions.Regex.IsMatch(dto.CustomerPhone.Trim(), @"^[6-9]\d{9}$"))
+            {
+                return Json(new { success = false, message = "Valid 10-digit customer mobile number starting with 6-9 is required." });
+            }
+            if (dto.Items == null || !dto.Items.Any())
+            {
+                return Json(new { success = false, message = "Please select at least one item for the parcel order." });
+            }
+            if (dto.Items.Any(i => i.Quantity <= 0))
+            {
+                return Json(new { success = false, message = "Quantity must be greater than zero for all items." });
+            }
+
+            int count = await _unitOfWork.Orders.CountAsync();
+            string orderNo = $"ORD-{(count + 1001)}";
+            string tokenNo = $"T-{(count % 1000 + 1):D3}";
+            var settings = (await _unitOfWork.RestaurantSettings.GetAllAsync()).FirstOrDefault() ?? new RestaurantSetting();
+
+            var order = new Order
+            {
+                OrderNumber = orderNo,
+                OrderType = OrderType.Takeaway,
+                Status = OrderStatus.Confirmed,
+                CustomerName = dto.CustomerName.Trim(),
+                CustomerPhone = dto.CustomerPhone.Trim(),
+                OrderNote = dto.OrderNote?.Trim() ?? string.Empty,
+                TokenNumber = tokenNo,
+                Covers = 1,
+                PackagingCharge = settings.PackagingCharge,
+                CreatedAt = DateTime.UtcNow,
+                Version = 1,
+                IsDraft = false
+            };
+
+            await _unitOfWork.Orders.AddAsync(order);
+            await _unitOfWork.SaveChangesAsync(); // Generates order.Id
+
+            decimal subTotal = 0m;
+            var orderItems = new List<OrderItem>();
+
+            foreach (var itemDto in dto.Items)
+            {
+                var menuItem = await _unitOfWork.MenuItems.GetByIdAsync(itemDto.MenuItemId);
+                if (menuItem == null || menuItem.IsDeleted || !menuItem.IsAvailable)
+                {
+                    throw new InvalidOperationException($"Menu item '{menuItem?.Name ?? itemDto.MenuItemId.ToString()}' is currently unavailable.");
+                }
+
+                decimal price = menuItem.Price;
+                if (!string.IsNullOrEmpty(itemDto.SelectedVariantName))
+                {
+                    var variant = (await _unitOfWork.MenuItemVariants.FindAsync(v => v.MenuItemId == menuItem.Id && v.VariantName == itemDto.SelectedVariantName)).FirstOrDefault();
+                    if (variant != null) price = variant.Price;
+                }
+
+                decimal lineTotal = price * itemDto.Quantity;
+                subTotal += lineTotal;
+
+                var orderItem = new OrderItem
+                {
+                    OrderId = order.Id,
+                    MenuItemId = menuItem.Id,
+                    ItemName = menuItem.Name,
+                    UnitPrice = price,
+                    Quantity = itemDto.Quantity,
+                    TotalPrice = lineTotal,
+                    SpecialInstructions = itemDto.SpecialInstructions?.Trim() ?? string.Empty,
+                    SelectedVariantName = itemDto.SelectedVariantName ?? string.Empty,
+                    Status = OrderItemStatus.Sent,
+                    Course = string.IsNullOrWhiteSpace(itemDto.Course) ? "Main" : itemDto.Course,
+                    Station = "Main"
+                };
+                await _unitOfWork.OrderItems.AddAsync(orderItem);
+                orderItems.Add(orderItem);
+            }
+
+            // Recalculate totals
+            decimal cgstPercent = settings.CGSTPercentage > 0 ? settings.CGSTPercentage : 2.5m;
+            decimal sgstPercent = settings.SGSTPercentage > 0 ? settings.SGSTPercentage : 2.5m;
+            decimal taxable = Math.Max(0, subTotal);
+            decimal cgst = Math.Round(taxable * (cgstPercent / 100m), 2);
+            decimal sgst = Math.Round(taxable * (sgstPercent / 100m), 2);
+            decimal tax = cgst + sgst;
+            decimal packaging = settings.PackagingCharge;
+            decimal unroundedTotal = taxable + tax + packaging;
+            decimal grandTotal = Math.Round(unroundedTotal, MidpointRounding.AwayFromZero);
+            decimal roundOff = grandTotal - unroundedTotal;
+
+            order.SubTotal = subTotal;
+            order.CGST = cgst;
+            order.SGST = sgst;
+            order.TotalTax = tax;
+            order.PackagingCharge = packaging;
+            order.GrandTotal = grandTotal;
+            order.RoundOff = roundOff;
+            order.UpdatedAt = DateTime.UtcNow;
+
+            await _unitOfWork.Orders.UpdateAsync(order);
+            await _unitOfWork.SaveChangesAsync();
+
+            // Create KOT for Kitchen
+            int kotCount = await _unitOfWork.KOTs.CountAsync();
+            string kotNo = $"KOT-{(kotCount + 1001)}";
+            var kot = new KOT
+            {
+                OrderId = order.Id,
+                KOTNumber = kotNo,
+                Status = KOTStatus.New,
+                Notes = dto.OrderNote ?? string.Empty,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _unitOfWork.KOTs.AddAsync(kot);
+            await _unitOfWork.SaveChangesAsync();
+
+            foreach (var oi in orderItems)
+            {
+                var kotItem = new KOTItem
+                {
+                    KOTId = kot.Id,
+                    OrderItemId = oi.Id,
+                    MenuItemName = oi.ItemName,
+                    Quantity = oi.Quantity,
+                    SpecialInstructions = oi.SpecialInstructions,
+                    Status = KOTStatus.New
+                };
+                await _unitOfWork.KOTItems.AddAsync(kotItem);
+            }
+            await _unitOfWork.SaveChangesAsync();
+
+            return Json(new
+            {
+                success = true,
+                orderId = order.Id,
+                orderNumber = order.OrderNumber,
+                kotNumber = kot.KOTNumber,
+                customerName = order.CustomerName,
+                grandTotal = order.GrandTotal
+            });
         }
         catch (Exception ex)
         {

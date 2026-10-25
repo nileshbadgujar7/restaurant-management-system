@@ -13,4 +13,6 @@ public class Employee : BaseEntity
     public string Shift { get; set; } = "Morning"; // Morning, Evening, Night
     
     public ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
+    public ICollection<EmployeeLedger> Ledgers { get; set; } = new List<EmployeeLedger>();
+    public ICollection<PayrollRecord> PayrollRecords { get; set; } = new List<PayrollRecord>();
 }

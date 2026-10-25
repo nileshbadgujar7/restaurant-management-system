@@ -26,6 +26,7 @@
     bool canViewMasters = isAdmin || isManager;
     bool canViewInventory = isAdmin || isManager || isInventory;
     bool canViewStaff = isAdmin || isManager;
+    bool canViewAccounts = isAdmin || isManager || isCashier;
     bool canViewReports = isAdmin || isManager || isCashier;
 }
 <head>
@@ -135,6 +136,14 @@
                         <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Staff" ? "active" : "")" href="/Staff" data-title="Staff & Attendance" data-bs-toggle="tooltip" data-bs-placement="right" title="Staff & Attendance">
                             <i class="fa-solid fa-user-group nav-icon" style="color: #6366f1;"></i>
                             <span class="nav-text">Staff & Attendance</span>
+                        </a>
+                    }
+
+                    @if (canViewAccounts)
+                    {
+                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Accounts" ? "active" : "")" href="/Accounts" data-title="Accounts & Payroll" data-bs-toggle="tooltip" data-bs-placement="right" title="Accounts & Payroll">
+                            <i class="fa-solid fa-file-invoice-dollar nav-icon" style="color: #059669;"></i>
+                            <span class="nav-text">Accounts & Ledger</span>
                         </a>
                     }
 

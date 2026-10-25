@@ -40,6 +40,8 @@ public class UnitOfWork : IUnitOfWork
         Expenses = new GenericRepository<Expense>(_context);
         AuditLogs = new GenericRepository<AuditLog>(_context);
         RestaurantSettings = new GenericRepository<RestaurantSetting>(_context);
+        EmployeeLedgers = new GenericRepository<EmployeeLedger>(_context);
+        PayrollRecords = new GenericRepository<PayrollRecord>(_context);
     }
 
     public IRepository<User> Users { get; }
@@ -70,6 +72,8 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<Expense> Expenses { get; }
     public IRepository<AuditLog> AuditLogs { get; }
     public IRepository<RestaurantSetting> RestaurantSettings { get; }
+    public IRepository<EmployeeLedger> EmployeeLedgers { get; }
+    public IRepository<PayrollRecord> PayrollRecords { get; }
 
     public async Task<int> SaveChangesAsync()
     {
