@@ -31,12 +31,6 @@ public class AccountController : Controller
     [AllowAnonymous]
     public async Task<IActionResult> Login(string? returnUrl = null, bool switchUser = false)
     {
-        // If already signed in and not explicitly switching user, proceed to Dashboard
-        if (User.Identity?.IsAuthenticated == true && !switchUser)
-        {
-            return RedirectToAction("Index", "Dashboard");
-        }
-
         var model = await BuildLoginViewModelAsync(returnUrl);
         return View(model);
     }

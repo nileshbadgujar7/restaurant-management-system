@@ -77,21 +77,15 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Always open login page first at root URL
 app.MapGet("/", context =>
 {
-    if (context.User.Identity?.IsAuthenticated == true)
-    {
-        context.Response.Redirect("/Dashboard");
-    }
-    else
-    {
-        context.Response.Redirect("/Account/Login");
-    }
+    context.Response.Redirect("/Account/Login");
     return Task.CompletedTask;
 });
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Dashboard}/{action=Index}/{id?}");
+    pattern: "{controller=Account}/{action=Login}/{id?}");
 
 app.Run();
