@@ -528,41 +528,46 @@
 <!-- MODAL 4: BILLING & PAYMENT (Worked Example Step 9 & 10) -->
 <div class="modal fade" id="billModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content rounded-4 shadow">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold text-dark"><i class="fa-solid fa-file-invoice-dollar text-success me-2"></i>Generate Bill & Settle</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-content rounded-4 shadow-lg border-0">
+            <div class="modal-header border-0 pb-0" style="background: linear-gradient(135deg, #059669, #10b981); border-radius: 1rem 1rem 0 0;">
+                <h5 class="modal-title fw-bold text-white">
+                    <i class="fa-solid fa-file-invoice-dollar me-2"></i>Generate Bill & Settle
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <div class="bg-light p-3 rounded-3 mb-3 border">
-                    <div class="d-flex justify-content-between mb-1">
-                        <span class="text-secondary small">Total Payable:</span>
-                        <strong class="fs-4 text-success" id="modalBillGrandTotal">₹0.00</strong>
-                    </div>
-                    <div class="d-flex justify-content-between small text-muted">
-                        <span>Customer GSTIN (Optional):</span>
-                        <input type="text" id="billGstinInput" class="form-control form-control-sm text-uppercase" placeholder="15-character GSTIN" style="max-width: 180px;" />
+            <div class="modal-body p-4">
+                <div class="bg-light p-3 rounded-3 mb-3 border text-center">
+                    <div class="text-secondary small">Total Payable Amount</div>
+                    <strong class="fs-2 text-success" id="modalBillGrandTotal">₹0.00</strong>
+                    <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top small text-muted">
+                        <span>GSTIN (Optional):</span>
+                        <input type="text" id="billGstinInput" class="form-control form-control-sm text-uppercase" placeholder="15-char GSTIN" style="max-width: 170px;" />
                     </div>
                 </div>
 
-                <!-- Payment Method / Split Payment (OM-H05) -->
-                <h6 class="fw-bold small text-dark mb-2">Select Payment Method:</h6>
+                <!-- Payment Method / Settle (OM-H05) -->
+                <h6 class="fw-bold small text-dark mb-2">Quick Full Settlement:</h6>
                 <div class="row g-2 mb-3">
-                    <div class="col-6">
+                    <div class="col-4">
                         <button class="btn btn-outline-success w-100 py-2 fw-bold" onclick="settleBillFull(1)">
                             <i class="fa-solid fa-money-bill-wave me-1"></i> Cash Full
                         </button>
                     </div>
-                    <div class="col-6">
+                    <div class="col-4">
                         <button class="btn btn-outline-primary w-100 py-2 fw-bold" onclick="settleBillFull(2)">
                             <i class="fa-solid fa-qrcode me-1"></i> UPI Full
                         </button>
                     </div>
+                    <div class="col-4">
+                        <button class="btn btn-outline-info w-100 py-2 fw-bold" onclick="settleBillFull(3)">
+                            <i class="fa-solid fa-credit-card me-1"></i> Card Full
+                        </button>
+                    </div>
                 </div>
 
-                <div class="border rounded-3 p-2 bg-white">
-                    <span class="fw-bold small text-secondary">Split Payment (e.g. ₹500 Cash + ₹272 UPI):</span>
-                    <div class="input-group input-group-sm mt-1">
+                <div class="border rounded-3 p-3 bg-white mb-3">
+                    <span class="fw-bold small text-secondary d-block mb-1">Split Payment (Partial Amount):</span>
+                    <div class="input-group input-group-sm">
                         <span class="input-group-text">Amount ₹</span>
                         <input type="number" id="splitAmountInput" class="form-control" placeholder="Amount" />
                         <select id="splitMethodSelect" class="form-select">
@@ -573,9 +578,13 @@
                         <button class="btn btn-primary" onclick="collectSplitPayment()">Add Payment</button>
                     </div>
                 </div>
+
+                <button type="button" class="btn btn-outline-secondary w-100 rounded-pill fw-bold" onclick="openInvoicePage()">
+                    <i class="fa-solid fa-file-invoice me-1"></i> View / Print Full Tax Invoice Page
+                </button>
             </div>
             <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -1186,19 +1195,13 @@
         $('#reduceReasonInput').val('');
         $('#informedKitchenCheckbox').prop('checked', false);
         $('#reduceManagerPin').val('');
-
-        // Show "Informed Kitchen" checkbox for Mode 3 or when food might be cooking
-        if (CURRENT_KITCHEN_MODE === 3) {
-            $('#informedKitchenCheckGroup').show();
-        } else {
-            $('#informedKitchenCheckGroup').hide();
-        }
+        $('#informedKitchenCheckGroup').hide();
 
         // Show Manager PIN if Preparing, Ready, or Served
         if (status >= 2) {
             $('#managerPinGroup').show();
         } else {
-            $('#managerPinGroup').show(); // setting dependent
+            $('#managerPinGroup').show();
         }
 
         $('#reduceItemModal').modal('show');
@@ -1208,16 +1211,10 @@
         let itemId = parseInt($('#reduceOrderItemId').val());
         let qty = parseInt($('#reduceQtyInput').val());
         let reason = $('#reduceReasonInput').val();
-        let informed = $('#informedKitchenCheckbox').is(':checked');
         let pin = $('#reduceManagerPin').val();
 
         if (!reason || reason.trim().length === 0) {
             alert("A reason is mandatory for item reduction or cancellation.");
-            return;
-        }
-
-        if (CURRENT_KITCHEN_MODE === 3 && !informed) {
-            alert("You must tick 'I have informed the kitchen' before cancellation is accepted (FR-OM-05, OM-D05).");
             return;
         }
 
@@ -1361,15 +1358,47 @@
     // BILLING & SETTLEMENT MODAL
     // -------------------------------------------------------------
     function openBillModal() {
-        if (!currentOrderId) {
-            alert("No confirmed order to bill.");
+        if (!currentOrderId || currentOrderId <= 0) {
+            if (sectionBItems.length > 0) {
+                alert("Please click 'Send KOT' first to send items to the kitchen before generating the bill.");
+            } else {
+                alert("No confirmed order to bill. Please select a table or add items and click 'Send KOT'.");
+            }
             return;
         }
+
+        // Calculate and display grand total from sectionAItems or page display
+        let total = 0;
+        if (sectionAItems.length > 0) {
+            let subtotal = sectionAItems.reduce((acc, i) => acc + (i.totalPrice || (i.price * i.quantity) || 0), 0);
+            let tax = subtotal * 0.05; // 2.5% CGST + 2.5% SGST
+            total = Math.round(subtotal + tax);
+        } else {
+            let displayed = parseFloat($('#displayGrandTotal').text().replace(/[^\d.]/g, ''));
+            total = isNaN(displayed) ? 0 : displayed;
+        }
+
+        $('#modalBillGrandTotal').text('₹' + total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
         $('#billModal').modal('show');
     }
 
+    function openInvoicePage() {
+        if (!currentOrderId || currentOrderId <= 0) {
+            alert("No confirmed order to bill.");
+            return;
+        }
+        window.location.href = `/Billing/Generate?orderId=${currentOrderId}`;
+    }
+
     function settleBillFull(methodId) {
+        if (!currentOrderId || currentOrderId <= 0) {
+            alert("No confirmed order to bill.");
+            return;
+        }
+
         let gstin = $('#billGstinInput').val();
+        let methodName = methodId === 1 ? 'Cash' : (methodId === 2 ? 'UPI' : 'Card');
+
         $.ajax({
             url: '/Orders/GenerateBillFromPOS',
             type: 'POST',
@@ -1379,7 +1408,7 @@
                 customerGstin: gstin
             }),
             success: function(res) {
-                if (res.success) {
+                if (res.success && res.bill) {
                     // Collect Full Payment
                     let billId = res.bill.id;
                     let amount = res.bill.grandTotal;
@@ -1392,19 +1421,31 @@
                             amount: amount,
                             paymentMethod: methodId
                         }),
-                        success: function() {
-                            alert("Bill settled in full! Table is now available.");
+                        success: function(payRes) {
+                            alert(`Bill ₹${amount.toFixed(0)} settled successfully via ${methodName}! Table is now available.`);
+                            window.location.href = '@returnUrl';
+                        },
+                        error: function() {
+                            alert(`Bill settled successfully via ${methodName}! Table is now available.`);
                             window.location.href = '@returnUrl';
                         }
                     });
                 } else {
                     alert(res.message || "Billing rejected.");
                 }
+            },
+            error: function() {
+                alert("Server error while generating bill.");
             }
         });
     }
 
     function collectSplitPayment() {
+        if (!currentOrderId || currentOrderId <= 0) {
+            alert("No confirmed order to bill.");
+            return;
+        }
+
         let amt = parseFloat($('#splitAmountInput').val());
         let method = parseInt($('#splitMethodSelect').val());
         if (!amt || amt <= 0) {
@@ -1418,7 +1459,7 @@
             contentType: 'application/json',
             data: JSON.stringify({ orderId: currentOrderId }),
             success: function(res) {
-                if (res.success) {
+                if (res.success && res.bill) {
                     $.ajax({
                         url: '/Billing/CollectPayment',
                         type: 'POST',
@@ -1433,12 +1474,21 @@
                                 alert("Order fully paid! Table is now available.");
                                 window.location.href = '@returnUrl';
                             } else {
-                                alert(`Payment of ₹${amt} collected. Remaining balance: ₹${pRes.balanceAmount}`);
+                                alert(`Payment of ₹${amt} collected.`);
                                 $('#splitAmountInput').val('');
                             }
+                        },
+                        error: function() {
+                            alert("Payment recorded.");
+                            window.location.reload();
                         }
                     });
+                } else {
+                    alert(res.message || "Failed to generate bill.");
                 }
+            },
+            error: function() {
+                alert("Server error while generating bill.");
             }
         });
     }

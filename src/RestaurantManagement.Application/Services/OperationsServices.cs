@@ -214,11 +214,23 @@ public class StaffService : IStaffService
                 CheckInTime = DateTime.UtcNow,
                 Status = status
             };
+            if (status == "Checked Out")
+            {
+                existing.CheckOutTime = DateTime.UtcNow;
+            }
             await _unitOfWork.Attendances.AddAsync(existing);
         }
         else
         {
-            existing.CheckOutTime = DateTime.UtcNow;
+            if (status == "Checked Out")
+            {
+                existing.CheckOutTime = DateTime.UtcNow;
+            }
+            else if (existing.CheckOutTime.HasValue)
+            {
+                // If previously checked out and re-marking present/late, clear check out
+                existing.CheckOutTime = null;
+            }
             existing.Status = status;
             await _unitOfWork.Attendances.UpdateAsync(existing);
         }

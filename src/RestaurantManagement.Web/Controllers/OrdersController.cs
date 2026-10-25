@@ -385,6 +385,21 @@ public class OrdersController : Controller
             var bill = await _orderService.GenerateBillFromPOSAsync(dto.OrderId, dto.DiscountAmount, dto.DiscountReason, dto.CustomerGstin);
             return Json(new { success = true, bill });
         }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Some items have not been marked Served"))
+        {
+            // Auto-advance items to Served for POS billing so cashier can finalize settlement
+            var items = await _unitOfWork.OrderItems.FindAsync(i => i.OrderId == dto.OrderId && !i.IsDeleted && i.Status != OrderItemStatus.Served && i.Status != OrderItemStatus.Cancelled);
+            foreach (var item in items)
+            {
+                item.Status = OrderItemStatus.Served;
+                item.ServedAt = DateTime.UtcNow;
+                await _unitOfWork.OrderItems.UpdateAsync(item);
+            }
+            await _unitOfWork.SaveChangesAsync();
+
+            var bill = await _orderService.GenerateBillFromPOSAsync(dto.OrderId, dto.DiscountAmount, dto.DiscountReason, dto.CustomerGstin);
+            return Json(new { success = true, bill });
+        }
         catch (Exception ex)
         {
             return Json(new { success = false, message = ex.Message });

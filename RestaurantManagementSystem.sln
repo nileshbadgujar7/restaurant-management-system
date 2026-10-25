@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.0.31903.59
+VisualStudioVersion = 17.12.35527.113
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestaurantManagement.Web", "src\RestaurantManagement.Web\RestaurantManagement.Web.csproj", "{4D8A38F1-7C4E-4361-903D-94D93C0A0A05}"
 EndProject
@@ -13,6 +13,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestaurantManagement.API", "src\RestaurantManagement.API\RestaurantManagement.API.csproj", "{4D8A38F1-7C4E-4361-903D-94D93C0A0A04}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestaurantManagement.Tests", "tests\RestaurantManagement.Tests\RestaurantManagement.Tests.csproj", "{4D8A38F1-7C4E-4361-903D-94D93C0A0A06}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{D1C8F7E4-5A1B-4B6A-91C2-3E8F5A1B4B6A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{D1C8F7E4-5A1B-4B6A-91C2-3E8F5A1B4B6B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -47,5 +51,16 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{4D8A38F1-7C4E-4361-903D-94D93C0A0A05} = {D1C8F7E4-5A1B-4B6A-91C2-3E8F5A1B4B6A}
+		{4D8A38F1-7C4E-4361-903D-94D93C0A0A01} = {D1C8F7E4-5A1B-4B6A-91C2-3E8F5A1B4B6A}
+		{4D8A38F1-7C4E-4361-903D-94D93C0A0A02} = {D1C8F7E4-5A1B-4B6A-91C2-3E8F5A1B4B6A}
+		{4D8A38F1-7C4E-4361-903D-94D93C0A0A03} = {D1C8F7E4-5A1B-4B6A-91C2-3E8F5A1B4B6A}
+		{4D8A38F1-7C4E-4361-903D-94D93C0A0A04} = {D1C8F7E4-5A1B-4B6A-91C2-3E8F5A1B4B6A}
+		{4D8A38F1-7C4E-4361-903D-94D93C0A0A06} = {D1C8F7E4-5A1B-4B6A-91C2-3E8F5A1B4B6B}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B1C8F7E4-5A1B-4B6A-91C2-3E8F5A1B4B6C}
 	EndGlobalSection
 EndGlobal

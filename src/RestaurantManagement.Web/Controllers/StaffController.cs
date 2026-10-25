@@ -37,6 +37,66 @@ public class StaffController : Controller
         return View(model);
     }
 
+    [HttpGet]
+    [Route("Staff/Attendance")]
+    public async Task<IActionResult> Attendance()
+    {
+        return await Index(tab: "attendance");
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> MarkAllPresent()
+    {
+        try
+        {
+            var employees = (await _staffService.GetEmployeesAsync()).Where(e => e.IsActive).ToList();
+            var todayAttendances = (await _staffService.GetTodayAttendanceAsync()).ToDictionary(a => a.EmployeeId);
+
+            int markedCount = 0;
+            foreach (var emp in employees)
+            {
+                if (!todayAttendances.ContainsKey(emp.Id))
+                {
+                    await _staffService.RecordAttendanceAsync(emp.Id, "Present");
+                    markedCount++;
+                }
+            }
+            TempData["Success"] = markedCount > 0 
+                ? $"Marked {markedCount} staff members as Present for today!"
+                : "All active staff members are already marked for today.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+
+        return RedirectToAction(nameof(Index), new { tab = "attendance" });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> QuickMark(int employeeId, string status)
+    {
+        try
+        {
+            await _staffService.RecordAttendanceAsync(employeeId, status);
+            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest" || Request.ContentType?.Contains("json") == true)
+            {
+                return Json(new { success = true, status, message = $"Status updated to {status}" });
+            }
+            TempData["Success"] = $"Attendance set to '{status}'.";
+        }
+        catch (Exception ex)
+        {
+            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest" || Request.ContentType?.Contains("json") == true)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+            TempData["Error"] = ex.Message;
+        }
+
+        return RedirectToAction(nameof(Index), new { tab = "attendance" });
+    }
+
     [HttpPost]
     public async Task<IActionResult> CheckIn(int employeeId, string status = "Present")
     {

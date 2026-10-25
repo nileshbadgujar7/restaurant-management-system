@@ -1,6 +1,13 @@
 @model IEnumerable<BillDto>
 @{
     ViewData["Title"] = "Billing & Invoices";
+    var billsList = Model.OrderByDescending(b => b.BillDate).ToList();
+    int totalCount = billsList.Count;
+    int paidCount = billsList.Count(b => b.IsPaid);
+    int pendingCount = billsList.Count(b => !b.IsPaid);
+    decimal totalBilled = billsList.Sum(b => b.GrandTotal);
+    decimal totalPaid = billsList.Where(b => b.IsPaid).Sum(b => b.GrandTotal);
+    decimal totalPending = billsList.Where(b => !b.IsPaid).Sum(b => b.GrandTotal);
 }
 
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 animated-fade-in">
@@ -9,7 +16,7 @@
             <ol class="breadcrumb mb-1 fs-6">
                 <li class="breadcrumb-item">
                     <a href="/Dashboard" class="text-decoration-none fw-semibold text-success">
-                        <i class="fa-solid fa-chart-pie me-1" data-bs-toggle="tooltip" title="Dashboard"></i> Dashboard
+                        <i class="fa-solid fa-chart-pie me-1"></i> Dashboard
                     </a>
                 </li>
                 <li class="breadcrumb-item active fw-bold text-dark" aria-current="page">
@@ -21,13 +28,23 @@
             <i class="fa-solid fa-file-invoice-dollar text-success me-2"></i>Billing & Invoices
         </h2>
     </div>
-    <div>
+    <div class="d-flex gap-2">
         <a href="/Dashboard" class="btn btn-outline-secondary rounded-pill px-3 shadow-sm" data-bs-toggle="tooltip" title="Back to Dashboard">
-            <i class="fa-solid fa-arrow-left me-1"></i> Back to Dashboard
+            <i class="fa-solid fa-arrow-left me-1"></i> Dashboard
+        </a>
+        <a href="/Orders/POS" class="btn btn-success rounded-pill px-4 shadow-sm fw-bold">
+            <i class="fa-solid fa-cash-register me-1"></i> New POS Order
         </a>
     </div>
 </div>
 
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show rounded-4 border-0 shadow-sm mb-4" role="alert">
+        <i class="fa-solid fa-circle-check me-2"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
 @if (TempData["Error"] != null)
 {
     <div class="alert alert-danger alert-dismissible fade show rounded-4 border-0 shadow-sm mb-4" role="alert">
@@ -36,25 +53,97 @@
     </div>
 }
 
+<!-- KPI Cards -->
+<div class="row g-3 mb-4 animated-fade-in">
+    <div class="col-xl-3 col-sm-6">
+        <div class="metric-card-clean metric-card-sales-border">
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="metric-label metric-label-bold">TOTAL BILLED</span>
+                <span class="badge rounded-pill bg-light text-muted border">Invoices: @totalCount</span>
+            </div>
+            <div class="metric-value-bold mt-1">₹@totalBilled.ToString("N0")</div>
+            <div class="metric-desc-bold mt-1">Total revenue generated</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-sm-6">
+        <div class="metric-card-clean metric-card-orders-border">
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="metric-label metric-label-bold">SETTLED & PAID</span>
+                <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle fw-bold">@paidCount Paid</span>
+            </div>
+            <div class="metric-value-bold mt-1 text-success">₹@totalPaid.ToString("N0")</div>
+            <div class="metric-desc-bold mt-1">Cash, UPI & Card settlements</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-sm-6">
+        <div class="metric-card-clean metric-card-tables-border">
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="metric-label metric-label-bold">PENDING PAYMENT</span>
+                <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-bold">@pendingCount Due</span>
+            </div>
+            <div class="metric-value-bold mt-1 text-danger">₹@totalPending.ToString("N0")</div>
+            <div class="metric-desc-bold mt-1">Awaiting customer payment</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-sm-6">
+        <div class="metric-card-clean metric-card-completed-border">
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="metric-label metric-label-bold">COLLECTION RATE</span>
+                <span class="badge rounded-pill bg-purple-subtle text-purple border fw-bold" style="background:#f3e8ff; color:#7e22ce;">Efficiency</span>
+            </div>
+            @{
+                int collectionRate = totalBilled > 0 ? (int)Math.Round((double)totalPaid / (double)totalBilled * 100) : 100;
+            }
+            <div class="metric-value-bold mt-1">@collectionRate%</div>
+            <div class="metric-desc-bold mt-1">Payment recovery ratio</div>
+        </div>
+    </div>
+</div>
+
 <div class="glass-card p-4 animated-fade-in">
+    <!-- Header with Search & Filter Tabs -->
+    <div class="row g-3 align-items-center mb-3">
+        <div class="col-md-6">
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-sm btn-dark rounded-pill px-3 py-1 bill-filter-btn active" onclick="filterBills('all', this)">
+                    All Bills (@totalCount)
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 bill-filter-btn" onclick="filterBills('paid', this)">
+                    <i class="fa-solid fa-circle-check me-1"></i> Paid (@paidCount)
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-warning rounded-pill px-3 py-1 bill-filter-btn" onclick="filterBills('pending', this)">
+                    <i class="fa-solid fa-clock me-1"></i> Pending (@pendingCount)
+                </button>
+            </div>
+        </div>
+        <div class="col-md-6 d-flex justify-content-md-end">
+            <div class="input-group input-group-sm" style="max-width: 280px;">
+                <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                <input type="text" id="billSearchInput" class="form-control border-start-0" placeholder="Search invoice, table, or order..." onkeyup="applyBillFilters()" />
+            </div>
+        </div>
+    </div>
+
+    <!-- Bills Datagrid -->
     <div class="table-responsive">
-        <table class="table app-datagrid align-middle">
+        <table class="table app-datagrid align-middle mb-0" id="billsTable">
             <thead>
                 <tr>
                     <th>Invoice #</th>
                     <th>Order #</th>
-                    <th>Table</th>
+                    <th>Table / Dining</th>
                     <th>Date & Time</th>
-                    <th>Amount</th>
+                    <th>Subtotal & GST</th>
+                    <th>Grand Total</th>
                     <th>Payment Status</th>
                     <th class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
-                @if (!Model.Any())
+                @if (!billsList.Any())
                 {
                     <tr>
-                        <td colspan="7" class="text-center py-5 text-muted">
+                        <td colspan="8" class="text-center py-5 text-muted">
                             <i class="fa-solid fa-file-invoice-dollar fs-2 d-block mb-2 text-secondary opacity-50"></i>
                             <p class="small mb-0 text-muted">No invoices or bills generated yet.</p>
                         </td>
@@ -62,28 +151,70 @@
                 }
                 else
                 {
-                    @foreach (var bill in Model)
+                    @foreach (var bill in billsList)
                     {
-                        <tr>
-                            <td class="fw-bold text-dark">@bill.InvoiceNumber</td>
-                            <td><span class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle rounded-pill px-3 py-1">@bill.OrderNumber</span></td>
-                            <td>@(bill.TableNumber != null ? $"Table {bill.TableNumber}" : "Dine-in")</td>
-                            <td class="small text-secondary">@bill.BillDate.ToString("g")</td>
-                            <td class="fw-bold text-dark fs-6">₹@bill.GrandTotal.ToString("N0")</td>
+                        string filterCategory = bill.IsPaid ? "paid" : "pending";
+                        string cleanTableNo = string.IsNullOrEmpty(bill.TableNumber) ? "Dine-in" : (bill.TableNumber.Contains("Table") ? bill.TableNumber : "Table " + bill.TableNumber);
+
+                        <tr class="bill-row" data-status="@filterCategory" data-search="@bill.InvoiceNumber.ToLower() @bill.OrderNumber.ToLower() @cleanTableNo.ToLower()">
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="p-2 rounded-3 bg-light border text-success">
+                                        <i class="fa-solid fa-receipt fs-6"></i>
+                                    </div>
+                                    <span class="fw-bold text-dark fs-6">@bill.InvoiceNumber</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle rounded-pill px-3 py-1">
+                                    #@bill.OrderNumber
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge rounded-pill px-3 py-1 fw-semibold" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd;">
+                                    <i class="fa-solid fa-chair me-1"></i>@cleanTableNo
+                                </span>
+                            </td>
+                            <td class="small text-secondary">
+                                <div><i class="fa-regular fa-calendar me-1"></i>@bill.BillDate.ToString("dd-MMM-yyyy")</div>
+                                <div class="text-muted"><i class="fa-regular fa-clock me-1"></i>@bill.BillDate.ToString("hh:mm tt")</div>
+                            </td>
+                            <td class="small text-secondary">
+                                <div>Subtotal: ₹@bill.SubTotal.ToString("N0")</div>
+                                <div class="text-muted">GST (5%): ₹@((bill.CGST + bill.SGST).ToString("N0"))</div>
+                            </td>
+                            <td>
+                                <div class="fw-bold text-dark fs-5">₹@bill.GrandTotal.ToString("N0")</div>
+                            </td>
                             <td>
                                 @if (bill.IsPaid)
                                 {
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1"><i class="fa-solid fa-check me-1"></i> Paid</span>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1 fw-bold">
+                                        <i class="fa-solid fa-circle-check me-1"></i> Paid
+                                    </span>
                                 }
                                 else
                                 {
-                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-3 py-1"><i class="fa-solid fa-clock me-1"></i> Pending Payment</span>
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-3 py-1 fw-bold">
+                                        <i class="fa-solid fa-clock me-1"></i> Pending Payment
+                                    </span>
                                 }
                             </td>
                             <td class="text-end">
-                                <a href="/Billing/Invoice/@bill.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                                    <i class="fa-solid fa-eye me-1"></i> View Tax Invoice
-                                </a>
+                                <div class="d-inline-flex gap-1">
+                                    <a href="/Billing/Invoice/@bill.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold" title="View Full Tax Invoice">
+                                        <i class="fa-solid fa-eye me-1"></i> View
+                                    </a>
+                                    @if (!bill.IsPaid)
+                                    {
+                                        <button type="button" class="btn btn-sm btn-success rounded-pill px-3 fw-bold shadow-sm" onclick="openQuickPayModal(@bill.Id, '@bill.InvoiceNumber', @bill.GrandTotal)" title="Collect Payment Now">
+                                            <i class="fa-solid fa-credit-card me-1"></i> Pay
+                                        </button>
+                                    }
+                                    <a href="/Billing/Invoice/@bill.Id" onclick="setTimeout(() => window.print(), 500);" class="btn btn-sm btn-light border rounded-pill px-2" title="Print Invoice">
+                                        <i class="fa-solid fa-print"></i>
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                     }
@@ -92,3 +223,82 @@
         </table>
     </div>
 </div>
+
+<!-- Modal: Quick Settle Payment from Billing Index -->
+<div class="modal fade" id="quickPayModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <form asp-action="CollectPayment" method="post" class="modal-content rounded-4 border-0 shadow-lg text-dark">
+            <input type="hidden" name="BillId" id="quickBillId" value="" />
+            <input type="hidden" name="ReturnUrl" value="/Billing" />
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="fa-solid fa-credit-card text-success me-2"></i>Collect Payment - <span id="quickInvoiceNum"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="p-3 bg-light rounded-3 border mb-3 text-center">
+                    <span class="text-secondary small d-block">Total Payable Amount</span>
+                    <strong class="fs-2 text-success" id="quickPayAmountDisplay">₹0</strong>
+                    <input type="hidden" name="Amount" id="quickPayAmountInput" value="0" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-dark fw-bold small">Payment Method</label>
+                    <select name="PaymentMethod" class="form-select" id="quickPaymentMethodSelect">
+                        <option value="1">Cash</option>
+                        <option value="2">UPI / QR Code</option>
+                        <option value="3">Credit Card</option>
+                        <option value="4">Debit Card</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-dark fw-bold small">Transaction / Reference ID (Optional)</label>
+                    <input type="text" name="TransactionId" class="form-control" placeholder="UPI txn id / Card slip number..." />
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold">
+                    <i class="fa-solid fa-circle-check me-1"></i> Confirm & Settle Table
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    let currentBillFilter = 'all';
+
+    function filterBills(status, btn) {
+        currentBillFilter = status;
+        $('.bill-filter-btn').removeClass('active btn-dark btn-success btn-warning')
+                            .addClass('btn-outline-dark');
+        $(btn).removeClass('btn-outline-dark').addClass('active btn-dark');
+        applyBillFilters();
+    }
+
+    function applyBillFilters() {
+        let q = ($('#billSearchInput').val() || '').toLowerCase().trim();
+        $('.bill-row').each(function() {
+            let rowStatus = $(this).data('status');
+            let searchContent = $(this).data('search') || '';
+
+            let matchesStatus = (currentBillFilter === 'all') || (rowStatus === currentBillFilter);
+            let matchesSearch = !q || searchContent.includes(q);
+
+            $(this).toggle(matchesStatus && matchesSearch);
+        });
+    }
+
+    function openQuickPayModal(billId, invoiceNo, amount) {
+        $('#quickBillId').val(billId);
+        $('#quickInvoiceNum').text(invoiceNo);
+        $('#quickPayAmountDisplay').text('₹' + Number(amount).toLocaleString('en-IN'));
+        $('#quickPayAmountInput').val(amount);
+        new bootstrap.Modal(document.getElementById('quickPayModal')).show();
+    }
+</script>
+}

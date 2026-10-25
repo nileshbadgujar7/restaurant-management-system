@@ -49,17 +49,57 @@ public class BillingController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> CollectPayment(CollectPaymentDto dto)
+    public async Task<IActionResult> CollectPayment()
     {
+        bool isJson = Request.ContentType?.Contains("application/json") == true;
+        CollectPaymentDto dto;
+        string? returnUrl = null;
+
+        if (isJson)
+        {
+            using var reader = new StreamReader(Request.Body);
+            var json = await reader.ReadToEndAsync();
+            var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            dto = System.Text.Json.JsonSerializer.Deserialize<CollectPaymentDto>(json, options) ?? new CollectPaymentDto();
+        }
+        else
+        {
+            dto = new CollectPaymentDto
+            {
+                BillId = int.TryParse(Request.Form["BillId"], out int bid) ? bid : 0,
+                Amount = decimal.TryParse(Request.Form["Amount"], out decimal amt) ? amt : 0,
+                PaymentMethod = Enum.TryParse<RestaurantManagement.Domain.Enums.PaymentMethod>(Request.Form["PaymentMethod"], out var pm) ? pm : RestaurantManagement.Domain.Enums.PaymentMethod.Cash,
+                TransactionId = Request.Form["TransactionId"].ToString(),
+                Notes = Request.Form["Notes"].ToString()
+            };
+            returnUrl = Request.Form["ReturnUrl"].ToString();
+        }
+
         try
         {
-            await _billingService.CollectPaymentAsync(dto);
+            var bill = await _billingService.CollectPaymentAsync(dto);
+            if (isJson)
+            {
+                return Json(new { success = true, isPaid = bill.IsPaid, bill });
+            }
             TempData["Success"] = "Payment collected successfully! Table status updated to Available.";
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+            {
+                return Redirect(returnUrl);
+            }
             return RedirectToAction(nameof(Invoice), new { id = dto.BillId });
         }
         catch (Exception ex)
         {
+            if (isJson)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
             TempData["Error"] = ex.Message;
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+            {
+                return Redirect(returnUrl);
+            }
             return RedirectToAction(nameof(Invoice), new { id = dto.BillId });
         }
     }

@@ -22,12 +22,17 @@
             <i class="fa-solid fa-user-group text-primary me-2"></i>Staff & Attendance Management
         </h2>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex flex-wrap gap-2">
         <a href="/Dashboard" class="btn btn-outline-secondary rounded-pill px-3 shadow-sm" data-bs-toggle="tooltip" title="Back to Dashboard">
-            <i class="fa-solid fa-arrow-left me-1"></i> Back to Dashboard
+            <i class="fa-solid fa-arrow-left me-1"></i> Dashboard
         </a>
-        <button class="btn btn-success rounded-pill px-4 shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#markAttendanceModal">
-            <i class="fa-solid fa-clock me-1"></i> Mark Attendance
+        <form asp-action="MarkAllPresent" method="post" class="d-inline" onsubmit="return confirm('Mark all unmarked active staff members as Present for today?');">
+            <button type="submit" class="btn btn-success rounded-pill px-3 shadow-sm fw-bold">
+                <i class="fa-solid fa-bolt me-1"></i> Mark All Present
+            </button>
+        </form>
+        <button class="btn btn-outline-success rounded-pill px-3 shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#markAttendanceModal">
+            <i class="fa-solid fa-clock me-1"></i> Custom Check-In
         </button>
         <button class="btn btn-primary rounded-pill px-3 shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#addEmployeeModal">
             <i class="fa-solid fa-user-plus me-1"></i> Add Employee
@@ -108,78 +113,210 @@
     <div class="p-4">
         @if (Model.ActiveTab == "attendance")
         {
-            <!-- Attendance Section -->
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-clipboard-user text-success me-2"></i>Daily Attendance Register - @DateTime.Now.ToString("dd MMM yyyy")</h5>
-                <span class="text-muted small">Shift Grace: 10 mins &bull; Business Day IST</span>
+            var activeEmployees = Model.Employees.Where(e => e.IsActive).OrderBy(e => e.Name).ToList();
+            var attMap = Model.Attendances.ToDictionary(a => a.EmployeeId);
+            int presentCount = activeEmployees.Count(e => attMap.TryGetValue(e.Id, out var a) && (a.Status == "Present" || a.Status == "Late"));
+            int unmarkedCount = activeEmployees.Count(e => !attMap.ContainsKey(e.Id));
+            int leaveCount = activeEmployees.Count(e => attMap.TryGetValue(e.Id, out var a) && (a.Status == "Leave" || a.Status == "Half day"));
+            int checkedOutCount = activeEmployees.Count(e => attMap.TryGetValue(e.Id, out var a) && a.Status == "Checked Out");
+
+            <!-- Attendance Controls & Stats Header -->
+            <div class="row g-3 align-items-center mb-3">
+                <div class="col-md-6">
+                    <h5 class="fw-bold text-dark mb-1">
+                        <i class="fa-solid fa-clipboard-user text-success me-2"></i>Daily Attendance Register
+                    </h5>
+                    <div class="text-muted small">
+                        <span><i class="fa-regular fa-calendar me-1"></i>@DateTime.Now.ToString("dddd, dd MMMM yyyy")</span>
+                        <span class="mx-2">&bull;</span>
+                        <span>Shift Grace: 10 mins (IST)</span>
+                    </div>
+                </div>
+                <div class="col-md-6 d-flex justify-content-md-end gap-2">
+                    <div class="input-group input-group-sm" style="max-width: 260px;">
+                        <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                        <input type="text" id="attSearch" class="form-control border-start-0" placeholder="Search staff name or role..." onkeyup="filterAttendanceTable()" />
+                    </div>
+                </div>
             </div>
 
+            <!-- Quick Filter Badges -->
+            <div class="d-flex flex-wrap gap-2 mb-3 pb-2 border-bottom">
+                <button type="button" class="btn btn-sm btn-dark rounded-pill px-3 py-1 att-filter-btn active" onclick="filterByStatus('all', this)">
+                    All Active (@activeEmployees.Count)
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 att-filter-btn" onclick="filterByStatus('present', this)">
+                    <i class="fa-solid fa-circle-check me-1"></i> Present (@presentCount)
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-warning rounded-pill px-3 py-1 att-filter-btn" onclick="filterByStatus('unmarked', this)">
+                    <i class="fa-solid fa-clock me-1"></i> Not Marked (@unmarkedCount)
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-3 py-1 att-filter-btn" onclick="filterByStatus('leave', this)">
+                    <i class="fa-solid fa-calendar-xmark me-1"></i> Leave / Half Day (@leaveCount)
+                </button>
+                @if (checkedOutCount > 0)
+                {
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 att-filter-btn" onclick="filterByStatus('checkedout', this)">
+                        <i class="fa-solid fa-right-from-bracket me-1"></i> Checked Out (@checkedOutCount)
+                    </button>
+                }
+            </div>
+
+            <!-- Attendance Data Table -->
             <div class="table-responsive">
-                <table class="table app-datagrid align-middle mb-0">
+                <table class="table app-datagrid align-middle mb-0" id="attendanceTable">
                     <thead>
                         <tr>
                             <th>Staff Member</th>
                             <th>Role & Shift</th>
-                            <th>Check-In Time</th>
-                            <th>Check-Out Time</th>
-                            <th>Status</th>
-                            <th class="text-end">Actions</th>
+                            <th>Today's Status</th>
+                            <th>Check-In</th>
+                            <th>Check-Out</th>
+                            <th class="text-end">Quick Action / Change</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @if (!Model.Attendances.Any())
+                        @if (!activeEmployees.Any())
                         {
                             <tr>
                                 <td colspan="6" class="text-center py-5 text-muted">
-                                    <i class="fa-solid fa-user-clock fs-2 mb-2 text-secondary opacity-50"></i>
-                                    <p class="mb-0 fw-semibold">No attendance entries recorded today.</p>
-                                    <span class="small">Click "Mark Attendance" above to log staff check-in.</span>
+                                    <i class="fa-solid fa-users-slash fs-2 mb-2 text-secondary opacity-50"></i>
+                                    <p class="mb-0 fw-semibold">No active staff registered.</p>
+                                    <span class="small">Click "Add Employee" to register staff.</span>
                                 </td>
                             </tr>
                         }
-                        @foreach (var att in Model.Attendances)
+                        @foreach (var emp in activeEmployees)
                         {
-                            var emp = Model.Employees.FirstOrDefault(e => e.Id == att.EmployeeId);
-                            string badgeClass = att.Status switch {
-                                "Present" => "bg-success-subtle text-success border border-success-subtle",
-                                "Late" => "bg-warning-subtle text-warning-emphasis border border-warning-subtle",
-                                "Checked Out" => "bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle",
-                                "Leave" => "bg-info-subtle text-info-emphasis border border-info-subtle",
-                                _ => "bg-danger-subtle text-danger border border-danger-subtle"
+                            bool hasAtt = attMap.TryGetValue(emp.Id, out var att);
+                            string currentStatus = hasAtt ? (att!.Status ?? "Present") : "Not Marked";
+                            string filterCategory = hasAtt 
+                                ? (att!.Status == "Present" || att!.Status == "Late" ? "present" : (att!.Status == "Checked Out" ? "checkedout" : "leave"))
+                                : "unmarked";
+
+                            string statusBadge = currentStatus switch {
+                                "Present" => "background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;",
+                                "Late" => "background: #fef3c7; color: #b45309; border: 1px solid #fde68a;",
+                                "Checked Out" => "background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;",
+                                "Leave" => "background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca;",
+                                "Half day" => "background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff;",
+                                _ => "background: #fffbeb; color: #d97706; border: 1px solid #fde68a;"
                             };
 
-                            <tr>
+                            <tr class="attendance-row" data-status="@filterCategory" data-name="@emp.Name.ToLower()" data-role="@emp.Role.ToString().ToLower()">
                                 <td>
-                                    <div class="fw-bold text-dark">@(att.EmployeeName ?? emp?.Name ?? $"Staff #{att.EmployeeId}")</div>
-                                    <div class="small text-muted">@(emp?.Phone ?? "—")</div>
-                                </td>
-                                <td>
-                                    <span class="badge bg-light text-dark border rounded-pill px-3 py-1">@(emp?.Role.ToString() ?? "Staff")</span>
-                                    <span class="small text-secondary ms-1">(@(emp?.Shift ?? "General"))</span>
-                                </td>
-                                <td class="fw-semibold text-dark">
-                                    @(att.CheckInTime != default ? att.CheckInTime.ToLocalTime().ToString("hh:mm tt") : "—")
-                                </td>
-                                <td class="fw-semibold text-secondary">
-                                    @(att.CheckOutTime.HasValue ? att.CheckOutTime.Value.ToLocalTime().ToString("hh:mm tt") : "—")
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm" style="width: 38px; height: 38px; font-size: 0.85rem; background: linear-gradient(135deg, #059669, #10b981);">
+                                            @(emp.Name.Length > 0 ? emp.Name.Substring(0, 1).ToUpper() : "S")
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold text-dark">@emp.Name</div>
+                                            <div class="small text-muted"><i class="fa-solid fa-phone me-1"></i>@(emp.Phone ?? "—")</div>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td>
-                                    <span class="badge rounded-pill px-3 py-1 fw-bold @badgeClass">@att.Status</span>
+                                    <span class="badge bg-light text-dark border rounded-pill px-3 py-1 fw-semibold">@emp.Role</span>
+                                    <span class="small text-secondary ms-1">(@emp.Shift)</span>
+                                </td>
+                                <td>
+                                    <span class="badge rounded-pill px-3 py-1 fw-bold" style="@statusBadge font-size: 0.78rem;">
+                                        @if (currentStatus == "Present") { <i class="fa-solid fa-circle-check me-1"></i> }
+                                        else if (currentStatus == "Late") { <i class="fa-solid fa-triangle-exclamation me-1"></i> }
+                                        else if (currentStatus == "Not Marked") { <i class="fa-solid fa-hourglass-start me-1"></i> }
+                                        else if (currentStatus == "Checked Out") { <i class="fa-solid fa-arrow-right-from-bracket me-1"></i> }
+                                        @currentStatus
+                                    </span>
+                                </td>
+                                <td class="fw-semibold text-dark small">
+                                    @(hasAtt && att!.CheckInTime != default ? att.CheckInTime.ToLocalTime().ToString("hh:mm tt") : "—")
+                                </td>
+                                <td class="fw-semibold text-secondary small">
+                                    @(hasAtt && att!.CheckOutTime.HasValue ? att.CheckOutTime.Value.ToLocalTime().ToString("hh:mm tt") : "—")
                                 </td>
                                 <td class="text-end">
-                                    @if (!att.CheckOutTime.HasValue && att.Status != "Checked Out")
-                                    {
-                                        <form asp-action="CheckOut" method="post" class="d-inline">
-                                            <input type="hidden" name="employeeId" value="@att.EmployeeId" />
-                                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3" title="Clock out staff">
-                                                <i class="fa-solid fa-right-from-bracket me-1"></i> Clock Out
-                                            </button>
-                                        </form>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-light text-muted border rounded-pill px-3 py-1">Shift Completed</span>
-                                    }
+                                    <div class="d-inline-flex gap-1">
+                                        @if (!hasAtt || currentStatus == "Not Marked")
+                                        {
+                                            <form asp-action="QuickMark" method="post" class="d-inline">
+                                                <input type="hidden" name="employeeId" value="@emp.Id" />
+                                                <input type="hidden" name="status" value="Present" />
+                                                <button type="submit" class="btn btn-sm btn-success rounded-pill px-2 py-1 fw-semibold" title="Mark Present">
+                                                    <i class="fa-solid fa-check"></i> Present
+                                                </button>
+                                            </form>
+                                            <form asp-action="QuickMark" method="post" class="d-inline">
+                                                <input type="hidden" name="employeeId" value="@emp.Id" />
+                                                <input type="hidden" name="status" value="Late" />
+                                                <button type="submit" class="btn btn-sm btn-outline-warning rounded-pill px-2 py-1" title="Mark Late">
+                                                    Late
+                                                </button>
+                                            </form>
+                                            <form asp-action="QuickMark" method="post" class="d-inline">
+                                                <input type="hidden" name="employeeId" value="@emp.Id" />
+                                                <input type="hidden" name="status" value="Leave" />
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1" title="Mark Leave">
+                                                    Leave
+                                                </button>
+                                            </form>
+                                        }
+                                        else if (currentStatus == "Checked Out")
+                                        {
+                                            <span class="badge bg-light text-muted border rounded-pill px-3 py-1">Shift Ended</span>
+                                            <form asp-action="QuickMark" method="post" class="d-inline">
+                                                <input type="hidden" name="employeeId" value="@emp.Id" />
+                                                <input type="hidden" name="status" value="Present" />
+                                                <button type="submit" class="btn btn-sm btn-outline-success rounded-pill px-2 py-1" title="Reopen Shift">
+                                                    Reopen
+                                                </button>
+                                            </form>
+                                        }
+                                        else
+                                        {
+                                            <!-- Currently Active on shift -->
+                                            <form asp-action="CheckOut" method="post" class="d-inline">
+                                                <input type="hidden" name="employeeId" value="@emp.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1 fw-semibold" title="Clock out employee">
+                                                    <i class="fa-solid fa-right-from-bracket me-1"></i> Clock Out
+                                                </button>
+                                            </form>
+                                            <div class="dropdown d-inline">
+                                                <button class="btn btn-sm btn-light border rounded-pill px-2 py-1 dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Change status">
+                                                    Edit
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                                    <li>
+                                                        <form asp-action="QuickMark" method="post">
+                                                            <input type="hidden" name="employeeId" value="@emp.Id" />
+                                                            <input type="hidden" name="status" value="Present" />
+                                                            <button type="submit" class="dropdown-item small text-success"><i class="fa-solid fa-check me-2"></i> Present</button>
+                                                        </form>
+                                                    </li>
+                                                    <li>
+                                                        <form asp-action="QuickMark" method="post">
+                                                            <input type="hidden" name="employeeId" value="@emp.Id" />
+                                                            <input type="hidden" name="status" value="Late" />
+                                                            <button type="submit" class="dropdown-item small text-warning"><i class="fa-solid fa-clock me-2"></i> Late</button>
+                                                        </form>
+                                                    </li>
+                                                    <li>
+                                                        <form asp-action="QuickMark" method="post">
+                                                            <input type="hidden" name="employeeId" value="@emp.Id" />
+                                                            <input type="hidden" name="status" value="Half day" />
+                                                            <button type="submit" class="dropdown-item small text-purple"><i class="fa-solid fa-adjust me-2"></i> Half Day</button>
+                                                        </form>
+                                                    </li>
+                                                    <li>
+                                                        <form asp-action="QuickMark" method="post">
+                                                            <input type="hidden" name="employeeId" value="@emp.Id" />
+                                                            <input type="hidden" name="status" value="Leave" />
+                                                            <button type="submit" class="dropdown-item small text-danger"><i class="fa-solid fa-calendar-xmark me-2"></i> Leave</button>
+                                                        </form>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        }
+                                    </div>
                                 </td>
                             </tr>
                         }
@@ -343,3 +480,35 @@
         </form>
     </div>
 </div>
+
+@section Scripts {
+<script>
+    let currentStatusFilter = 'all';
+
+    function filterByStatus(status, btn) {
+        currentStatusFilter = status;
+        $('.att-filter-btn').removeClass('active btn-dark btn-success btn-warning btn-info btn-secondary')
+                           .addClass('btn-outline-dark');
+        $(btn).removeClass('btn-outline-dark').addClass('active btn-dark');
+        applyAttendanceFilters();
+    }
+
+    function filterAttendanceTable() {
+        applyAttendanceFilters();
+    }
+
+    function applyAttendanceFilters() {
+        let q = ($('#attSearch').val() || '').toLowerCase().trim();
+        $('.attendance-row').each(function() {
+            let rowStatus = $(this).data('status');
+            let rowName = $(this).data('name') || '';
+            let rowRole = $(this).data('role') || '';
+
+            let matchesStatus = (currentStatusFilter === 'all') || (rowStatus === currentStatusFilter);
+            let matchesSearch = !q || rowName.includes(q) || rowRole.includes(q);
+
+            $(this).toggle(matchesStatus && matchesSearch);
+        });
+    }
+</script>
+}
