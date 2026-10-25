@@ -385,12 +385,17 @@ public class OrderService : IOrderService
         // Add any new items provided in Section B
         if (newItems != null && newItems.Any())
         {
-            foreach (var itemDto in newItems)
+            var existingPending = await _unitOfWork.OrderItems.FindAsync(i => i.OrderId == orderId && !i.IsDeleted && i.Status == OrderItemStatus.Pending);
+            // If this is a draft and pending items are already saved in the order, don't duplicate
+            if (!order.IsDraft || !existingPending.Any())
             {
-                await AddItemToOrderInternalAsync(order, itemDto);
+                foreach (var itemDto in newItems)
+                {
+                    await AddItemToOrderInternalAsync(order, itemDto);
+                }
+                await _unitOfWork.SaveChangesAsync();
+                await RecalculateOrderTotalsAsync(order);
             }
-            await _unitOfWork.SaveChangesAsync();
-            await RecalculateOrderTotalsAsync(order);
         }
 
         // If order was a draft, convert it to active confirmed order!

@@ -47,4 +47,35 @@ public class KitchenController : Controller
         }
         return RedirectToAction(nameof(Index));
     }
+
+    [HttpPost]
+    public async Task<IActionResult> UpdateKOTItem([FromBody] UpdateKOTItemRequest req)
+    {
+        try
+        {
+            var kotItem = await _unitOfWork.KOTItems.GetByIdAsync(req.KOTItemId);
+            if (kotItem == null) return Json(new { success = false, message = "KOT item not found." });
+
+            if (req.Quantity.HasValue && req.Quantity.Value > 0)
+                kotItem.Quantity = req.Quantity.Value;
+            if (req.SpecialInstructions != null)
+                kotItem.SpecialInstructions = req.SpecialInstructions;
+
+            await _unitOfWork.KOTItems.UpdateAsync(kotItem);
+            await _unitOfWork.SaveChangesAsync();
+            return Json(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { success = false, message = ex.Message });
+        }
+    }
 }
+
+public class UpdateKOTItemRequest
+{
+    public int KOTItemId { get; set; }
+    public int? Quantity { get; set; }
+    public string? SpecialInstructions { get; set; }
+}
+

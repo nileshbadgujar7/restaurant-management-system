@@ -314,4 +314,37 @@ public class MastersController : Controller
         }
         return RedirectToAction(nameof(Index), new { tab = "inventory" });
     }
+
+    // ================= JSON API Endpoints for POS / Dashboard =================
+    [AllowAnonymous]
+    [HttpGet]
+    public async Task<IActionResult> GetMenuItems()
+    {
+        var items = await _menuService.GetMenuItemsAsync();
+        var result = items.Select(i => new {
+            id = i.Id,
+            name = i.Name,
+            price = i.Price,
+            categoryName = i.CategoryName,
+            isAvailable = i.IsAvailable,
+            isVeg = i.IsVeg
+        });
+        return Json(new { success = true, items = result });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetMenuItemDetails(int id)
+    {
+        try
+        {
+            var items = await _menuService.GetMenuItemsAsync();
+            var item = items.FirstOrDefault(i => i.Id == id);
+            if (item == null) return NotFound(new { success = false });
+            return Json(new { success = true, variants = item.Variants ?? new List<MenuItemVariantDto>(), addOns = item.AddOns ?? new List<AddOnDto>() });
+        }
+        catch
+        {
+            return Json(new { success = false });
+        }
+    }
 }

@@ -102,6 +102,23 @@ public class OrdersController : Controller
     {
         try
         {
+            if (dto.OrderType == OrderType.DineIn && (!dto.TableId.HasValue || dto.TableId.Value <= 0))
+            {
+                return Json(new { success = false, message = "Table must be selected for Dine-in orders." });
+            }
+            if (dto.Items == null || !dto.Items.Any())
+            {
+                return Json(new { success = false, message = "At least one item must be added to the order." });
+            }
+            if (dto.Items.Any(i => i.Quantity <= 0))
+            {
+                return Json(new { success = false, message = "All item quantities must be at least 1." });
+            }
+            if (dto.OrderType == OrderType.Takeaway && string.IsNullOrWhiteSpace(dto.CustomerName))
+            {
+                return Json(new { success = false, message = "Customer name is required for parcel orders." });
+            }
+
             var order = await _orderService.CreateOrderAsync(dto);
             return Json(new { success = true, orderId = order.Id, orderNumber = order.OrderNumber, order });
         }
@@ -171,6 +188,18 @@ public class OrdersController : Controller
                 }
             }
 
+            // If orderId was found or passed, check if it's a draft order
+            if (orderId > 0)
+            {
+                var existingOrder = await _orderService.GetOrderByIdAsync(orderId);
+                if (existingOrder != null && existingOrder.IsDraft)
+                {
+                    // For a draft order, items in the draft have already been saved to the database via SaveDraft.
+                    // Passing itemsToSend again to SendKOTAsync causes them to be added a second time!
+                    itemsToSend = null;
+                }
+            }
+
             // If still no order exists for this table, check for draft or create initial order
             if (orderId <= 0 && dto.TableId.HasValue)
             {
@@ -178,16 +207,17 @@ public class OrdersController : Controller
                 if (draft != null)
                 {
                     orderId = draft.Id;
+                    itemsToSend = null; // Already added as draft items
                 }
                 else
                 {
                     var newDraft = await _orderService.SaveDraftAsync(new SaveDraftOrderDto
                     {
                         TableId = dto.TableId.Value,
-                        Covers = dto.Covers > 0 ? dto.Covers : 2,
+                        Covers = dto.Covers > 0 ? dto.Covers : 1,
                         OrderNote = dto.OrderNote ?? dto.Notes,
                         UserName = dto.WaiterName ?? "Staff",
-                        Items = itemsToSend
+                        Items = itemsToSend ?? new List<CreateOrderItemDto>()
                     });
                     orderId = newDraft.Id;
                     itemsToSend = null; // Already added as draft items
@@ -360,4 +390,96 @@ public class OrdersController : Controller
             return Json(new { success = false, message = ex.Message });
         }
     }
+
+    [HttpGet]
+    public async Task<IActionResult> GetParcelOrders()
+    {
+        try
+        {
+            var allOrders = await _orderService.GetOrdersAsync(type: OrderType.Takeaway);
+            var activeOrders = allOrders
+                .Where(o => o.Status != OrderStatus.Completed && o.Status != OrderStatus.Cancelled)
+                .OrderByDescending(o => o.CreatedAt)
+                .Select(o => new {
+                    id = o.Id,
+                    orderNumber = o.OrderNumber,
+                    customerName = o.CustomerName,
+                    customerPhone = o.CustomerPhone,
+                    totalItems = o.Items.Count,
+                    grandTotal = o.GrandTotal,
+                    status = o.Status.ToString(),
+                    createdAt = o.CreatedAt
+                });
+            return Json(new { success = true, orders = activeOrders });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> UpdateOrderItem([FromBody] UpdateOrderItemRequest req)
+    {
+        try
+        {
+            if (req.OrderItemId <= 0) return Json(new { success = false, message = "Invalid Item ID." });
+            var item = await _unitOfWork.OrderItems.GetByIdAsync(req.OrderItemId);
+            if (item == null || item.IsDeleted) return Json(new { success = false, message = "Item not found." });
+
+            if (req.Quantity.HasValue && req.Quantity.Value > 0)
+            {
+                item.Quantity = req.Quantity.Value;
+                item.TotalPrice = item.UnitPrice * item.Quantity;
+
+                var kotItems = await _unitOfWork.KOTItems.FindAsync(k => k.OrderItemId == item.Id && !k.IsDeleted);
+                foreach (var ki in kotItems)
+                {
+                    ki.Quantity = item.Quantity;
+                    await _unitOfWork.KOTItems.UpdateAsync(ki);
+                }
+            }
+
+            if (req.SpecialInstructions != null)
+            {
+                item.SpecialInstructions = req.SpecialInstructions;
+                var kotItems = await _unitOfWork.KOTItems.FindAsync(k => k.OrderItemId == item.Id && !k.IsDeleted);
+                foreach (var ki in kotItems)
+                {
+                    ki.SpecialInstructions = item.SpecialInstructions;
+                    await _unitOfWork.KOTItems.UpdateAsync(ki);
+                }
+            }
+
+            await _unitOfWork.OrderItems.UpdateAsync(item);
+            await _unitOfWork.SaveChangesAsync();
+
+            var order = await _unitOfWork.Orders.GetByIdAsync(item.OrderId);
+            if (order != null)
+            {
+                var allItems = await _unitOfWork.OrderItems.FindAsync(i => i.OrderId == order.Id && !i.IsDeleted && i.Status != OrderItemStatus.Cancelled);
+                order.SubTotal = allItems.Sum(i => i.TotalPrice);
+                order.TotalTax = Math.Round(order.SubTotal * 0.05m, 2);
+                order.CGST = Math.Round(order.TotalTax / 2m, 2);
+                order.SGST = order.TotalTax - order.CGST;
+                order.GrandTotal = Math.Round(order.SubTotal + order.TotalTax - order.DiscountAmount + order.PackagingCharge + order.DeliveryCharge, 0);
+                order.UpdatedAt = DateTime.UtcNow;
+                await _unitOfWork.Orders.UpdateAsync(order);
+                await _unitOfWork.SaveChangesAsync();
+            }
+
+            return Json(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { success = false, message = ex.Message });
+        }
+    }
+}
+
+public class UpdateOrderItemRequest
+{
+    public int OrderItemId { get; set; }
+    public int? Quantity { get; set; }
+    public string? SpecialInstructions { get; set; }
 }

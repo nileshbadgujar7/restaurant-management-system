@@ -23,18 +23,7 @@
             <i class="fa-regular fa-calendar text-muted"></i>
             <span id="headerClockDate">@DateTime.Now.ToString("ddd, MMM dd, yyyy - hh:mm tt")</span>
         </div>
-        @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Waiter") || User.IsInRole("Cashier"))
-        {
-            <a href="/Orders/POS?returnUrl=/Dashboard" class="btn btn-sm text-white fw-bold px-3 py-2 rounded-pill shadow-sm d-flex align-items-center gap-1" style="background-color: #00796b; border: none; font-size: 0.85rem;">
-                <i class="fa-solid fa-plus"></i> New Order
-            </a>
-        }
-        @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("KitchenStaff") || User.IsInRole("Cook"))
-        {
-            <a href="/Kitchen" class="btn btn-sm text-white fw-bold px-3 py-2 rounded-pill shadow-sm d-flex align-items-center gap-1" style="background-color: #b45309; border: none; font-size: 0.85rem;">
-                Kitchen KDS
-            </a>
-        }
+
 
         <!-- Live Role Display & Switcher (FR-AUTH-05) -->
         <div class="dropdown position-relative" style="z-index: 1055;">
@@ -506,9 +495,6 @@
             <h5 class="fw-bold mb-3 text-dark">Quick Actions</h5>
 
             <div class="d-flex flex-column gap-2">
-                <a href="/Orders/POS?returnUrl=/Dashboard" class="btn text-white quick-action-btn-styled" style="background-color: #00796b;">
-                    <i class="fa-solid fa-plus"></i> New Order
-                </a>
                 <a href="/Masters?tab=menu&openAdd=true&returnUrl=/Dashboard" class="btn text-white quick-action-btn-styled" style="background-color: #c2410c;">
                     <i class="fa-solid fa-plus"></i> Add Menu Item
                 </a>
@@ -518,6 +504,9 @@
                 <a href="/Reports" class="btn text-white quick-action-btn-styled" style="background-color: #1d4ed8;">
                     <i class="fa-solid fa-square-poll-vertical"></i> View Reports
                 </a>
+                <button onclick="openParcelModal()" class="btn text-white quick-action-btn-styled" style="background-color: #0f766e;">
+                    <i class="fa-solid fa-box-open"></i> New Parcel Order
+                </button>
             </div>
         </div>
     </div>
@@ -567,6 +556,100 @@
                         <p class="small mb-0 text-muted">All inventory items sufficiently stocked.</p>
                     </div>
                 }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Parcel/Takeaway Section -->
+<div class="row g-4 mb-4 anim-section anim-delay-6">
+    <div class="col-12">
+        <div class="dashboard-widget-card h-100">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div class="d-flex align-items-center gap-2">
+                    <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-box-open text-teal me-2" style="color:#0f766e;"></i>Parcel / Takeaway Orders</h5>
+                    <span class="badge rounded-pill" style="background:#ccfbf1; color:#0f766e; font-weight:600; font-size:0.725rem;">Manage Walk-in Parcels</span>
+                </div>
+                <button onclick="openParcelModal()" class="btn btn-sm text-white fw-bold px-3 py-2 rounded-pill shadow-sm d-flex align-items-center gap-1" style="background-color:#0f766e; font-size:0.85rem;">
+                    <i class="fa-solid fa-plus"></i> New Parcel Order
+                </button>
+            </div>
+            <div id="parcelOrdersList">
+                <div class="text-center py-4 text-muted">
+                    <i class="fa-solid fa-box-open fs-2 d-block mb-2 text-secondary opacity-50"></i>
+                    <p class="small mb-0">No active parcel orders. Click "New Parcel Order" to start one.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Parcel Order Modal -->
+<div class="modal fade" id="parcelModal" tabindex="-1" aria-labelledby="parcelModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 shadow-lg border-0">
+            <div class="modal-header border-0 pb-0" style="background: linear-gradient(135deg,#0f766e,#14b8a6); border-radius: 1rem 1rem 0 0;">
+                <h5 class="modal-title fw-bold text-white" id="parcelModalLabel">
+                    <i class="fa-solid fa-box-open me-2"></i>New Parcel / Takeaway Order
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row g-3">
+                    <!-- Customer Details -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small text-secondary">Customer Name <span class="text-danger">*</span></label>
+                        <input type="text" id="parcelCustomerName" class="form-control" placeholder="Enter customer name" maxlength="100" />
+                        <div class="invalid-feedback" id="parcelCustomerNameError">Customer name is required.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small text-secondary">Phone Number <span class="text-danger">*</span></label>
+                        <input type="tel" id="parcelCustomerPhone" class="form-control" placeholder="10-digit mobile number" maxlength="15" />
+                        <div class="invalid-feedback" id="parcelCustomerPhoneError">Valid phone number is required.</div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-bold small text-secondary">Order Note</label>
+                        <input type="text" id="parcelOrderNote" class="form-control" placeholder="Special instructions (optional)" maxlength="250" />
+                    </div>
+                </div>
+
+                <hr class="my-3" />
+
+                <!-- Menu Items -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-bold small text-secondary text-uppercase" style="letter-spacing:0.5px;"><i class="fa-solid fa-utensils text-success me-1"></i>Add Items</span>
+                    <span class="badge bg-primary-subtle text-primary rounded-pill small" id="parcelItemCount">0 Items</span>
+                </div>
+                <div class="input-group input-group-sm mb-2" style="max-width:300px;">
+                    <span class="input-group-text bg-light"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                    <input type="text" id="parcelMenuSearch" class="form-control" placeholder="Search dish..." onkeyup="filterParcelMenu()" />
+                </div>
+                <div class="border rounded-3 mb-3" style="max-height:220px; overflow-y:auto;" id="parcelMenuList">
+                    <div class="text-center py-3 text-muted small"><i class="fa-solid fa-spinner fa-spin"></i> Loading menu...</div>
+                </div>
+
+                <!-- Selected Items -->
+                <div id="parcelSelectedItems">
+                    <div class="text-center py-3 text-muted small border rounded-3 bg-light" id="parcelEmptyItems">
+                        <i class="fa-solid fa-cart-shopping fs-4 text-secondary opacity-50 mb-1"></i><br>
+                        Tap any dish above to add it here.
+                    </div>
+                </div>
+
+                <!-- Totals -->
+                <div class="row g-1 mt-3 small text-secondary" id="parcelTotalsRow" style="display:none;">
+                    <div class="col-6 d-flex justify-content-between"><span>Subtotal:</span><strong class="text-dark" id="parcelSubtotal">₹0.00</strong></div>
+                    <div class="col-6 d-flex justify-content-between"><span>GST (5%):</span><strong class="text-dark" id="parcelTax">₹0.00</strong></div>
+                    <div class="col-12 border-top pt-1 mt-1 d-flex justify-content-between align-items-center fs-5 fw-bold text-dark">
+                        <span>Grand Total:</span><span class="text-success" id="parcelGrandTotal">₹0.00</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn text-white fw-bold rounded-pill px-4 shadow-sm" style="background:#0f766e;" onclick="submitParcelOrder()" id="parcelSubmitBtn">
+                    <i class="fa-solid fa-paper-plane me-1"></i> Send KOT & Create Parcel
+                </button>
             </div>
         </div>
     </div>
@@ -734,5 +817,285 @@
             });
         }
     });
+
+    // =============================
+    // PARCEL ORDER FUNCTIONALITY
+    // =============================
+    let parcelMenuItems = [];
+    let parcelCart = [];
+
+    function openParcelModal() {
+        parcelCart = [];
+        $('#parcelCustomerName').val('').removeClass('is-invalid is-valid');
+        $('#parcelCustomerPhone').val('').removeClass('is-invalid is-valid');
+        $('#parcelOrderNote').val('');
+        renderParcelCart();
+        loadParcelMenu();
+        var modal = new bootstrap.Modal(document.getElementById('parcelModal'));
+        modal.show();
+    }
+
+    function loadParcelMenu() {
+        if (parcelMenuItems.length > 0) {
+            renderParcelMenuList();
+            return;
+        }
+        $.get('/Masters/GetMenuItems', function(res) {
+            if (res && res.items) {
+                parcelMenuItems = res.items.filter(i => i.isAvailable);
+            } else if (Array.isArray(res)) {
+                parcelMenuItems = res.filter(i => i.isAvailable);
+            } else {
+                parcelMenuItems = [];
+            }
+            renderParcelMenuList();
+        }).fail(function() {
+            $('#parcelMenuList').html('<div class="text-center py-3 text-muted small"><i class="fa-solid fa-triangle-exclamation text-warning me-1"></i>Could not load menu. Please try again.</div>');
+        });
+    }
+
+    function filterParcelMenu() {
+        let q = $('#parcelMenuSearch').val().toLowerCase();
+        $('#parcelMenuList .parcel-menu-item').each(function() {
+            let name = $(this).data('name') || '';
+            $(this).toggle(name.includes(q));
+        });
+    }
+
+    function renderParcelMenuList() {
+        if (!parcelMenuItems.length) {
+            $('#parcelMenuList').html('<div class="text-center py-3 text-muted small">No menu items available.</div>');
+            return;
+        }
+        let html = '<div class="list-group list-group-flush">';
+        parcelMenuItems.forEach(item => {
+            html += `
+                <div class="list-group-item list-group-item-action parcel-menu-item d-flex justify-content-between align-items-center py-2 px-3"
+                     data-name="${(item.name||'').toLowerCase()}" style="cursor:pointer;" onclick="addToParcelCart(${item.id},'${(item.name||'').replace(/'/g,"\\'")}}',${item.price})">
+                    <div>
+                        <span class="fw-bold text-dark small">${item.name}</span>
+                        <span class="badge bg-light text-secondary border ms-1 small">${item.categoryName||''}</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="fw-bold text-success small">₹${item.price}</span>
+                        <button class="btn btn-sm btn-outline-primary rounded-pill px-2 py-0" title="Add">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+                </div>`;
+        });
+        html += '</div>';
+        $('#parcelMenuList').html(html);
+    }
+
+    function addToParcelCart(id, name, price) {
+        let existing = parcelCart.find(i => i.id === id);
+        if (existing) {
+            existing.qty++;
+        } else {
+            parcelCart.push({ id: id, name: name, price: price, qty: 1, note: '' });
+        }
+        renderParcelCart();
+    }
+
+    function updateParcelQty(idx, delta) {
+        parcelCart[idx].qty += delta;
+        if (parcelCart[idx].qty <= 0) {
+            parcelCart.splice(idx, 1);
+        }
+        renderParcelCart();
+    }
+
+    function renderParcelCart() {
+        let container = $('#parcelSelectedItems');
+        let countBadge = $('#parcelItemCount');
+        countBadge.text(parcelCart.length + ' Items');
+
+        if (!parcelCart.length) {
+            container.html(`<div class="text-center py-3 text-muted small border rounded-3 bg-light" id="parcelEmptyItems">
+                <i class="fa-solid fa-cart-shopping fs-4 text-secondary opacity-50 mb-1"></i><br>Tap any dish above to add it here.</div>`);
+            $('#parcelTotalsRow').hide();
+            return;
+        }
+
+        let html = '<div class="list-group list-group-flush border rounded-3">';
+        parcelCart.forEach((item, idx) => {
+            html += `
+                <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+                    <div style="flex:1; min-width:0;">
+                        <span class="fw-bold text-dark small">${item.name}</span>
+                        <input type="text" class="form-control form-control-sm mt-1 py-0 px-1 bg-light border-0" style="width:160px;font-size:0.72rem;"
+                               placeholder="Add note (optional)" value="${item.note||''}" maxlength="100"
+                               onchange="parcelCart[${idx}].note=this.value" />
+                    </div>
+                    <div class="d-flex align-items-center gap-1">
+                        <button class="btn btn-outline-secondary btn-sm px-2 py-0 rounded-circle" onclick="updateParcelQty(${idx},-1)">-</button>
+                        <span class="fw-bold px-1 small">${item.qty}</span>
+                        <button class="btn btn-outline-secondary btn-sm px-2 py-0 rounded-circle" onclick="updateParcelQty(${idx},1)">+</button>
+                        <span class="fw-bold text-success ms-2 small">₹${(item.price*item.qty).toFixed(0)}</span>
+                        <button class="btn btn-link text-danger p-0 ms-1" onclick="parcelCart.splice(${idx},1);renderParcelCart()" title="Remove">
+                            <i class="fa-solid fa-trash-can small"></i>
+                        </button>
+                    </div>
+                </div>`;
+        });
+        html += '</div>';
+        container.html(html);
+
+        // Update totals
+        let subtotal = parcelCart.reduce((s,i) => s + i.price * i.qty, 0);
+        let tax = Math.round(subtotal * 0.05 * 100) / 100;
+        let grand = Math.round(subtotal + tax);
+        $('#parcelSubtotal').text('₹' + subtotal.toFixed(2));
+        $('#parcelTax').text('₹' + tax.toFixed(2));
+        $('#parcelGrandTotal').text('₹' + grand.toFixed(2));
+        $('#parcelTotalsRow').show();
+    }
+
+    function submitParcelOrder() {
+        // Validations
+        let isValid = true;
+        let name = $('#parcelCustomerName').val().trim();
+        let phone = $('#parcelCustomerPhone').val().trim();
+
+        if (!name) {
+            $('#parcelCustomerName').addClass('is-invalid');
+            isValid = false;
+        } else {
+            $('#parcelCustomerName').removeClass('is-invalid').addClass('is-valid');
+        }
+
+        if (!phone || !/^[6-9]\d{9}$/.test(phone)) {
+            $('#parcelCustomerPhone').addClass('is-invalid');
+            $('#parcelCustomerPhoneError').text('Enter a valid 10-digit Indian mobile number starting with 6-9.');
+            isValid = false;
+        } else {
+            $('#parcelCustomerPhone').removeClass('is-invalid').addClass('is-valid');
+        }
+
+        if (!parcelCart.length) {
+            alert('Please add at least one item to the parcel order.');
+            return;
+        }
+
+        if (!isValid) return;
+
+        let payload = {
+            orderId: 0,
+            tableId: null,
+            covers: 1,
+            orderNote: $('#parcelOrderNote').val(),
+            waiterName: 'Staff',
+            newItems: parcelCart.map(i => ({
+                menuItemId: i.id,
+                quantity: i.qty,
+                specialInstructions: i.note || '',
+                course: 'Main'
+            })),
+            items: parcelCart.map(i => ({
+                menuItemId: i.id,
+                quantity: i.qty,
+                specialInstructions: i.note || '',
+                course: 'Main'
+            }))
+        };
+
+        // First create order as Takeaway
+        let createPayload = {
+            orderType: 2, // Takeaway
+            customerName: name,
+            customerPhone: phone,
+            orderNote: $('#parcelOrderNote').val(),
+            covers: 1,
+            items: parcelCart.map(i => ({
+                menuItemId: i.id,
+                quantity: i.qty,
+                specialInstructions: i.note || '',
+                course: 'Main'
+            }))
+        };
+
+        $('#parcelSubmitBtn').prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin me-1"></i> Creating...');
+
+        $.ajax({
+            url: '/Orders/CreatePOSOrder',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(createPayload),
+            success: function(res) {
+                if (res.success) {
+                    let orderId = res.orderId;
+                    // Now send KOT
+                    let kotPayload = {
+                        orderId: orderId,
+                        tableId: null,
+                        covers: 1,
+                        orderNote: $('#parcelOrderNote').val(),
+                        waiterName: 'Staff',
+                        newItems: [],
+                        items: []
+                    };
+                    $.ajax({
+                        url: '/Orders/SendKOT',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify(kotPayload),
+                        success: function(kotRes) {
+                            if (kotRes.success) {
+                                bootstrap.Modal.getInstance(document.getElementById('parcelModal')).hide();
+                                alert(`Parcel order created! KOT: ${kotRes.kotNumber}\nCustomer: ${name} (${phone})`);
+                                window.location.reload();
+                            } else {
+                                alert('Order created but KOT failed: ' + (kotRes.message || 'Unknown error'));
+                                $('#parcelSubmitBtn').prop('disabled', false).html('<i class="fa-solid fa-paper-plane me-1"></i> Send KOT & Create Parcel');
+                            }
+                        },
+                        error: function() {
+                            alert('Network error while sending KOT.');
+                            $('#parcelSubmitBtn').prop('disabled', false).html('<i class="fa-solid fa-paper-plane me-1"></i> Send KOT & Create Parcel');
+                        }
+                    });
+                } else {
+                    alert('Failed to create parcel order: ' + (res.message || 'Unknown error'));
+                    $('#parcelSubmitBtn').prop('disabled', false).html('<i class="fa-solid fa-paper-plane me-1"></i> Send KOT & Create Parcel');
+                }
+            },
+            error: function() {
+                alert('Network error. Please try again.');
+                $('#parcelSubmitBtn').prop('disabled', false).html('<i class="fa-solid fa-paper-plane me-1"></i> Send KOT & Create Parcel');
+            }
+        });
+    }
+
+    // Load active parcel orders on dashboard
+    function loadParcelOrders() {
+        $.get('/Orders/GetParcelOrders', function(res) {
+            if (res && res.success && res.orders && res.orders.length > 0) {
+                let html = '<div class="table-responsive"><table class="table align-middle mb-0">';
+                html += '<thead><tr><th>Order #</th><th>Customer</th><th>Phone</th><th>Items</th><th>Amount</th><th>Status</th><th>Time</th><th>Action</th></tr></thead><tbody>';
+                res.orders.forEach(o => {
+                    html += `<tr>
+                        <td class="fw-bold text-dark">#${o.orderNumber}</td>
+                        <td class="text-dark">${o.customerName||'-'}</td>
+                        <td class="text-muted small">${o.customerPhone||'-'}</td>
+                        <td class="text-muted small">${o.totalItems}</td>
+                        <td class="fw-bold text-dark">₹${o.grandTotal.toFixed(0)}</td>
+                        <td><span class="badge rounded-pill" style="background:#e0f2fe;color:#0284c7;font-size:0.7rem;">${o.status}</span></td>
+                        <td class="text-muted small">${new Date(o.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td>
+                        <td><a href="/Billing/Generate?orderId=${o.id}" class="btn btn-sm btn-outline-success rounded-pill px-2">Bill</a></td>
+                    </tr>`;
+                });
+                html += '</tbody></table></div>';
+                $('#parcelOrdersList').html(html);
+            } else {
+                $('#parcelOrdersList').html('<div class="text-center py-4 text-muted"><i class="fa-solid fa-box-open fs-2 d-block mb-2 text-secondary opacity-50"></i><p class="small mb-0">No active parcel orders.</p></div>');
+            }
+        }).fail(function() {
+            $('#parcelOrdersList').html('<div class="text-center py-3 text-muted small">Could not load parcel orders.</div>');
+        });
+    }
+
+    loadParcelOrders();
+
 </script>
 }

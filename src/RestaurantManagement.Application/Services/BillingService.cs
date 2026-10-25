@@ -114,7 +114,7 @@ public class BillingService : IBillingService
 
         if (order != null)
         {
-            var items = await _unitOfWork.OrderItems.FindAsync(i => i.OrderId == order.Id && !i.IsDeleted);
+            var items = await _unitOfWork.OrderItems.FindAsync(i => i.OrderId == order.Id && !i.IsDeleted && i.Status != OrderItemStatus.Cancelled);
             dto.Order = new OrderDto
             {
                 Id = order.Id,
