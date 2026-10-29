@@ -13,3 +13,4 @@ public class CustomerLedger : BaseEntity
     public string Notes { get; set; } = string.Empty;
     public string RecordedBy { get; set; } = string.Empty;
 }
+

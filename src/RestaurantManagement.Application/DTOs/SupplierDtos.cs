@@ -25,3 +25,4 @@ public class SupplierCreateUpdateDto
     public decimal OpeningBalance { get; set; } = 0m;
     public bool IsActive { get; set; } = true;
 }
+

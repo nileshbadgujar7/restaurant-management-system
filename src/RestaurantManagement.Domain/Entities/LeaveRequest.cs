@@ -13,3 +13,4 @@ public class LeaveRequest : BaseEntity
     public DateTime? ApprovedDate { get; set; }
     public string RejectionReason { get; set; } = string.Empty;
 }
+

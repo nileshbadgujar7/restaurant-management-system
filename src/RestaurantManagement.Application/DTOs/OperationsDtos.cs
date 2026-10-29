@@ -281,6 +281,32 @@ public class ComprehensiveReportDto
     public List<ReportPeriodSummaryDto> BreakdownList { get; set; } = new();
     public List<PaymentMethodSummaryDto> PaymentBreakdown { get; set; } = new();
     public List<CategorySalesSummaryDto> CategoryBreakdown { get; set; } = new();
+    public List<TableCollectionSummaryDto> TableBreakdown { get; set; } = new();
+    public List<MenuItemSalesSummaryDto> MenuItemBreakdown { get; set; } = new();
+}
+
+public class TableCollectionSummaryDto
+{
+    public int TableId { get; set; }
+    public string TableNumber { get; set; } = string.Empty;
+    public string FloorName { get; set; } = string.Empty;
+    public int OrdersCount { get; set; }
+    public decimal TotalAmount { get; set; }
+    public decimal AverageBill => OrdersCount > 0 ? Math.Round(TotalAmount / OrdersCount, 2) : 0m;
+    public decimal Percentage { get; set; }
+}
+
+public class MenuItemSalesSummaryDto
+{
+    public int MenuItemId { get; set; }
+    public string ItemName { get; set; } = string.Empty;
+    public string ItemNameMarathi { get; set; } = string.Empty;
+    public string ItemCode { get; set; } = string.Empty;
+    public string CategoryName { get; set; } = string.Empty;
+    public decimal UnitPrice { get; set; }
+    public int QuantitySold { get; set; }
+    public decimal TotalRevenue { get; set; }
+    public decimal Percentage { get; set; }
 }
 
 public class ReportPeriodSummaryDto

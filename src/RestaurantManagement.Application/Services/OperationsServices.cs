@@ -948,15 +948,16 @@ public class DashboardService : IDashboardService
     public async Task<DashboardSummaryDto> GetDashboardSummaryAsync()
     {
         var today = DateTime.UtcNow.Date;
+        var todayLocal = DateTime.Today;
         var yesterday = today.AddDays(-1);
 
         var orders = await _unitOfWork.Orders.GetAllAsync();
         var allValidOrders = orders.Where(o => !o.IsDeleted).ToList();
 
         // Business Day Orders (Only orders created during today)
-        var todayAllOrders = allValidOrders.Where(o => o.CreatedAt.Date == today).ToList();
+        var todayAllOrders = allValidOrders.Where(o => o.CreatedAt.Date == today || o.CreatedAt.Date == todayLocal).ToList();
         var todayCompletedOrders = todayAllOrders.Where(o => o.Status == OrderStatus.Completed).ToList();
-        var yesterdayCompletedOrders = allValidOrders.Where(o => o.CreatedAt.Date == yesterday && o.Status == OrderStatus.Completed).ToList();
+        var yesterdayCompletedOrders = allValidOrders.Where(o => (o.CreatedAt.Date == yesterday || o.CreatedAt.Date == todayLocal.AddDays(-1)) && o.Status == OrderStatus.Completed).ToList();
 
         decimal todaySales = todayCompletedOrders.Sum(o => o.GrandTotal);
         decimal yesterdaySales = yesterdayCompletedOrders.Sum(o => o.GrandTotal);
@@ -991,8 +992,10 @@ public class DashboardService : IDashboardService
                 AlertLevel = i.CurrentStock <= (i.MinimumStock / 2m) ? "Critical" : "Low Stock"
             }).ToList();
 
-        var orderItems = await _unitOfWork.OrderItems.GetAllAsync();
-        var topSelling = orderItems.Where(i => !i.IsDeleted)
+        var todayOrderIds = todayAllOrders.Select(o => o.Id).ToHashSet();
+        var allOrderItems = await _unitOfWork.OrderItems.GetAllAsync();
+        var orderItems = allOrderItems.Where(i => !i.IsDeleted && todayOrderIds.Contains(i.OrderId)).ToList();
+        var topSelling = orderItems
             .GroupBy(i => i.ItemName)
             .Select(g => new TopSellingItemDto
             {
@@ -1494,6 +1497,84 @@ public class ReportService : IReportService
             }
         }
 
+        // Table collection breakdown
+        var tables = (await _unitOfWork.Tables.GetAllAsync()).ToDictionary(t => t.Id);
+        var floors = (await _unitOfWork.Floors.GetAllAsync()).ToDictionary(f => f.Id);
+        var tableList = new List<TableCollectionSummaryDto>();
+
+        var tableGroups = completedOrders
+            .Where(o => o.TableId.HasValue)
+            .GroupBy(o => o.TableId!.Value);
+
+        foreach (var tg in tableGroups)
+        {
+            int tableId = tg.Key;
+            string tableNumber = tables.TryGetValue(tableId, out var tbl) ? tbl.TableNumber : $"Table {tableId}";
+            string floorName = tbl != null && floors.TryGetValue(tbl.FloorId, out var flr) ? flr.Name : "Main Floor";
+            decimal total = tg.Sum(o => o.GrandTotal);
+            int count = tg.Count();
+            tableList.Add(new TableCollectionSummaryDto
+            {
+                TableId = tableId,
+                TableNumber = tableNumber,
+                FloorName = floorName,
+                OrdersCount = count,
+                TotalAmount = total,
+                Percentage = totalRev > 0 ? Math.Round((total / totalRev) * 100m, 1) : 0m
+            });
+        }
+
+        var takeawayOrders = completedOrders.Where(o => o.OrderType == OrderType.Takeaway).ToList();
+        if (takeawayOrders.Any())
+        {
+            decimal tTotal = takeawayOrders.Sum(o => o.GrandTotal);
+            tableList.Add(new TableCollectionSummaryDto
+            {
+                TableId = 0,
+                TableNumber = "Takeaway / Parcel",
+                FloorName = "Counter",
+                OrdersCount = takeawayOrders.Count,
+                TotalAmount = tTotal,
+                Percentage = totalRev > 0 ? Math.Round((tTotal / totalRev) * 100m, 1) : 0m
+            });
+        }
+        tableList = tableList.OrderByDescending(t => t.TotalAmount).ToList();
+
+        // Menu item-wise collection breakdown
+        var itemList = new List<MenuItemSalesSummaryDto>();
+        if (orderItems.Any())
+        {
+            var itemGroups = orderItems.GroupBy(i => i.MenuItemId);
+            decimal itemsTotalRev = orderItems.Sum(i => i.TotalPrice);
+
+            foreach (var ig in itemGroups)
+            {
+                int menuItemId = ig.Key;
+                menuItems.TryGetValue(menuItemId, out var mi);
+                string itemName = mi?.Name ?? ig.FirstOrDefault()?.ItemName ?? "Unknown Item";
+                string itemNameMr = mi?.NameMarathi ?? string.Empty;
+                string itemCode = mi?.ItemCode ?? string.Empty;
+                string categoryName = mi != null && categories.TryGetValue(mi.CategoryId, out var cat) ? cat.Name : "General";
+                decimal unitPrice = mi?.Price ?? (ig.FirstOrDefault()?.UnitPrice ?? 0m);
+                int qtySold = ig.Sum(i => i.Quantity);
+                decimal revenue = ig.Sum(i => i.TotalPrice);
+
+                itemList.Add(new MenuItemSalesSummaryDto
+                {
+                    MenuItemId = menuItemId,
+                    ItemName = itemName,
+                    ItemNameMarathi = itemNameMr,
+                    ItemCode = itemCode,
+                    CategoryName = categoryName,
+                    UnitPrice = unitPrice,
+                    QuantitySold = qtySold,
+                    TotalRevenue = revenue,
+                    Percentage = itemsTotalRev > 0 ? Math.Round((revenue / itemsTotalRev) * 100m, 1) : 0m
+                });
+            }
+            itemList = itemList.OrderByDescending(i => i.TotalRevenue).ToList();
+        }
+
         return new ComprehensiveReportDto
         {
             PeriodType = type,
@@ -1512,7 +1593,9 @@ public class ReportService : IReportService
             TotalDiscount = discount,
             BreakdownList = breakdownList,
             PaymentBreakdown = paymentList.OrderByDescending(p => p.TotalAmount).ToList(),
-            CategoryBreakdown = catList.OrderByDescending(c => c.TotalSales).ToList()
+            CategoryBreakdown = catList.OrderByDescending(c => c.TotalSales).ToList(),
+            TableBreakdown = tableList,
+            MenuItemBreakdown = itemList
         };
     }
 }

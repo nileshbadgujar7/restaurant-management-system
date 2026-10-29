@@ -1829,6 +1829,10 @@ namespace RestaurantManagement.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("RestaurantNameMarathi")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<decimal>("SGSTPercentage")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");

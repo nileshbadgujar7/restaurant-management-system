@@ -1,6 +1,13 @@
 @model DashboardSummaryDto
+@inject IUnitOfWork UnitOfWork
 @{
-    ViewData["Title"] = "Dashboard";
+    var setting = (await UnitOfWork.RestaurantSettings.GetAllAsync()).FirstOrDefault();
+    var currentLang = Context.Request.Cookies["GiranaRMS.Language"] ?? "en";
+    var isMarathi = currentLang == "mr";
+    var restaurantName = !string.IsNullOrWhiteSpace(setting?.RestaurantName) ? setting.RestaurantName : "Girana Garden";
+    var restaurantNameMr = !string.IsNullOrWhiteSpace(setting?.RestaurantNameMarathi) ? setting.RestaurantNameMarathi : (!string.IsNullOrWhiteSpace(setting?.RestaurantName) ? setting.RestaurantName : "गिराणा गार्डन");
+    var effectiveBrandName = isMarathi ? restaurantNameMr : restaurantName;
+    ViewData["Title"] = isMarathi ? $"{effectiveBrandName} डॅशबोर्ड" : $"{effectiveBrandName} Dashboard";
     bool isAuth = User.Identity?.IsAuthenticated == true;
     string dashUser = isAuth 
         ? (User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value ?? User.Identity?.Name ?? "Manager")
@@ -13,27 +20,32 @@
 <!-- Top Header Bar Matching Screenshot -->
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 anim-section dashboard-top-bar position-relative" style="z-index: 1050;">
     <div>
-        <div class="text-muted small fw-semibold" style="font-size: 0.825rem;">Good afternoon, @dashUser</div>
+        <div class="text-muted small fw-semibold" style="font-size: 0.825rem;">@(isMarathi ? $"नमस्कार, {dashUser}" : $"Good afternoon, {dashUser}")</div>
         <h2 class="fw-bold mb-0" style="color: #047857; font-family: var(--font-heading); font-size: 1.75rem; letter-spacing: -0.5px;">
-            Girana Garden Dashboard
+            @effectiveBrandName @(isMarathi ? "डॅशबोर्ड" : "Dashboard")
         </h2>
     </div>
     <div class="d-flex align-items-center gap-2 mt-2 mt-md-0">
+        <!-- Language Switcher Pill -->
+        <div class="btn-group btn-group-sm rounded-pill p-1 bg-white border shadow-sm" role="group" style="border-color: #cbd5e1 !important;">
+            <button type="button" class="btn btn-sm rounded-pill px-2 py-0 @(!isMarathi ? "btn-success text-white fw-bold" : "btn-light text-muted")" onclick="changeAppLang('en')" style="font-size: 0.75rem;" title="Switch to English">EN</button>
+            <button type="button" class="btn btn-sm rounded-pill px-2 py-0 @(isMarathi ? "btn-success text-white fw-bold" : "btn-light text-muted")" onclick="changeAppLang('mr')" style="font-size: 0.75rem;" title="मराठीत बदला">मराठी</button>
+        </div>
+
         <div class="px-3 py-2 rounded-pill bg-white border small fw-semibold text-secondary d-flex align-items-center gap-2 shadow-sm" style="font-size: 0.8rem; border-color: #cbd5e1 !important;">
             <i class="fa-regular fa-calendar text-muted"></i>
             <span id="headerClockDate">@DateTime.Now.ToString("ddd, MMM dd, yyyy - hh:mm tt")</span>
         </div>
 
-
         <!-- Live Role Display & Switcher (FR-AUTH-05) -->
         <div class="dropdown position-relative" style="z-index: 1055;">
             <button class="btn role-dropdown-btn btn-sm dropdown-toggle rounded-pill px-3 py-2 shadow-sm d-flex align-items-center gap-1 border bg-white fw-semibold" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.825rem; border-color: #cbd5e1 !important;" title="Active User: @dashUser">
-                <i class="fa-solid fa-user-shield text-success me-1"></i> Role: <strong class="text-dark">@dashRole</strong>
+                <i class="fa-solid fa-user-shield text-success me-1"></i> @(isMarathi ? "भूमिका: " : "Role: ")<strong class="text-dark">@dashRole</strong>
             </button>
             <ul class="dropdown-menu role-dropdown-menu dropdown-menu-end shadow-lg" style="border-radius: 12px; border: 1.5px solid #cbd5e1; z-index: 1060; min-width: 210px;">
                 <li class="px-3 py-2 border-bottom bg-light rounded-top">
                     <div class="fw-bold text-dark small">@dashUser</div>
-                    <div class="text-muted small" style="font-size: 0.72rem;">@dashRole &bull; Girana RMS</div>
+                    <div class="text-muted small" style="font-size: 0.72rem;">@dashRole &bull; @effectiveBrandName</div>
                 </li>
                 <li><a class="dropdown-item @(dashRole == "Administrator" || dashRole == "Admin" ? "active" : "")" href="#"><i class="fa-solid fa-user-gear text-danger me-2"></i> Admin</a></li>
                 <li><a class="dropdown-item @(dashRole.Contains("Manager") ? "active" : "")" href="#"><i class="fa-solid fa-briefcase text-success me-2"></i> Manager</a></li>
@@ -43,14 +55,14 @@
                 <li><hr class="dropdown-divider my-1"></li>
                 <li>
                     <a class="dropdown-item small" href="/Account/Login?switchUser=true">
-                        <i class="fa-solid fa-arrows-rotate text-secondary me-2"></i> Switch User / Terminal
+                        <i class="fa-solid fa-arrows-rotate text-secondary me-2"></i> @(isMarathi ? "वापरकर्ता बदला" : "Switch User / Terminal")
                     </a>
                 </li>
                 @if (isAuth)
                 {
                     <li>
                         <a class="dropdown-item small text-danger fw-semibold logout-link" href="/Account/Logout" onclick="window.location.href='/Account/Logout';">
-                            <i class="fa-solid fa-right-from-bracket me-2"></i> Sign Out
+                            <i class="fa-solid fa-right-from-bracket me-2"></i> @(isMarathi ? "साइन आउट करा" : "Sign Out")
                         </a>
                     </li>
                 }
@@ -58,7 +70,7 @@
                 {
                     <li>
                         <a class="dropdown-item small text-success fw-semibold" href="/Account/Login">
-                            <i class="fa-solid fa-right-to-bracket me-2"></i> Sign In
+                            <i class="fa-solid fa-right-to-bracket me-2"></i> @(isMarathi ? "साइन इन करा" : "Sign In")
                         </a>
                     </li>
                 }
@@ -66,7 +78,7 @@
         </div>
 
         <a href="/Account/Logout" onclick="window.location.href='/Account/Logout';" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-2 shadow-sm d-flex align-items-center gap-1 fw-semibold" style="font-size: 0.825rem;" title="Sign out of system">
-            <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+            <i class="fa-solid fa-right-from-bracket"></i> @(isMarathi ? "साइन आउट" : "Sign Out")
         </a>
     </div>
 </div>
@@ -77,13 +89,13 @@
     <div class="col-xl col-md-4 col-sm-6">
         <div class="metric-card-clean metric-card-sales-border">
             <div class="d-flex justify-content-between align-items-center">
-                <span class="metric-label metric-label-bold">TODAY'S SALES</span>
+                <span class="metric-label metric-label-bold">@(isMarathi ? "आजची विक्री" : "TODAY'S SALES")</span>
                 <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle" style="font-size: 0.72rem; font-weight: 800;">
                     <i class="fa-solid fa-caret-up me-1"></i>12%
                 </span>
             </div>
             <div class="metric-value-bold mt-1">₹@Model.TodaySales.ToString("N0")</div>
-            <div class="metric-desc-bold mt-1">vs yesterday ₹@Model.YesterdaySales.ToString("N0")</div>
+            <div class="metric-desc-bold mt-1">@(isMarathi ? $"कालच्या तुलनेत ₹{Model.YesterdaySales:N0}" : $"vs yesterday ₹{Model.YesterdaySales:N0}")</div>
         </div>
     </div>
 
@@ -91,13 +103,13 @@
     <div class="col-xl col-md-4 col-sm-6">
         <div class="metric-card-clean metric-card-orders-border">
             <div class="d-flex justify-content-between align-items-center">
-                <span class="metric-label metric-label-bold">TODAY'S ORDERS</span>
+                <span class="metric-label metric-label-bold">@(isMarathi ? "आजच्या ऑर्डर्स" : "TODAY'S ORDERS")</span>
                 <span class="badge rounded-pill" style="background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; font-size: 0.72rem; font-weight: 800;">
                     Live
                 </span>
             </div>
             <div class="metric-value-bold mt-1">@Model.TodayOrdersCount</div>
-            <div class="metric-desc-bold mt-1">@Model.DineInOrdersCount dine-in &bull; @Model.TakeawayOrdersCount takeaway</div>
+            <div class="metric-desc-bold mt-1">@(isMarathi ? $"{Model.DineInOrdersCount} डायन-इन • {Model.TakeawayOrdersCount} पार्सल" : $"{Model.DineInOrdersCount} dine-in • {Model.TakeawayOrdersCount} takeaway")</div>
         </div>
     </div>
 
@@ -105,13 +117,13 @@
     <div class="col-xl col-md-4 col-sm-6">
         <div class="metric-card-clean metric-card-tables-border">
             <div class="d-flex justify-content-between align-items-center">
-                <span class="metric-label metric-label-bold">ACTIVE TABLES</span>
+                <span class="metric-label metric-label-bold">@(isMarathi ? "सक्रिय टेबल्स" : "ACTIVE TABLES")</span>
                 <span class="badge rounded-pill" style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; font-size: 0.72rem; font-weight: 800;">
                     Live
                 </span>
             </div>
             <div class="metric-value-bold mt-1">@Model.OccupiedTablesCount / @Model.TotalTablesCount</div>
-            <div class="metric-desc-bold mt-1">@Model.AvailableTablesCount available &bull; @Model.ReservedTablesCount reserved</div>
+            <div class="metric-desc-bold mt-1">@(isMarathi ? $"{Model.AvailableTablesCount} उपलब्ध • {Model.ReservedTablesCount} आरक्षित" : $"{Model.AvailableTablesCount} available • {Model.ReservedTablesCount} reserved")</div>
         </div>
     </div>
 
@@ -119,13 +131,13 @@
     <div class="col-xl col-md-4 col-sm-6">
         <div class="metric-card-clean metric-card-kot-border">
             <div class="d-flex justify-content-between align-items-center">
-                <span class="metric-label metric-label-bold">PENDING KOT</span>
+                <span class="metric-label metric-label-bold">@(isMarathi ? "प्रलंबित KOT" : "PENDING KOT")</span>
                 <span class="badge rounded-pill" style="background: #ffe4e6; color: #be123c; border: 1px solid #fecdd3; font-size: 0.72rem; font-weight: 800;">
-                    Kitchen
+                    @(isMarathi ? "किचन" : "Kitchen")
                 </span>
             </div>
             <div class="metric-value-bold mt-1">@Model.PendingKOTCount</div>
-            <div class="metric-desc-bold mt-1">In kitchen queue</div>
+            <div class="metric-desc-bold mt-1">@(isMarathi ? "किचन रांगेमध्ये" : "In kitchen queue")</div>
         </div>
     </div>
 
@@ -133,13 +145,13 @@
     <div class="col-xl col-md-4 col-sm-6">
         <div class="metric-card-clean metric-card-completed-border">
             <div class="d-flex justify-content-between align-items-center">
-                <span class="metric-label metric-label-bold">COMPLETED</span>
+                <span class="metric-label metric-label-bold">@(isMarathi ? "पूर्ण ऑर्डर्स" : "COMPLETED")</span>
                 <span class="badge rounded-pill" style="background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff; font-size: 0.72rem; font-weight: 800;">
-                    Settled
+                    @(isMarathi ? "सफल" : "Settled")
                 </span>
             </div>
             <div class="metric-value-bold mt-1">@Model.CompletedOrdersCount</div>
-            <div class="metric-desc-bold mt-1">Settled orders</div>
+            <div class="metric-desc-bold mt-1">@(isMarathi ? "सफल बिलिंग ऑर्डर्स" : "Settled orders")</div>
         </div>
     </div>
 </div>
@@ -151,25 +163,25 @@
         <div class="dashboard-widget-card h-100">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                 <div class="d-flex align-items-center gap-2">
-                    <h5 class="fw-bold mb-0 text-dark">Dining Tables</h5>
+                    <h5 class="fw-bold mb-0 text-dark">@(isMarathi ? "डायनिंग टेबल्स" : "Dining Tables")</h5>
                     <span class="badge rounded-pill" style="background: #dcfce7; color: #15803d; font-weight: 600; font-size: 0.725rem;">
-                        @Model.AvailableTablesCount Available
+                        @Model.AvailableTablesCount @(isMarathi ? "उपलब्ध" : "Available")
                     </span>
                     <span class="badge rounded-pill" style="background: #fef3c7; color: #b45309; font-weight: 600; font-size: 0.725rem;">
-                        @Model.OccupiedTablesCount Occupied
+                        @Model.OccupiedTablesCount @(isMarathi ? "सक्रिय" : "Occupied")
                     </span>
                     <span class="badge rounded-pill" style="background: #e0f2fe; color: #0369a1; font-weight: 600; font-size: 0.725rem;">
-                        @Model.ReservedTablesCount Reserved
+                        @Model.ReservedTablesCount @(isMarathi ? "आरक्षित" : "Reserved")
                     </span>
                     <span class="badge rounded-pill" style="background: #ede9fe; color: #6d28d9; border: 1.5px solid #c4b5fd; font-weight: 600; font-size: 0.725rem;">
-                        @Model.FloorTables.SelectMany(f => f.Tables).Count(t => t.Status == TableStatus.Billing) Billing
+                        @Model.FloorTables.SelectMany(f => f.Tables).Count(t => t.Status == TableStatus.Billing) @(isMarathi ? "बिलिंग" : "Billing")
                     </span>
                 </div>
                 @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Waiter") || User.IsInRole("Cashier"))
                 {
                     <div>
                         <a href="/Tables" class="fw-bold text-decoration-none small" style="color: #047857;">
-                            All Floors & Tables
+                            @(isMarathi ? "सर्व फ्लोअर्स व टेबल्स" : "All Floors & Tables")
                         </a>
                     </div>
                 }
@@ -194,26 +206,26 @@
                             <div class="table-tile-card status-@statusKey">
                                 <!-- Top Row: Table Name & Status Badge -->
                                 <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="fw-bold fs-6 text-dark">Table @cleanNum</span>
+                                    <span class="fw-bold fs-6 text-dark">@(isMarathi ? $"टेबल {cleanNum}" : $"Table {cleanNum}")</span>
                                     @if (table.Status == TableStatus.Available)
                                     {
-                                        <span class="badge status-pill-available">AVAILABLE</span>
+                                        <span class="badge status-pill-available">@(isMarathi ? "उपलब्ध" : "AVAILABLE")</span>
                                     }
                                     else if (table.Status == TableStatus.Occupied)
                                     {
-                                        <span class="badge status-pill-occupied">OCCUPIED</span>
+                                        <span class="badge status-pill-occupied">@(isMarathi ? "सक्रिय" : "OCCUPIED")</span>
                                     }
                                     else if (table.Status == TableStatus.Reserved)
                                     {
-                                        <span class="badge status-pill-reserved">RESERVED</span>
+                                        <span class="badge status-pill-reserved">@(isMarathi ? "आरक्षित" : "RESERVED")</span>
                                     }
                                     else if (table.Status == TableStatus.Billing)
                                     {
-                                        <span class="badge status-pill-billing">BILLING</span>
+                                        <span class="badge status-pill-billing">@(isMarathi ? "बिलिंग" : "BILLING")</span>
                                     }
                                     else
                                     {
-                                        <span class="badge status-pill-cleaning">CLEANING</span>
+                                        <span class="badge status-pill-cleaning">@(isMarathi ? "स्वच्छता" : "CLEANING")</span>
                                     }
                                 </div>
 
@@ -221,7 +233,7 @@
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <span class="badge rounded-pill floor-pill">@floor.Name</span>
                                     <div class="d-flex align-items-center gap-1">
-                                        <span class="badge bg-light text-secondary border" title="Seating Capacity" style="font-size: 0.72rem;">@table.Capacity Seats</span>
+                                        <span class="badge bg-light text-secondary border" title="Seating Capacity" style="font-size: 0.72rem;">@table.Capacity @(isMarathi ? "आसन" : "Seats")</span>
                                         @if (table.OccupiedAt.HasValue)
                                         {
                                             <span class="badge bg-white text-danger border border-danger-subtle fw-bold" title="Live Table Turnaround Duration" style="font-size: 0.72rem;">
@@ -234,54 +246,54 @@
                                 <!-- Bottom Status / Bill & Operator Buttons -->
                                 @if (table.Status == TableStatus.Available)
                                 {
-                                    <div class="text-muted small mb-2" style="font-size: 0.75rem;">Ready for guests</div>
+                                    <div class="text-muted small mb-2" style="font-size: 0.75rem;">@(isMarathi ? "ग्राहकांसाठी तयार" : "Ready for guests")</div>
                                     <a href="/Orders/POS?tableId=@table.Id&returnUrl=/Dashboard" class="btn btn-sm w-100 rounded-pill text-white fw-bold py-1 btn-add-order">
-                                        <i class="fa-solid fa-plus me-1"></i> Add Order
+                                        <i class="fa-solid fa-plus me-1"></i> @(isMarathi ? "ऑर्डर घ्या" : "Add Order")
                                     </a>
                                 }
                                 else if (table.Status == TableStatus.Occupied)
                                 {
                                     <div class="d-flex justify-content-between align-items-center mb-2 small">
-                                        <span class="text-muted">Bill</span>
+                                        <span class="text-muted">@(isMarathi ? "बिल" : "Bill")</span>
                                         @if (table.CurrentOrderAmount > 0)
                                         {
                                             <span class="fw-bold text-dark fs-6">₹@table.CurrentOrderAmount.ToString("N0")</span>
                                         }
                                         else
                                         {
-                                            <span class="text-muted fw-semibold small fst-italic">No items yet</span>
+                                            <span class="text-muted fw-semibold small fst-italic">@(isMarathi ? "कोणतेही आयटम नाहीत" : "No items yet")</span>
                                         }
                                     </div>
                                     <div class="d-flex gap-1">
-                                        <a href="/Orders/POS?tableId=@table.Id&orderId=@table.CurrentOrderId&returnUrl=/Dashboard" class="btn btn-sm rounded-pill fw-bold btn-table-items flex-fill">+ Items</a>
-                                        <a href="/Tables/Details/@table.Id" class="btn btn-sm rounded-pill fw-bold btn-table-view px-2">View</a>
-                                        <a href="/Billing/Generate?orderId=@table.CurrentOrderId" class="btn btn-sm rounded-pill text-white fw-bold btn-table-bill px-3">Bill</a>
+                                        <a href="/Orders/POS?tableId=@table.Id&orderId=@table.CurrentOrderId&returnUrl=/Dashboard" class="btn btn-sm rounded-pill fw-bold btn-table-items flex-fill">@(isMarathi ? "+ आयटम" : "+ Items")</a>
+                                        <a href="/Tables/Details/@table.Id" class="btn btn-sm rounded-pill fw-bold btn-table-view px-2">@(isMarathi ? "पहा" : "View")</a>
+                                        <a href="/Billing/Generate?orderId=@table.CurrentOrderId" class="btn btn-sm rounded-pill text-white fw-bold btn-table-bill px-3">@(isMarathi ? "बिल" : "Bill")</a>
                                     </div>
                                 }
                                 else if (table.Status == TableStatus.Reserved)
                                 {
-                                    <div class="text-muted small mb-2" style="font-size: 0.75rem;">Held for booking</div>
+                                    <div class="text-muted small mb-2" style="font-size: 0.75rem;">@(isMarathi ? "बुकिंगसाठी राखीव" : "Held for booking")</div>
                                     <a href="/Tables/Details/@table.Id" class="btn btn-sm w-100 rounded-pill fw-bold py-1 btn-table-reserved">
-                                        Reserved Info
+                                        @(isMarathi ? "आरक्षण माहिती" : "Reserved Info")
                                     </a>
                                 }
                                 else if (table.Status == TableStatus.Billing)
                                 {
                                     <div class="d-flex justify-content-between align-items-center mb-2 small">
-                                        <span class="text-muted">Bill</span>
+                                        <span class="text-muted">@(isMarathi ? "बिल" : "Bill")</span>
                                         <span class="fw-bold text-dark fs-6">₹@table.CurrentOrderAmount.ToString("N0")</span>
                                     </div>
                                     <div class="d-flex gap-1">
-                                        <a href="/Orders/POS?tableId=@table.Id&orderId=@table.CurrentOrderId&returnUrl=/Dashboard" class="btn btn-sm rounded-pill fw-bold btn-table-items flex-fill">+ Items</a>
-                                        <a href="/Tables/Details/@table.Id" class="btn btn-sm rounded-pill fw-bold btn-table-view px-2">View</a>
-                                        <a href="/Billing/Generate?orderId=@table.CurrentOrderId" class="btn btn-sm rounded-pill text-white fw-bold btn-table-bill px-3">Bill</a>
+                                        <a href="/Orders/POS?tableId=@table.Id&orderId=@table.CurrentOrderId&returnUrl=/Dashboard" class="btn btn-sm rounded-pill fw-bold btn-table-items flex-fill">@(isMarathi ? "+ आयटम" : "+ Items")</a>
+                                        <a href="/Tables/Details/@table.Id" class="btn btn-sm rounded-pill fw-bold btn-table-view px-2">@(isMarathi ? "पहा" : "View")</a>
+                                        <a href="/Billing/Generate?orderId=@table.CurrentOrderId" class="btn btn-sm rounded-pill text-white fw-bold btn-table-bill px-3">@(isMarathi ? "बिल" : "Bill")</a>
                                     </div>
                                 }
                                 else
                                 {
-                                    <div class="text-muted small mb-2" style="font-size: 0.75rem;">Cleaning in progress</div>
+                                    <div class="text-muted small mb-2" style="font-size: 0.75rem;">@(isMarathi ? "स्वच्छता सुरू आहे" : "Cleaning in progress")</div>
                                     <a href="/Tables/Details/@table.Id" class="btn btn-sm w-100 rounded-pill fw-bold py-1 btn-table-view">
-                                        Details
+                                        @(isMarathi ? "तपशील" : "Details")
                                     </a>
                                 }
                             </div>
@@ -296,8 +308,8 @@
     <div class="col-lg-4">
         <div class="dashboard-widget-card h-100">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="fw-bold mb-0 text-dark">Top Selling Items</h5>
-                <span class="badge rounded-pill bg-light text-muted border" style="font-size: 0.7rem;">7 days</span>
+                <h5 class="fw-bold mb-0 text-dark">@(isMarathi ? "सर्वाधिक विकले जाणारे पदार्थ" : "Top Selling Items")</h5>
+                <span class="badge rounded-pill bg-light text-muted border" style="font-size: 0.7rem;">@(isMarathi ? "आज" : "Today")</span>
             </div>
 
             @{
@@ -331,7 +343,7 @@
             {
                 <div class="text-center py-5 text-muted">
                     <i class="fa-solid fa-chart-simple fs-2 d-block mb-2 text-secondary opacity-50"></i>
-                    <p class="small mb-0 text-muted">No sales recorded yet.</p>
+                    <p class="small mb-0 text-muted">@(isMarathi ? "आज अद्याप कोणतीही विक्री नोंदवली नाही." : "No sales recorded yet.")</p>
                 </div>
             }
         </div>
@@ -344,8 +356,8 @@
     <div class="col-lg-8">
         <div class="dashboard-widget-card h-100">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="fw-bold mb-0 text-dark">Recent Orders</h5>
-                <a href="/Orders" class="fw-bold text-decoration-none small" style="color: #047857;">View all</a>
+                <h5 class="fw-bold mb-0 text-dark">@(isMarathi ? "अलीकडील ऑर्डर्स" : "Recent Orders")</h5>
+                <a href="/Orders" class="fw-bold text-decoration-none small" style="color: #047857;">@(isMarathi ? "सर्व पहा" : "View all")</a>
             </div>
 
             @{
@@ -358,13 +370,13 @@
                 <table class="table align-middle mb-0 dashboard-orders-table">
                     <thead>
                         <tr>
-                            <th>Order #</th>
-                            <th>Type</th>
-                            <th>Table</th>
-                            <th>Items</th>
-                            <th>Amount</th>
-                            <th>Status</th>
-                            <th>Time</th>
+                            <th>@(isMarathi ? "ऑर्डर क्र." : "Order #")</th>
+                            <th>@(isMarathi ? "प्रकार" : "Type")</th>
+                            <th>@(isMarathi ? "टेबल" : "Table")</th>
+                            <th>@(isMarathi ? "आयटम" : "Items")</th>
+                            <th>@(isMarathi ? "रक्कम" : "Amount")</th>
+                            <th>@(isMarathi ? "स्थिती" : "Status")</th>
+                            <th>@(isMarathi ? "वेळ" : "Time")</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -373,7 +385,7 @@
                             <tr>
                                 <td colspan="7" class="text-center py-4 text-muted">
                                     <i class="fa-solid fa-receipt fs-3 d-block mb-2 text-secondary opacity-50"></i>
-                                    <span class="small">No recent orders found</span>
+                                    <span class="small">@(isMarathi ? "कोणत्याही अलीकडील ऑर्डर्स सापडल्या नाहीत" : "No recent orders found")</span>
                                 </td>
                             </tr>
                         }
@@ -389,7 +401,7 @@
                                     _ => "background: #f1f5f9; color: #475569; border: 1pt solid #e2e8f0;"
                                 };
 
-                                string orderTypeDisplay = (ord.OrderType == "DineIn" || ord.OrderType == "Dine-In") ? "Dine-in" : ord.OrderType;
+                                string orderTypeDisplay = (ord.OrderType == "DineIn" || ord.OrderType == "Dine-In") ? (isMarathi ? "डायन-इन" : "Dine-in") : ord.OrderType;
                                 string tableDisplay = string.IsNullOrEmpty(ord.TableNumber) ? "-" : "T" + ord.TableNumber.Replace("Table", "").Trim();
 
                                 <tr>
@@ -416,7 +428,7 @@
     <!-- Right Column: Order Status Donut Chart with Breakdown Legend -->
     <div class="col-lg-4">
         <div class="dashboard-widget-card h-100">
-            <h5 class="fw-bold mb-3 text-dark">Order Status</h5>
+            <h5 class="fw-bold mb-3 text-dark">@(isMarathi ? "ऑर्डर स्थिती" : "Order Status")</h5>
 
             @{
                 int statusTotal = Model.NewOrdersCount + Model.PreparingOrdersCount + Model.ReadyOrdersCount + Model.ServedOrdersCount + Model.CancelledOrdersCount;
@@ -432,30 +444,30 @@
                     <canvas id="orderStatusDonutChart"></canvas>
                     <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none;">
                         <div class="fs-4 fw-bold text-dark" style="line-height: 1.1;">@statusTotal</div>
-                        <div class="text-muted" style="font-size: 0.65rem;">Total orders</div>
+                        <div class="text-muted" style="font-size: 0.65rem;">@(isMarathi ? "एकूण ऑर्डर्स" : "Total orders")</div>
                     </div>
                 </div>
 
                 <div class="d-flex flex-column gap-2 small ps-2">
                     <div class="d-flex align-items-center gap-2">
                         <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#3b82f6;"></span>
-                        <span class="text-secondary" style="font-size: 0.75rem;">New: <strong>@Model.NewOrdersCount</strong> &bull; @newPct%</span>
+                        <span class="text-secondary" style="font-size: 0.75rem;">@(isMarathi ? "नवीन:" : "New:") <strong>@Model.NewOrdersCount</strong> &bull; @newPct%</span>
                     </div>
                     <div class="d-flex align-items-center gap-2">
                         <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#f59e0b;"></span>
-                        <span class="text-secondary" style="font-size: 0.75rem;">Preparing: <strong>@Model.PreparingOrdersCount</strong> &bull; @prepPct%</span>
+                        <span class="text-secondary" style="font-size: 0.75rem;">@(isMarathi ? "तयार होत आहे:" : "Preparing:") <strong>@Model.PreparingOrdersCount</strong> &bull; @prepPct%</span>
                     </div>
                     <div class="d-flex align-items-center gap-2">
                         <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981;"></span>
-                        <span class="text-secondary" style="font-size: 0.75rem;">Ready: <strong>@Model.ReadyOrdersCount</strong> &bull; @readyPct%</span>
+                        <span class="text-secondary" style="font-size: 0.75rem;">@(isMarathi ? "तयार:" : "Ready:") <strong>@Model.ReadyOrdersCount</strong> &bull; @readyPct%</span>
                     </div>
                     <div class="d-flex align-items-center gap-2">
                         <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#8b5cf6;"></span>
-                        <span class="text-secondary" style="font-size: 0.75rem;">Served: <strong>@Model.ServedOrdersCount</strong> &bull; @servedPct%</span>
+                        <span class="text-secondary" style="font-size: 0.75rem;">@(isMarathi ? "दिले:" : "Served:") <strong>@Model.ServedOrdersCount</strong> &bull; @servedPct%</span>
                     </div>
                     <div class="d-flex align-items-center gap-2">
                         <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#ef4444;"></span>
-                        <span class="text-secondary" style="font-size: 0.75rem;">Cancelled: <strong>@Model.CancelledOrdersCount</strong> &bull; @cancelPct%</span>
+                        <span class="text-secondary" style="font-size: 0.75rem;">@(isMarathi ? "रद्द:" : "Cancelled:") <strong>@Model.CancelledOrdersCount</strong> &bull; @cancelPct%</span>
                     </div>
                 </div>
             </div>
@@ -469,17 +481,17 @@
         <div class="dashboard-widget-card h-100">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                 <div class="d-flex align-items-center gap-2">
-                    <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-box-open text-teal me-2" style="color:#0f766e;"></i>Parcel / Takeaway Orders</h5>
-                    <span class="badge rounded-pill" style="background:#ccfbf1; color:#0f766e; font-weight:600; font-size:0.725rem;">Manage Walk-in Parcels</span>
+                    <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-box-open text-teal me-2" style="color:#0f766e;"></i>@(isMarathi ? "पार्सल / टेकअवे ऑर्डर्स" : "Parcel / Takeaway Orders")</h5>
+                    <span class="badge rounded-pill" style="background:#ccfbf1; color:#0f766e; font-weight:600; font-size:0.725rem;">@(isMarathi ? "पार्सल व्यवस्थापन" : "Manage Walk-in Parcels")</span>
                 </div>
                 <button onclick="openParcelModal()" class="btn btn-sm text-white fw-bold px-3 py-2 rounded-pill shadow-sm d-flex align-items-center gap-1" style="background-color:#0f766e; font-size:0.85rem;">
-                    <i class="fa-solid fa-plus"></i> New Parcel Order
+                    <i class="fa-solid fa-plus"></i> @(isMarathi ? "नवीन पार्सल ऑर्डर" : "New Parcel Order")
                 </button>
             </div>
             <div id="parcelOrdersList">
                 <div class="text-center py-4 text-muted">
                     <i class="fa-solid fa-box-open fs-2 d-block mb-2 text-secondary opacity-50"></i>
-                    <p class="small mb-0">No active parcel orders. Click "New Parcel Order" to start one.</p>
+                    <p class="small mb-0">@(isMarathi ? "कोणतीही सक्रिय पार्सल ऑर्डर नाही. नवीन ऑर्डर सुरू करण्यासाठी 'नवीन पार्सल ऑर्डर' वर क्लिक करा." : "No active parcel orders. Click \"New Parcel Order\" to start one.")</p>
                 </div>
             </div>
         </div>
@@ -492,13 +504,13 @@
     <div class="col-lg-8">
         <div class="dashboard-widget-card h-100">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="fw-bold mb-0 text-dark">Employee Attendance</h5>
+                <h5 class="fw-bold mb-0 text-dark">@(isMarathi ? "कर्मचारी उपस्थिती" : "Employee Attendance")</h5>
                 <div>
                     <span class="badge rounded-pill" style="background: #dcfce7; color: #15803d; font-size: 0.75rem; font-weight: 600;">
-                        On Duty: @(Model.PresentStaffCount > 0 ? Model.PresentStaffCount : 8)
+                        @(isMarathi ? "कामावर: " : "On Duty: ")@(Model.PresentStaffCount > 0 ? Model.PresentStaffCount : 8)
                     </span>
                     <span class="badge rounded-pill bg-light text-muted border ms-1" style="font-size: 0.75rem;">
-                        Total: @(Model.TotalStaffCount > 0 ? Model.TotalStaffCount : 8)
+                        @(isMarathi ? "एकूण: " : "Total: ")@(Model.TotalStaffCount > 0 ? Model.TotalStaffCount : 8)
                     </span>
                 </div>
             </div>
@@ -510,11 +522,11 @@
             <div class="d-flex justify-content-center align-items-center gap-4 mt-2 small text-muted" style="font-size: 0.75rem;">
                 <div class="d-flex align-items-center gap-1">
                     <span style="display:inline-block; width:10px; height:10px; background:#10b981;"></span>
-                    <span>On duty (present)</span>
+                    <span>@(isMarathi ? "कामावर हजर" : "On duty (present)")</span>
                 </div>
                 <div class="d-flex align-items-center gap-1">
                     <span style="display:inline-block; width:10px; height:10px; background:#cbd5e1;"></span>
-                    <span>Total registered staff</span>
+                    <span>@(isMarathi ? "एकूण नोंदणीकृत कर्मचारी" : "Total registered staff")</span>
                 </div>
             </div>
         </div>
@@ -523,23 +535,23 @@
     <!-- Right Column: Quick Actions Vertical Action Buttons -->
     <div class="col-lg-4">
         <div class="dashboard-widget-card h-100">
-            <h5 class="fw-bold mb-3 text-dark">Quick Actions</h5>
+            <h5 class="fw-bold mb-3 text-dark">@(isMarathi ? "जलद कृती" : "Quick Actions")</h5>
 
             <div class="d-flex flex-column gap-2">
                 <a href="/Staff/Attendance" class="btn text-white quick-action-btn-styled" style="background-color: #047857;">
-                    <i class="fa-solid fa-clipboard-user"></i> Mark Attendance
+                    <i class="fa-solid fa-clipboard-user"></i> @(isMarathi ? "उपस्थिती नोंदवा" : "Mark Attendance")
                 </a>
                 <a href="/Masters?tab=menu&openAdd=true&returnUrl=/Dashboard" class="btn text-white quick-action-btn-styled" style="background-color: #c2410c;">
-                    <i class="fa-solid fa-plus"></i> Add Menu Item
+                    <i class="fa-solid fa-plus"></i> @(isMarathi ? "नवीन मेनू आयटम" : "Add Menu Item")
                 </a>
                 <a href="/Masters?tab=employee&openAdd=true&returnUrl=/Dashboard" class="btn text-white quick-action-btn-styled" style="background-color: #6d28d9;">
-                    <i class="fa-solid fa-plus"></i> Add Employee
+                    <i class="fa-solid fa-plus"></i> @(isMarathi ? "नवीन कर्मचारी" : "Add Employee")
                 </a>
                 <a href="/Reports" class="btn text-white quick-action-btn-styled" style="background-color: #1d4ed8;">
-                    <i class="fa-solid fa-square-poll-vertical"></i> View Reports
+                    <i class="fa-solid fa-square-poll-vertical"></i> @(isMarathi ? "सर्व अहवाल पहा" : "View Reports")
                 </a>
                 <button onclick="openParcelModal()" class="btn text-white quick-action-btn-styled" style="background-color: #0f766e;">
-                    <i class="fa-solid fa-box-open"></i> New Parcel Order
+                    <i class="fa-solid fa-box-open"></i> @(isMarathi ? "नवीन पार्सल ऑर्डर" : "New Parcel Order")
                 </button>
             </div>
         </div>
@@ -552,8 +564,8 @@
     <div class="col-lg-8">
         <div class="dashboard-widget-card h-100">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="fw-bold mb-0 text-dark">Sales Overview</h5>
-                <span class="badge rounded-pill bg-light text-muted border" style="font-size: 0.7rem;">Last 7 days</span>
+                <h5 class="fw-bold mb-0 text-dark">@(isMarathi ? "विक्री आढावा" : "Sales Overview")</h5>
+                <span class="badge rounded-pill bg-light text-muted border" style="font-size: 0.7rem;">@(isMarathi ? "मागील ७ दिवस" : "Last 7 days")</span>
             </div>
 
             <div style="height: 220px; width: 100%;">
@@ -565,7 +577,7 @@
     <!-- Right Column: Inventory Alerts -->
     <div class="col-lg-4">
         <div class="dashboard-widget-card h-100">
-            <h5 class="fw-bold mb-3 text-dark">Inventory Alerts</h5>
+            <h5 class="fw-bold mb-3 text-dark">@(isMarathi ? "साठा सूचना (Alerts)" : "Inventory Alerts")</h5>
 
             <div class="d-flex flex-column gap-3 mt-1">
                 @if (Model.LowStockAlerts != null && Model.LowStockAlerts.Any())
@@ -587,7 +599,7 @@
                 {
                     <div class="text-center py-4 text-muted">
                         <i class="fa-solid fa-boxes-stacked fs-2 d-block mb-2 text-secondary opacity-50"></i>
-                        <p class="small mb-0 text-muted">All inventory items sufficiently stocked.</p>
+                        <p class="small mb-0 text-muted">@(isMarathi ? "सर्व वस्तूंचा साठा मुबलक आहे." : "All inventory items sufficiently stocked.")</p>
                     </div>
                 }
             </div>
@@ -601,7 +613,7 @@
         <div class="modal-content rounded-4 shadow-lg border-0">
             <div class="modal-header border-0 pb-0" style="background: linear-gradient(135deg,#0f766e,#14b8a6); border-radius: 1rem 1rem 0 0;">
                 <h5 class="modal-title fw-bold text-white" id="parcelModalLabel">
-                    <i class="fa-solid fa-box-open me-2"></i>New Parcel / Takeaway Order
+                    <i class="fa-solid fa-box-open me-2"></i>@(isMarathi ? "नवीन पार्सल / टेकअवे ऑर्डर" : "New Parcel / Takeaway Order")
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -609,18 +621,18 @@
                 <div class="row g-3">
                     <!-- Customer Details -->
                     <div class="col-md-6">
-                        <label class="form-label fw-bold small text-secondary">Customer Name <span class="text-danger">*</span></label>
-                        <input type="text" id="parcelCustomerName" class="form-control" placeholder="Enter customer name" maxlength="100" />
-                        <div class="invalid-feedback" id="parcelCustomerNameError">Customer name is required.</div>
+                        <label class="form-label fw-bold small text-secondary">@(isMarathi ? "ग्राहकाचे नाव" : "Customer Name") <span class="text-danger">*</span></label>
+                        <input type="text" id="parcelCustomerName" class="form-control" placeholder="@(isMarathi ? "ग्राहकाचे नाव टाका" : "Enter customer name")" maxlength="100" />
+                        <div class="invalid-feedback" id="parcelCustomerNameError">@(isMarathi ? "ग्राहकाचे नाव आवश्यक आहे." : "Customer name is required.")</div>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label fw-bold small text-secondary">Phone Number <span class="text-danger">*</span></label>
-                        <input type="tel" id="parcelCustomerPhone" class="form-control" placeholder="10-digit mobile number" maxlength="15" />
-                        <div class="invalid-feedback" id="parcelCustomerPhoneError">Valid phone number is required.</div>
+                        <label class="form-label fw-bold small text-secondary">@(isMarathi ? "मोबाईल नंबर" : "Phone Number") <span class="text-danger">*</span></label>
+                        <input type="tel" id="parcelCustomerPhone" class="form-control" placeholder="@(isMarathi ? "१०-अंकी मोबाईल नंबर" : "10-digit mobile number")" maxlength="15" />
+                        <div class="invalid-feedback" id="parcelCustomerPhoneError">@(isMarathi ? "योग्य मोबाईल नंबर आवश्यक आहे." : "Valid phone number is required.")</div>
                     </div>
                     <div class="col-12">
-                        <label class="form-label fw-bold small text-secondary">Order Note</label>
-                        <input type="text" id="parcelOrderNote" class="form-control" placeholder="Special instructions (optional)" maxlength="250" />
+                        <label class="form-label fw-bold small text-secondary">@(isMarathi ? "ऑर्डर सूचना (पर्यायी)" : "Order Note")</label>
+                        <input type="text" id="parcelOrderNote" class="form-control" placeholder="@(isMarathi ? "विशेष सूचना (पर्यायी)" : "Special instructions (optional)")" maxlength="250" />
                     </div>
                 </div>
 
@@ -628,38 +640,38 @@
 
                 <!-- Menu Items -->
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="fw-bold small text-secondary text-uppercase" style="letter-spacing:0.5px;"><i class="fa-solid fa-utensils text-success me-1"></i>Add Items</span>
-                    <span class="badge bg-primary-subtle text-primary rounded-pill small" id="parcelItemCount">0 Items</span>
+                    <span class="fw-bold small text-secondary text-uppercase" style="letter-spacing:0.5px;"><i class="fa-solid fa-utensils text-success me-1"></i>@(isMarathi ? "आयटम जोडा" : "Add Items")</span>
+                    <span class="badge bg-primary-subtle text-primary rounded-pill small" id="parcelItemCount">0 @(isMarathi ? "आयटम" : "Items")</span>
                 </div>
                 <div class="input-group input-group-sm mb-2" style="max-width:300px;">
                     <span class="input-group-text bg-light"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
-                    <input type="text" id="parcelMenuSearch" class="form-control" placeholder="Search dish..." onkeyup="filterParcelMenu()" />
+                    <input type="text" id="parcelMenuSearch" class="form-control" placeholder="@(isMarathi ? "पदार्थ शोधा..." : "Search dish...")" onkeyup="filterParcelMenu()" />
                 </div>
                 <div class="border rounded-3 mb-3" style="max-height:220px; overflow-y:auto;" id="parcelMenuList">
-                    <div class="text-center py-3 text-muted small"><i class="fa-solid fa-spinner fa-spin"></i> Loading menu...</div>
+                    <div class="text-center py-3 text-muted small"><i class="fa-solid fa-spinner fa-spin"></i> @(isMarathi ? "मेनू लोड होत आहे..." : "Loading menu...")</div>
                 </div>
 
                 <!-- Selected Items -->
                 <div id="parcelSelectedItems">
                     <div class="text-center py-3 text-muted small border rounded-3 bg-light" id="parcelEmptyItems">
                         <i class="fa-solid fa-cart-shopping fs-4 text-secondary opacity-50 mb-1"></i><br>
-                        Tap any dish above to add it here.
+                        @(isMarathi ? "वरील कोणत्याही पदार्थावर क्लिक करून येथे जोडा." : "Tap any dish above to add it here.")
                     </div>
                 </div>
 
                 <!-- Totals -->
                 <div class="row g-1 mt-3 small text-secondary" id="parcelTotalsRow" style="display:none;">
-                    <div class="col-6 d-flex justify-content-between"><span>Subtotal:</span><strong class="text-dark" id="parcelSubtotal">₹0.00</strong></div>
-                    <div class="col-6 d-flex justify-content-between"><span>GST (5%):</span><strong class="text-dark" id="parcelTax">₹0.00</strong></div>
+                    <div class="col-6 d-flex justify-content-between"><span>@(isMarathi ? "उप-एकूण:" : "Subtotal:")</span><strong class="text-dark" id="parcelSubtotal">₹0.00</strong></div>
+                    <div class="col-6 d-flex justify-content-between"><span>@(isMarathi ? "जीएसटी (५%):" : "GST (5%):")</span><strong class="text-dark" id="parcelTax">₹0.00</strong></div>
                     <div class="col-12 border-top pt-1 mt-1 d-flex justify-content-between align-items-center fs-5 fw-bold text-dark">
-                        <span>Grand Total:</span><span class="text-success" id="parcelGrandTotal">₹0.00</span>
+                        <span>@(isMarathi ? "एकूण देय रक्कम:" : "Grand Total:")</span><span class="text-success" id="parcelGrandTotal">₹0.00</span>
                     </div>
                 </div>
             </div>
             <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">@(isMarathi ? "रद्द करा" : "Cancel")</button>
                 <button type="button" class="btn text-white fw-bold rounded-pill px-4 shadow-sm" style="background:#0f766e;" onclick="submitParcelOrder()" id="parcelSubmitBtn">
-                    <i class="fa-solid fa-paper-plane me-1"></i> Send KOT & Create Parcel
+                    <i class="fa-solid fa-paper-plane me-1"></i> @(isMarathi ? "KOT पाठवा व पार्सल बनवा" : "Send KOT & Create Parcel")
                 </button>
             </div>
         </div>
@@ -1084,11 +1096,21 @@
     }
 
     // Load active parcel orders on dashboard
+    var isAppMarathi = @(isMarathi ? "true" : "false");
     function loadParcelOrders() {
         $.get('/Orders/GetParcelOrders', function(res) {
             if (res && res.success && res.orders && res.orders.length > 0) {
                 let html = '<div class="table-responsive"><table class="table align-middle mb-0">';
-                html += '<thead class="bg-light text-muted small text-uppercase"><tr><th>Order #</th><th>KOT #</th><th>Customer</th><th>Phone</th><th>Items Ordered</th><th>Amount</th><th>Status</th><th>Time</th><th class="text-end">Actions</th></tr></thead><tbody>';
+                html += '<thead class="bg-light text-muted small text-uppercase"><tr>' +
+                    `<th>${isAppMarathi ? 'ऑर्डर क्र.' : 'Order #'}</th>` +
+                    `<th>${isAppMarathi ? 'KOT क्र.' : 'KOT #'}</th>` +
+                    `<th>${isAppMarathi ? 'ग्राहक' : 'Customer'}</th>` +
+                    `<th>${isAppMarathi ? 'मोबाईल' : 'Phone'}</th>` +
+                    `<th>${isAppMarathi ? 'मागवलेले आयटम' : 'Items Ordered'}</th>` +
+                    `<th>${isAppMarathi ? 'रक्कम' : 'Amount'}</th>` +
+                    `<th>${isAppMarathi ? 'स्थिती' : 'Status'}</th>` +
+                    `<th>${isAppMarathi ? 'वेळ' : 'Time'}</th>` +
+                    `<th class="text-end">${isAppMarathi ? 'कृती' : 'Actions'}</th></tr></thead><tbody>`;
                 res.orders.forEach(o => {
                     let statusBadgeClass = 'bg-primary-subtle text-primary border border-primary-subtle';
                     if (o.status === 'Preparing') statusBadgeClass = 'bg-warning-subtle text-warning-emphasis border border-warning-subtle';
@@ -1100,16 +1122,16 @@
                         <td class="fw-bold text-dark">${o.customerName||'-'}</td>
                         <td class="text-muted small"><i class="fa-solid fa-phone me-1 opacity-75 text-secondary"></i>${o.customerPhone||'-'}</td>
                         <td class="small text-dark" style="max-width:240px; white-space:normal;">
-                            <span class="fw-semibold text-teal" style="color:#0f766e;">${o.totalItems} items:</span> ${o.itemsSummary}
+                            <span class="fw-semibold text-teal" style="color:#0f766e;">${o.totalItems} ${isAppMarathi ? 'आयटम:' : 'items:'}</span> ${o.itemsSummary}
                         </td>
                         <td class="fw-bold text-success fs-6">₹${o.grandTotal.toFixed(0)}</td>
                         <td><span class="badge rounded-pill ${statusBadgeClass}" style="font-size:0.75rem;">${o.status}</span></td>
                         <td class="text-muted small">${new Date(o.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td>
                         <td class="text-end">
                             <a href="/Billing?orderId=${o.id}" class="btn btn-sm btn-success rounded-pill px-3 shadow-sm me-1">
-                                <i class="fa-solid fa-receipt me-1"></i> Bill
+                                <i class="fa-solid fa-receipt me-1"></i> ${isAppMarathi ? 'बिल' : 'Bill'}
                             </a>
-                            <a href="/Orders/POS?orderId=${o.id}" class="btn btn-sm btn-outline-secondary rounded-pill px-2" title="Edit Order in POS">
+                            <a href="/Orders/POS?orderId=${o.id}" class="btn btn-sm btn-outline-secondary rounded-pill px-2" title="${isAppMarathi ? 'ऑर्डर पहा / बदला' : 'Edit Order in POS'}">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </a>
                         </td>
@@ -1118,10 +1140,10 @@
                 html += '</tbody></table></div>';
                 $('#parcelOrdersList').html(html);
             } else {
-                $('#parcelOrdersList').html('<div class="text-center py-4 text-muted"><i class="fa-solid fa-box-open fs-2 d-block mb-2 text-secondary opacity-50"></i><p class="small mb-0">No active parcel orders. Click "New Parcel Order" to start one.</p></div>');
+                $('#parcelOrdersList').html(`<div class="text-center py-4 text-muted"><i class="fa-solid fa-box-open fs-2 d-block mb-2 text-secondary opacity-50"></i><p class="small mb-0">${isAppMarathi ? 'कोणतीही सक्रिय पार्सल ऑर्डर नाही. नवीन ऑर्डर सुरू करण्यासाठी "नवीन पार्सल ऑर्डर" वर क्लिक करा.' : 'No active parcel orders. Click "New Parcel Order" to start one.'}</p></div>`);
             }
         }).fail(function() {
-            $('#parcelOrdersList').html('<div class="text-center py-3 text-muted small">Could not load parcel orders.</div>');
+            $('#parcelOrdersList').html(`<div class="text-center py-3 text-muted small">${isAppMarathi ? 'पार्सल ऑर्डर्स लोड करता आल्या नाहीत.' : 'Could not load parcel orders.'}</div>`);
         });
     }
 

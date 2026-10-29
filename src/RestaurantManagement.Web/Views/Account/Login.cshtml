@@ -8,7 +8,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"]</title>
+    <title id="pageTitle">@ViewData["Title"]</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
     <!-- FontAwesome 6 -->
@@ -48,8 +48,8 @@
         }
 
         .brand-crest {
-            width: 48px;
-            height: 48px;
+            width: 52px;
+            height: 52px;
             border-radius: 50%;
             background: linear-gradient(135deg, #059669 0%, #10b981 50%, #d97706 100%);
             display: inline-flex;
@@ -58,7 +58,7 @@
             color: #ffffff;
             font-family: 'Outfit', sans-serif;
             font-weight: 800;
-            font-size: 1.4rem;
+            font-size: 1.5rem;
             box-shadow: 0 6px 14px rgba(5, 150, 105, 0.25);
             border: 2px solid #ffffff;
         }
@@ -66,7 +66,7 @@
         .brand-title {
             font-family: 'Outfit', sans-serif;
             font-weight: 800;
-            font-size: 1.5rem;
+            font-size: 1.55rem;
             letter-spacing: -0.3px;
             background: linear-gradient(135deg, #059669 0%, #0d9488 45%, #d97706 100%);
             -webkit-background-clip: text;
@@ -188,11 +188,24 @@
         </div>
     </div>
 
-    <!-- Brand Header -->
+    <!-- Brand Header: Dynamic Logo & Name -->
     <div class="text-center mb-3">
-        <div class="brand-crest mb-2">G</div>
-        <h2 class="brand-title mb-0">@Model.RestaurantName</h2>
-        <div class="text-muted small fw-semibold" id="rmsSubtitle">Restaurant Management System</div>
+        @if (!string.IsNullOrEmpty(Model.LogoUrl))
+        {
+            <div class="mb-2">
+                <img src="@Model.LogoUrl" alt="Logo" id="brandLogo" style="max-height: 56px; max-width: 180px; object-fit: contain;" onerror="this.style.display='none'; document.getElementById('brandCrestFallback').style.display='inline-flex';" />
+                <div class="brand-crest mb-2" id="brandCrestFallback" style="display: none;">
+                    @((string.IsNullOrEmpty(Model.RestaurantName) ? "G" : Model.RestaurantName.Substring(0, 1).ToUpper()))
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="brand-crest mb-2">
+                @((string.IsNullOrEmpty(Model.RestaurantName) ? "G" : Model.RestaurantName.Substring(0, 1).ToUpper()))
+            </div>
+        }
+        <h2 class="brand-title mb-0" id="brandNameDisplay">@Model.RestaurantName</h2>
     </div>
 
     @if (TempData["Success"] != null)
@@ -264,11 +277,11 @@
         </form>
     </div>
 
-    <!-- Optimized Forgot Password Panel -->
+    <!-- Forgot Password Panel -->
     <div id="forgotPasswordSection" class="d-none">
         <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
-            <span class="fw-bold small text-dark"><i class="fa-solid fa-key text-warning me-1"></i> Reset Password</span>
-            <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none small text-secondary" onclick="toggleForgotPassword(false)">
+            <span class="fw-bold small text-dark" id="resetHeaderLabel"><i class="fa-solid fa-key text-warning me-1"></i> Reset Password</span>
+            <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none small text-secondary" onclick="toggleForgotPassword(false)" id="backToLoginBtn">
                 <i class="fa-solid fa-arrow-left me-1"></i> Back
             </button>
         </div>
@@ -302,23 +315,54 @@
         </form>
     </div>
 
-    <div class="text-center mt-3 pt-2 border-top text-muted small" style="font-size: 0.75rem;">
-        Girana Garden RMS &bull; Secure Terminal Access
+    <div class="text-center mt-3 pt-2 border-top text-muted small" style="font-size: 0.75rem;" id="loginFooterText">
+        Secure Terminal Access
     </div>
 </div>
 
-<!-- Instant Client-Side Dictionary for 0ms Role Detection -->
 <script>
+    const nameEnglish = "@Html.Raw(Model.RestaurantName.Replace("\"", "\\\""))";
+    const nameMarathi = "@Html.Raw((string.IsNullOrEmpty(Model.RestaurantNameMarathi) ? Model.RestaurantName : Model.RestaurantNameMarathi).Replace("\"", "\\\""))";
+
     const roleMap = {
-        'admin': { name: 'Administrator', icon: 'fa-user-gear', color: '#dc2626', mode: 'Full Admin Mode', pass: 'admin123' },
-        'manager': { name: 'Restaurant Manager', icon: 'fa-briefcase', color: '#059669', mode: 'Operations Mode', pass: 'manager123' },
-        'cashier': { name: 'Cashier & Billing', icon: 'fa-cash-register', color: '#4f46e5', mode: 'Billing Mode', pass: 'cashier123' },
-        'waiter': { name: 'Floor Captain / Waiter', icon: 'fa-tray', color: '#d97706', mode: 'Fast POS Mode', pass: 'waiter123' },
-        'kitchen': { name: 'Kitchen Head / Chef', icon: 'fa-kitchen-set', color: '#ea580c', mode: 'KDS Screen Mode', pass: 'kitchen123' },
-        'inventory': { name: 'Inventory Staff', icon: 'fa-boxes-stacked', color: '#475569', mode: 'Stock Control Mode', pass: 'inventory123' }
+        'admin': { 
+            nameEn: 'Administrator', nameMr: 'प्रशासक (Admin)', 
+            icon: 'fa-user-gear', color: '#dc2626', 
+            modeEn: 'Full Admin Mode', modeMr: 'संपूर्ण अ‍ॅडमिन मोड', 
+            pass: 'admin123' 
+        },
+        'manager': { 
+            nameEn: 'Restaurant Manager', nameMr: 'रेस्टॉरंट व्यवस्थापक (Manager)', 
+            icon: 'fa-briefcase', color: '#059669', 
+            modeEn: 'Operations Mode', modeMr: 'ऑपरेशन्स मोड', 
+            pass: 'manager123' 
+        },
+        'cashier': { 
+            nameEn: 'Cashier & Billing', nameMr: 'कॅशियर आणि बिलिंग', 
+            icon: 'fa-cash-register', color: '#4f46e5', 
+            modeEn: 'Billing Mode', modeMr: 'बिलिंग मोड', 
+            pass: 'cashier123' 
+        },
+        'waiter': { 
+            nameEn: 'Floor Captain / Waiter', nameMr: 'फ्लोअर कॅप्टन / वेटर', 
+            icon: 'fa-tray', color: '#d97706', 
+            modeEn: 'Fast POS Mode', modeMr: 'फास्ट पीओएस मोड', 
+            pass: 'waiter123' 
+        },
+        'kitchen': { 
+            nameEn: 'Kitchen Head / Chef', nameMr: 'किचन हेड / मुख्य शेफ', 
+            icon: 'fa-kitchen-set', color: '#ea580c', 
+            modeEn: 'KDS Screen Mode', modeMr: 'केडीएस स्क्रीन मोड', 
+            pass: 'kitchen123' 
+        }
     };
 
+    let currentSelectedUser = 'manager';
+    let currentSelectedRoleInfo = roleMap['manager'];
+
     function pickRole(user, pass, name, icon, color, mode, btn) {
+        currentSelectedUser = user;
+        currentSelectedRoleInfo = roleMap[user];
         document.getElementById('usernameInput').value = user;
         document.getElementById('passwordInput').value = pass;
         document.getElementById('resetUser').value = user;
@@ -326,34 +370,48 @@
         document.querySelectorAll('.role-chip-btn').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');
 
-        applyRoleBadge(name, icon, color, mode);
+        applyRoleBadge();
     }
 
     function onUserType(val) {
         val = (val || '').trim().toLowerCase();
+        currentSelectedUser = val;
         const role = roleMap[val];
         if (role) {
-            applyRoleBadge(role.name, role.icon, role.color, role.mode);
+            currentSelectedRoleInfo = role;
+            applyRoleBadge();
             document.querySelectorAll('.role-chip-btn').forEach(b => {
-                b.classList.toggle('active', b.textContent.toLowerCase() === val || role.name.toLowerCase().includes(b.textContent.toLowerCase()));
+                b.classList.toggle('active', b.id.toLowerCase().includes(val));
             });
         } else if (val.length > 0) {
-            applyRoleBadge('Staff User (' + val + ')', 'fa-user', '#64748b', 'Standard Terminal');
+            currentSelectedRoleInfo = {
+                nameEn: 'Staff User (' + val + ')',
+                nameMr: 'कर्मचारी (' + val + ')',
+                icon: 'fa-user',
+                color: '#64748b',
+                modeEn: 'Standard Terminal',
+                modeMr: 'प्रमाणित टर्मिनल'
+            };
+            applyRoleBadge();
             document.querySelectorAll('.role-chip-btn').forEach(b => b.classList.remove('active'));
         }
     }
 
-    function applyRoleBadge(name, icon, color, mode) {
+    function applyRoleBadge() {
+        const lang = localStorage.getItem('girana_rms_lang') || 'en';
+        const isMr = lang === 'mr';
         const iconElem = document.getElementById('roleIcon');
         const nameElem = document.getElementById('roleName');
         const modeElem = document.getElementById('modeName');
         const box = document.getElementById('roleIndicatorBox');
 
-        iconElem.className = 'fa-solid ' + icon;
-        iconElem.style.color = color;
-        nameElem.textContent = name;
-        modeElem.textContent = mode;
-        box.classList.add('highlight');
+        if (currentSelectedRoleInfo) {
+            iconElem.className = 'fa-solid ' + currentSelectedRoleInfo.icon;
+            iconElem.style.color = currentSelectedRoleInfo.color;
+            nameElem.textContent = isMr ? currentSelectedRoleInfo.nameMr : currentSelectedRoleInfo.nameEn;
+            modeElem.textContent = isMr ? currentSelectedRoleInfo.modeMr : currentSelectedRoleInfo.modeEn;
+            box.classList.add('highlight');
+        }
     }
 
     function toggleVisibility(inputId, btn) {
@@ -387,13 +445,13 @@
 
         if (newPass !== confirmPass) {
             alertBox.className = 'alert alert-danger p-2 px-3 small rounded-3 mb-2';
-            alertBox.textContent = 'Passwords do not match.';
+            alertBox.textContent = (localStorage.getItem('girana_rms_lang') === 'mr') ? 'पासवर्ड जुळत नाहीत.' : 'Passwords do not match.';
             alertBox.classList.remove('d-none');
             return;
         }
 
         btn.disabled = true;
-        btn.textContent = 'Updating...';
+        btn.textContent = (localStorage.getItem('girana_rms_lang') === 'mr') ? 'अद्ययावत करत आहे...' : 'Updating...';
 
         try {
             const resp = await fetch('/Account/ForgotPassword', {
@@ -426,20 +484,28 @@
             alertBox.classList.remove('d-none');
         } finally {
             btn.disabled = false;
-            btn.textContent = 'Reset & Save';
+            btn.textContent = (localStorage.getItem('girana_rms_lang') === 'mr') ? 'रीसेट करा आणि सेव्ह करा' : 'Reset & Save';
         }
     }
 
     // Bilingual (English / Marathi) dictionary & persistence
     const translations = {
         en: {
-            subtitle: 'Restaurant Management System',
+            brandName: nameEnglish,
+            title: "Sign In - " + nameEnglish,
             username: 'Username',
             password: 'Password',
             rememberMe: 'Remember me',
-            forgot: 'Forgot password?',
+            forgotPassword: 'Forgot password?',
             signIn: 'Sign In',
-            resetTitle: 'Reset Password',
+            resetTitle: '<i class="fa-solid fa-key text-warning me-1"></i> Reset Password',
+            back: '<i class="fa-solid fa-arrow-left me-1"></i> Back',
+            resetUserPh: 'Username',
+            resetPinPh: 'Manager PIN (1234)',
+            resetNewPassPh: 'New Password (min 4 chars)',
+            resetConfirmPassPh: 'Confirm New Password',
+            resetSubmitBtn: 'Reset & Save',
+            footer: 'Secure Terminal Access',
             chipMgr: 'Manager',
             chipAdm: 'Admin',
             chipCash: 'Cashier',
@@ -447,13 +513,21 @@
             chipKit: 'Kitchen'
         },
         mr: {
-            subtitle: 'रेस्टॉरंट व्यवस्थापन प्रणाली',
+            brandName: nameMarathi,
+            title: "साइन इन करा - " + nameMarathi,
             username: 'वापरकर्ता नाव (Username)',
             password: 'पासवर्ड (Password)',
             rememberMe: 'मला लक्षात ठेवा',
-            forgot: 'पासवर्ड विसरलात?',
+            forgotPassword: 'पासवर्ड विसरलात?',
             signIn: 'साइन इन करा',
-            resetTitle: 'पासवर्ड रीसेट करा',
+            resetTitle: '<i class="fa-solid fa-key text-warning me-1"></i> पासवर्ड रीसेट करा',
+            back: '<i class="fa-solid fa-arrow-left me-1"></i> मागे जा',
+            resetUserPh: 'वापरकर्ता नाव',
+            resetPinPh: 'मॅनेजर पिन (1234)',
+            resetNewPassPh: 'नवीन पासवर्ड (किमान 4 अक्षरे)',
+            resetConfirmPassPh: 'नवीन पासवर्ड पुष्टी करा',
+            resetSubmitBtn: 'रीसेट करा आणि सेव्ह करा',
+            footer: 'सुरक्षित टर्मिनल प्रवेश (Secure Terminal Access)',
             chipMgr: 'व्यवस्थापक',
             chipAdm: 'अ‍ॅडमिन',
             chipCash: 'कॅशियर',
@@ -477,8 +551,10 @@
         }
 
         const t = translations[lang] || translations.en;
-        const sub = document.getElementById('rmsSubtitle');
-        if (sub) sub.textContent = t.subtitle;
+        document.title = t.title;
+        const brandElem = document.getElementById('brandNameDisplay');
+        if (brandElem) brandElem.textContent = t.brandName;
+
         const uIn = document.getElementById('usernameInput');
         if (uIn) uIn.placeholder = t.username;
         const pIn = document.getElementById('passwordInput');
@@ -486,7 +562,7 @@
         const rmL = document.getElementById('rememberMeLabel');
         if (rmL) rmL.textContent = t.rememberMe;
         const fpL = document.getElementById('forgotPasswordLink');
-        if (fpL) fpL.textContent = t.forgot;
+        if (fpL) fpL.textContent = t.forgotPassword;
         const siT = document.getElementById('signInBtnText');
         if (siT) siT.textContent = t.signIn;
 
@@ -500,9 +576,27 @@
         if (cW) cW.textContent = t.chipWait;
         const cK = document.getElementById('chipKitchen');
         if (cK) cK.textContent = t.chipKit;
+
+        const rhL = document.getElementById('resetHeaderLabel');
+        if (rhL) rhL.innerHTML = t.resetTitle;
+        const bBtn = document.getElementById('backToLoginBtn');
+        if (bBtn) bBtn.innerHTML = t.back;
+        const rUser = document.getElementById('resetUser');
+        if (rUser) rUser.placeholder = t.resetUserPh;
+        const rPin = document.getElementById('resetPin');
+        if (rPin) rPin.placeholder = t.resetPinPh;
+        const rNP = document.getElementById('resetNewPass');
+        if (rNP) rNP.placeholder = t.resetNewPassPh;
+        const rCP = document.getElementById('resetConfirmPass');
+        if (rCP) rCP.placeholder = t.resetConfirmPassPh;
+        const rSub = document.getElementById('resetSubmitBtn');
+        if (rSub) rSub.textContent = t.resetSubmitBtn;
+        const fTxt = document.getElementById('loginFooterText');
+        if (fTxt) fTxt.textContent = t.footer;
+
+        applyRoleBadge();
     }
 
-    // Init on load
     document.addEventListener('DOMContentLoaded', function() {
         const savedLang = localStorage.getItem('girana_rms_lang') || 
             (document.cookie.match(/(?:^|;\s*)GiranaRMS\.Language=([^;]+)/) || [])[1] || 'en';

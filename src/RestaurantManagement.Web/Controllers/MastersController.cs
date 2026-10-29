@@ -433,6 +433,7 @@ public class MastersController : Controller
         else
         {
             setting.RestaurantName = updated.RestaurantName;
+            setting.RestaurantNameMarathi = updated.RestaurantNameMarathi ?? string.Empty;
             setting.Address = updated.Address;
             setting.Phone = updated.Phone;
             setting.Email = updated.Email;

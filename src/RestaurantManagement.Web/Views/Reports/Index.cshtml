@@ -1,74 +1,168 @@
 @model ComprehensiveReportDto
+@inject IUnitOfWork UnitOfWork
 @{
-    ViewData["Title"] = "Sales & Analytics Reports";
+    var setting = (await UnitOfWork.RestaurantSettings.GetAllAsync()).FirstOrDefault();
+    var currentLang = Context.Request.Cookies["GiranaRMS.Language"] ?? "en";
+    var isMarathi = currentLang == "mr";
+    var restaurantName = !string.IsNullOrWhiteSpace(setting?.RestaurantName) ? setting.RestaurantName : "Girana Garden";
+    var restaurantNameMr = !string.IsNullOrWhiteSpace(setting?.RestaurantNameMarathi) ? setting.RestaurantNameMarathi : (!string.IsNullOrWhiteSpace(setting?.RestaurantName) ? setting.RestaurantName : "गिराणा गार्डन");
+    var effectiveBrandName = isMarathi ? restaurantNameMr : restaurantName;
+    ViewData["Title"] = isMarathi ? $"{effectiveBrandName} अहवाल व विश्लेषण" : $"{effectiveBrandName} Reports & Analytics";
+    
     string currentPeriod = Model.PeriodType;
     int curYear = Model.SelectedYear;
     int curMonth = Model.SelectedMonth;
 }
 
-<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 animated-fade-in">
+<style>
+    @@media print {
+        #appSidebar, .sidebar, header, .app-footer, .no-print, .btn, .nav-tabs, form, .btn-group {
+            display: none !important;
+        }
+        .main-content {
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+        }
+        .tab-pane {
+            display: block !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            margin-bottom: 2rem;
+            page-break-after: auto;
+        }
+        .print-header {
+            display: block !important;
+            border-bottom: 2px solid #059669;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+        }
+        .glass-card {
+            border: 1px solid #cbd5e1 !important;
+            box-shadow: none !important;
+            background: #fff !important;
+        }
+        table {
+            border-collapse: collapse !important;
+            width: 100% !important;
+        }
+        th, td {
+            border: 1px solid #cbd5e1 !important;
+            padding: 6px 10px !important;
+        }
+    }
+    .print-header {
+        display: none;
+    }
+</style>
+
+<!-- Print Only Official Header -->
+<div class="print-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="fw-bold mb-1" style="color: #059669;">@effectiveBrandName</h2>
+            <div class="text-secondary small">@(setting?.Address ?? "Pure Veg Family Restaurant") &bull; Phone: @(setting?.Phone ?? "-") &bull; GSTIN: @(setting?.GSTIN ?? "-")</div>
+            <h4 class="fw-bold mt-2 text-dark">@(isMarathi ? "व्यावसायिक अहवाल व विश्लेषण" : "Official Business & Revenue Report")</h4>
+            <div class="small text-muted">Period: @currentPeriod &bull; Generated: @DateTime.Now.ToString("dd-MMM-yyyy hh:mm tt")</div>
+        </div>
+        <div class="text-end">
+            <div class="badge bg-success fs-6 p-2">Net Sales: ₹@Model.TotalRevenue.ToString("N0")</div>
+            <div class="small text-muted mt-1">Total Orders: @Model.TotalOrders</div>
+        </div>
+    </div>
+</div>
+
+<!-- Screen Top Header Bar -->
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 animated-fade-in no-print">
     <div>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb mb-1 fs-6">
                 <li class="breadcrumb-item">
                     <a href="/Dashboard" class="text-decoration-none fw-semibold text-success">
-                        <i class="fa-solid fa-chart-pie me-1"></i> Dashboard
+                        <i class="fa-solid fa-chart-pie me-1"></i> @(isMarathi ? "डॅशबोर्ड" : "Dashboard")
                     </a>
                 </li>
                 <li class="breadcrumb-item active fw-bold text-dark" aria-current="page">
-                    <i class="fa-solid fa-chart-line text-success me-1"></i> Reports & Analytics
+                    <i class="fa-solid fa-chart-line text-success me-1"></i> @(isMarathi ? "अहवाल व विश्लेषण" : "Reports & Analytics")
                 </li>
             </ol>
         </nav>
         <h2 class="fw-bold mb-0 text-dark">
-            <i class="fa-solid fa-chart-line text-success me-2"></i>Sales & Revenue Reports
+            <i class="fa-solid fa-chart-line text-success me-2"></i>@(isMarathi ? "विक्री, टेबल व मेनू अहवाल" : "Sales, Table & Menu Reports")
         </h2>
         <div class="text-muted small mt-1">
-            Displaying @currentPeriod report for 
+            @(isMarathi ? "निवडलेला कालावधी: " : "Displaying period: ") 
             @if (currentPeriod == "DayWise")
             {
                 <span class="fw-bold text-dark">@(new DateTime(curYear, curMonth, 1).ToString("MMMM yyyy"))</span>
             }
             else if (currentPeriod == "MonthWise")
             {
-                <span class="fw-bold text-dark">Year @curYear</span>
+                <span class="fw-bold text-dark">@(isMarathi ? $"वर्ष {curYear}" : $"Year {curYear}")</span>
             }
             else if (currentPeriod == "YearWise")
             {
-                <span class="fw-bold text-dark">Past 5 Years</span>
+                <span class="fw-bold text-dark">@(isMarathi ? "मागील ५ वर्षे" : "Past 5 Years")</span>
             }
             else
             {
-                <span class="fw-bold text-dark">@Model.StartDate.ToString("dd MMM yyyy") to @Model.EndDate.ToString("dd MMM yyyy")</span>
+                <span class="fw-bold text-dark">@Model.StartDate.ToString("dd MMM yyyy") - @Model.EndDate.ToString("dd MMM yyyy")</span>
             }
         </div>
     </div>
-    <div class="d-flex gap-2">
-        <button onclick="window.print()" class="btn btn-outline-secondary rounded-pill px-3 shadow-sm">
-            <i class="fa-solid fa-print me-1"></i> Print Report
+    <div class="d-flex flex-wrap gap-2">
+        <!-- Excel Download Dropdown -->
+        <div class="dropdown">
+            <button class="btn btn-outline-success rounded-pill px-3 shadow-sm dropdown-toggle fw-semibold" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fa-solid fa-file-excel me-1 text-success"></i> @(isMarathi ? "एक्सेल डाउनलोड" : "Download Excel")
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4">
+                <li><h6 class="dropdown-header text-uppercase small">@(isMarathi ? "अहवाल प्रकार निवडा" : "Select Report Sheet")</h6></li>
+                <li>
+                    <a class="dropdown-item py-2" href="/Reports/ExportExcel?reportType=Sales&period=@currentPeriod&year=@curYear&month=@curMonth&startDate=@Model.StartDate.ToString("yyyy-MM-dd")&endDate=@Model.EndDate.ToString("yyyy-MM-dd")">
+                        <i class="fa-solid fa-chart-line text-success me-2"></i> @(isMarathi ? "विक्री अहवाल (Sales Overview)" : "Sales & Revenue (.csv)")
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item py-2" href="/Reports/ExportExcel?reportType=Table&period=@currentPeriod&year=@curYear&month=@curMonth&startDate=@Model.StartDate.ToString("yyyy-MM-dd")&endDate=@Model.EndDate.ToString("yyyy-MM-dd")">
+                        <i class="fa-solid fa-chair text-primary me-2"></i> @(isMarathi ? "टेबलनुसार वसुली (Table Collection)" : "Table-wise Collection (.csv)")
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item py-2" href="/Reports/ExportExcel?reportType=MenuItem&period=@currentPeriod&year=@curYear&month=@curMonth&startDate=@Model.StartDate.ToString("yyyy-MM-dd")&endDate=@Model.EndDate.ToString("yyyy-MM-dd")">
+                        <i class="fa-solid fa-utensils text-warning me-2"></i> @(isMarathi ? "मेनू पदार्थ विक्री (Menu Item Sales)" : "Menu Item-wise Sales (.csv)")
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- PDF / Print Report -->
+        <button onclick="window.print()" class="btn btn-outline-dark rounded-pill px-3 shadow-sm fw-semibold">
+            <i class="fa-solid fa-file-pdf text-danger me-1"></i> @(isMarathi ? "PDF / प्रिंट करा" : "Download PDF / Print")
         </button>
-        <a href="/Dashboard" class="btn btn-outline-dark rounded-pill px-3 shadow-sm">
-            <i class="fa-solid fa-arrow-left me-1"></i> Dashboard
+
+        <a href="/Dashboard" class="btn btn-outline-secondary rounded-pill px-3 shadow-sm fw-semibold">
+            <i class="fa-solid fa-arrow-left me-1"></i> @(isMarathi ? "डॅशबोर्डवर परत" : "Back to Dashboard")
         </a>
     </div>
 </div>
 
-<!-- Period Selection Card -->
-<div class="glass-card p-4 mb-4 animated-fade-in shadow-sm">
+<!-- Period Selection Card (Screen Only) -->
+<div class="glass-card p-3 p-md-4 mb-4 animated-fade-in shadow-sm no-print">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
         <!-- Period Mode Switcher -->
         <div class="btn-group p-1 bg-light rounded-pill border" role="group">
             <a href="/Reports?period=DayWise&year=@curYear&month=@curMonth" class="btn btn-sm rounded-pill px-3 fw-bold @(currentPeriod == "DayWise" ? "btn-success shadow-sm" : "text-dark")">
-                <i class="fa-solid fa-calendar-day me-1"></i> Day-wise
+                <i class="fa-solid fa-calendar-day me-1"></i> @(isMarathi ? "दिवसनिहाय" : "Day-wise")
             </a>
             <a href="/Reports?period=MonthWise&year=@curYear" class="btn btn-sm rounded-pill px-3 fw-bold @(currentPeriod == "MonthWise" ? "btn-success shadow-sm" : "text-dark")">
-                <i class="fa-solid fa-calendar-week me-1"></i> Month-wise
+                <i class="fa-solid fa-calendar-week me-1"></i> @(isMarathi ? "महिनानिहाय" : "Month-wise")
             </a>
             <a href="/Reports?period=YearWise&year=@curYear" class="btn btn-sm rounded-pill px-3 fw-bold @(currentPeriod == "YearWise" ? "btn-success shadow-sm" : "text-dark")">
-                <i class="fa-solid fa-calendar me-1"></i> Year-wise
+                <i class="fa-solid fa-calendar me-1"></i> @(isMarathi ? "वर्षनिहाय" : "Year-wise")
             </a>
             <a href="/Reports?period=Custom" class="btn btn-sm rounded-pill px-3 fw-bold @(currentPeriod == "Custom" ? "btn-success shadow-sm" : "text-dark")">
-                <i class="fa-solid fa-sliders me-1"></i> Custom Range
+                <i class="fa-solid fa-sliders me-1"></i> @(isMarathi ? "कस्टम तारीख" : "Custom Range")
             </a>
         </div>
 
@@ -79,43 +173,43 @@
             @if (currentPeriod == "DayWise")
             {
                 <div class="d-flex align-items-center gap-2">
-                    <label class="small fw-bold text-secondary mb-0">Month:</label>
+                    <label class="small fw-bold text-secondary mb-0">@(isMarathi ? "महिना:" : "Month:")</label>
                     <select name="month" class="form-select form-select-sm rounded-pill" style="width: 140px;">
                         @for (int m = 1; m <= 12; m++)
                         {
                             <option value="@m" selected="@(m == curMonth)">@(new DateTime(2026, m, 1).ToString("MMMM"))</option>
                         }
                     </select>
-                    <label class="small fw-bold text-secondary mb-0">Year:</label>
+                    <label class="small fw-bold text-secondary mb-0">@(isMarathi ? "वर्ष:" : "Year:")</label>
                     <select name="year" class="form-select form-select-sm rounded-pill" style="width: 100px;">
                         @for (int y = DateTime.UtcNow.Year; y >= DateTime.UtcNow.Year - 4; y--)
                         {
                             <option value="@y" selected="@(y == curYear)">@y</option>
                         }
                     </select>
-                    <button type="submit" class="btn btn-sm btn-dark rounded-pill px-3"><i class="fa-solid fa-filter me-1"></i> Apply</button>
+                    <button type="submit" class="btn btn-sm btn-dark rounded-pill px-3"><i class="fa-solid fa-filter me-1"></i> @(isMarathi ? "लागू करा" : "Apply")</button>
                 </div>
             }
             else if (currentPeriod == "MonthWise")
             {
                 <div class="d-flex align-items-center gap-2">
-                    <label class="small fw-bold text-secondary mb-0">Year:</label>
+                    <label class="small fw-bold text-secondary mb-0">@(isMarathi ? "वर्ष:" : "Year:")</label>
                     <select name="year" class="form-select form-select-sm rounded-pill" style="width: 110px;">
                         @for (int y = DateTime.UtcNow.Year; y >= DateTime.UtcNow.Year - 4; y--)
                         {
                             <option value="@y" selected="@(y == curYear)">@y</option>
                         }
                     </select>
-                    <button type="submit" class="btn btn-sm btn-dark rounded-pill px-3"><i class="fa-solid fa-filter me-1"></i> Apply</button>
+                    <button type="submit" class="btn btn-sm btn-dark rounded-pill px-3"><i class="fa-solid fa-filter me-1"></i> @(isMarathi ? "लागू करा" : "Apply")</button>
                 </div>
             }
             else if (currentPeriod == "Custom")
             {
                 <div class="d-flex align-items-center gap-2">
                     <input type="date" name="startDate" value="@Model.StartDate.ToString("yyyy-MM-dd")" class="form-control form-control-sm rounded-pill" />
-                    <span class="small text-muted">to</span>
+                    <span class="small text-muted">@(isMarathi ? "ते" : "to")</span>
                     <input type="date" name="endDate" value="@Model.EndDate.ToString("yyyy-MM-dd")" class="form-control form-control-sm rounded-pill" />
-                    <button type="submit" class="btn btn-sm btn-dark rounded-pill px-3"><i class="fa-solid fa-filter me-1"></i> Filter</button>
+                    <button type="submit" class="btn btn-sm btn-dark rounded-pill px-3"><i class="fa-solid fa-filter me-1"></i> @(isMarathi ? "फिल्टर करा" : "Filter")</button>
                 </div>
             }
         </form>
@@ -128,9 +222,9 @@
         <div class="glass-card p-3 p-xl-4 h-100 border-start border-4 border-success">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
-                    <div class="text-secondary small fw-bold text-uppercase">Total Net Revenue</div>
+                    <div class="text-secondary small fw-bold text-uppercase">@(isMarathi ? "एकूण निव्वळ विक्री" : "Total Net Revenue")</div>
                     <div class="fs-3 fw-bold text-success mt-1">₹@Model.TotalRevenue.ToString("N0")</div>
-                    <div class="small text-muted mt-1">Completed & Settled Sales</div>
+                    <div class="small text-muted mt-1">@(isMarathi ? "पूर्ण व सेटल झालेल्या ऑर्डर्स" : "Completed & Settled Sales")</div>
                 </div>
                 <div class="p-3 bg-success-subtle text-success rounded-circle">
                     <i class="fa-solid fa-indian-rupee-sign fs-4"></i>
@@ -142,10 +236,10 @@
         <div class="glass-card p-3 p-xl-4 h-100 border-start border-4 border-info">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
-                    <div class="text-secondary small fw-bold text-uppercase">Total Orders</div>
+                    <div class="text-secondary small fw-bold text-uppercase">@(isMarathi ? "एकूण ऑर्डर्स संख्या" : "Total Orders")</div>
                     <div class="fs-3 fw-bold text-info mt-1">@Model.TotalOrders</div>
                     <div class="small text-muted mt-1">
-                        <span class="text-dark fw-semibold">₹@Model.AverageOrderValue.ToString("N0")</span> Avg Ticket Value
+                        <span class="text-dark fw-semibold">₹@Model.AverageOrderValue.ToString("N0")</span> @(isMarathi ? "सरासरी बिल" : "Avg Ticket Value")
                     </div>
                 </div>
                 <div class="p-3 bg-info-subtle text-info rounded-circle">
@@ -158,7 +252,7 @@
         <div class="glass-card p-3 p-xl-4 h-100 border-start border-4 border-warning">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
-                    <div class="text-secondary small fw-bold text-uppercase">Total GST Collected</div>
+                    <div class="text-secondary small fw-bold text-uppercase">@(isMarathi ? "एकूण जीएसटी कर" : "Total GST Collected")</div>
                     <div class="fs-3 fw-bold text-warning mt-1">₹@Model.TotalTax.ToString("N0")</div>
                     <div class="small text-muted mt-1">
                         CGST: ₹@Model.TotalCGST.ToString("N0") &bull; SGST: ₹@Model.TotalSGST.ToString("N0")
@@ -174,10 +268,10 @@
         <div class="glass-card p-3 p-xl-4 h-100 border-start border-4 border-primary" style="border-color:#0f766e !important;">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
-                    <div class="text-secondary small fw-bold text-uppercase">Takeaway / Parcel Sales</div>
+                    <div class="text-secondary small fw-bold text-uppercase">@(isMarathi ? "पार्सल / टेकअवे विक्री" : "Takeaway / Parcel Sales")</div>
                     <div class="fs-3 fw-bold mt-1" style="color:#0f766e;">₹@Model.TakeawaySales.ToString("N0")</div>
                     <div class="small text-muted mt-1">
-                        Dine-in: ₹@Model.DineInSales.ToString("N0")
+                        @(isMarathi ? "डायन-इन: " : "Dine-in: ")₹@Model.DineInSales.ToString("N0")
                     </div>
                 </div>
                 <div class="p-3 rounded-circle" style="background:#ccfbf1; color:#0f766e;">
@@ -188,242 +282,443 @@
     </div>
 </div>
 
-<!-- Visual Charts Section -->
-<div class="row g-4 mb-4 animated-fade-in">
-    <!-- Trend Chart -->
-    <div class="col-lg-8">
-        <div class="glass-card p-4 h-100 shadow-sm">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-chart-simple text-success me-2"></i>Sales & Revenue Trend</h5>
-                <span class="badge bg-light text-secondary border">@(currentPeriod == "DayWise" ? "Daily Breakdown" : (currentPeriod == "MonthWise" ? "Monthly Breakdown" : "Yearly Trend"))</span>
-            </div>
-            <div style="height: 280px; width:100%;">
-                <canvas id="salesTrendChart"></canvas>
-            </div>
-        </div>
-    </div>
+<!-- Module Navigation Tabs -->
+<ul class="nav nav-pills mb-4 p-1 bg-white border rounded-pill shadow-sm no-print" id="reportTabs" role="tablist" style="width: fit-content;">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active rounded-pill px-4 fw-bold" id="sales-tab" data-bs-toggle="pill" data-bs-target="#sales-pane" type="button" role="tab">
+            <i class="fa-solid fa-chart-line me-2"></i>@(isMarathi ? "विक्री व महसूल आढावा" : "Sales & Revenue")
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link rounded-pill px-4 fw-bold" id="table-tab" data-bs-toggle="pill" data-bs-target="#table-pane" type="button" role="tab">
+            <i class="fa-solid fa-chair me-2"></i>@(isMarathi ? "टेबलनुसार वसुली" : "Table-wise Collection")
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link rounded-pill px-4 fw-bold" id="menu-tab" data-bs-toggle="pill" data-bs-target="#menu-pane" type="button" role="tab">
+            <i class="fa-solid fa-utensils me-2"></i>@(isMarathi ? "मेनू पदार्थ विक्री" : "Menu Item-wise Sales")
+        </button>
+    </li>
+</ul>
 
-    <!-- Payment & Channel Split -->
-    <div class="col-lg-4">
-        <div class="glass-card p-4 h-100 shadow-sm">
-            <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-pie-chart text-info me-2"></i>Payment Breakdown</h5>
-            <div style="height: 200px; width:100%; position:relative;">
-                <canvas id="paymentMethodsChart"></canvas>
-            </div>
-            <div class="mt-3">
-                @foreach (var p in Model.PaymentBreakdown)
-                {
-                    <div class="d-flex justify-content-between align-items-center small mb-1 pb-1 border-bottom">
-                        <span class="fw-semibold text-dark"><i class="fa-solid fa-circle me-1 text-primary" style="font-size:0.5rem;"></i>@p.Method</span>
-                        <span class="text-secondary">@p.TransactionCount txns (@p.Percentage%)</span>
-                        <span class="fw-bold text-dark">₹@p.TotalAmount.ToString("N0")</span>
+<!-- Tab Contents -->
+<div class="tab-content" id="reportTabContent">
+    <!-- TAB 1: SALES & REVENUE -->
+    <div class="tab-pane fade show active" id="sales-pane" role="tabpanel">
+        <!-- Visual Charts Section -->
+        <div class="row g-4 mb-4 animated-fade-in no-print">
+            <!-- Trend Chart -->
+            <div class="col-lg-8">
+                <div class="glass-card p-4 h-100 shadow-sm">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-chart-simple text-success me-2"></i>@(isMarathi ? "विक्री व ऑर्डर ट्रेंड" : "Sales & Revenue Trend")</h5>
+                        <span class="badge bg-light text-secondary border">@(currentPeriod == "DayWise" ? (isMarathi ? "दैनिक आढावा" : "Daily Breakdown") : (currentPeriod == "MonthWise" ? (isMarathi ? "मासिक आढावा" : "Monthly Breakdown") : (isMarathi ? "वार्षिक ट्रेंड" : "Yearly Trend")))</span>
                     </div>
-                }
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Detailed Table Section -->
-<div class="glass-card p-4 mb-4 animated-fade-in shadow-sm">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 border-bottom pb-3">
-        <div>
-            <h5 class="fw-bold text-dark mb-0">
-                <i class="fa-solid fa-table-list text-primary me-2"></i>Detailed @currentPeriod Breakdown
-            </h5>
-            <div class="text-muted small">Comprehensive audit of orders, tax liabilities, discounts, and settled figures</div>
-        </div>
-        <div class="badge rounded-pill bg-success-subtle text-success px-3 py-2 border border-success-subtle">
-            @Model.BreakdownList.Count(b => b.OrdersCount > 0) active periods
-        </div>
-    </div>
-
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light text-muted small text-uppercase">
-                <tr>
-                    <th>Period</th>
-                    <th class="text-center">Orders</th>
-                    <th class="text-center">Dine-in</th>
-                    <th class="text-center">Takeaway</th>
-                    <th class="text-end">Gross Sales</th>
-                    <th class="text-end">Tax (GST)</th>
-                    <th class="text-end">Discounts</th>
-                    <th class="text-end">Net Revenue</th>
-                </tr>
-            </thead>
-            <tbody>
-                @if (!Model.BreakdownList.Any() || Model.BreakdownList.All(b => b.OrdersCount == 0 && b.NetRevenue == 0))
-                {
-                    <tr>
-                        <td colspan="8" class="text-center py-5 text-muted">
-                            <i class="fa-solid fa-chart-line fs-2 d-block mb-2 text-secondary opacity-50"></i>
-                            <p class="small mb-0">No completed orders found for this selected period range.</p>
-                        </td>
-                    </tr>
-                }
-                else
-                {
-                    @foreach (var row in Model.BreakdownList)
-                    {
-                        <tr class="@(row.OrdersCount > 0 ? "" : "text-muted opacity-75")">
-                            <td class="fw-bold text-dark">
-                                @row.PeriodLabel
-                            </td>
-                            <td class="text-center">
-                                @if (row.OrdersCount > 0)
-                                {
-                                    <span class="badge rounded-pill bg-info-subtle text-info-emphasis border border-info-subtle px-3 py-1">@row.OrdersCount</span>
-                                }
-                                else
-                                {
-                                    <span class="text-muted">-</span>
-                                }
-                            </td>
-                            <td class="text-center small">@(row.DineInCount > 0 ? row.DineInCount.ToString() : "-")</td>
-                            <td class="text-center small">
-                                @if (row.TakeawayCount > 0)
-                                {
-                                    <span class="badge rounded-pill" style="background:#ccfbf1; color:#0f766e; font-size:0.75rem;">@row.TakeawayCount</span>
-                                }
-                                else
-                                {
-                                    <span class="text-muted">-</span>
-                                }
-                            </td>
-                            <td class="text-end text-secondary">₹@row.GrossSales.ToString("N0")</td>
-                            <td class="text-end text-warning-emphasis">₹@row.TaxCollected.ToString("N0")</td>
-                            <td class="text-end text-danger">@(row.DiscountGiven > 0 ? $"-₹{row.DiscountGiven:N0}" : "₹0")</td>
-                            <td class="text-end fw-bold text-success fs-6">₹@row.NetRevenue.ToString("N0")</td>
-                        </tr>
-                    }
-                }
-            </tbody>
-            <tfoot class="table-light fw-bold">
-                <tr>
-                    <td>TOTALS</td>
-                    <td class="text-center text-info">@Model.TotalOrders</td>
-                    <td class="text-center">@Model.BreakdownList.Sum(b => b.DineInCount)</td>
-                    <td class="text-center" style="color:#0f766e;">@Model.BreakdownList.Sum(b => b.TakeawayCount)</td>
-                    <td class="text-end">₹@Model.BreakdownList.Sum(b => b.GrossSales).ToString("N0")</td>
-                    <td class="text-end text-warning">₹@Model.TotalTax.ToString("N0")</td>
-                    <td class="text-end text-danger">-₹@Model.TotalDiscount.ToString("N0")</td>
-                    <td class="text-end text-success fs-5">₹@Model.TotalRevenue.ToString("N0")</td>
-                </tr>
-            </tfoot>
-        </table>
-    </div>
-</div>
-
-<!-- Category Sales Breakdown -->
-@if (Model.CategoryBreakdown.Any())
-{
-    <div class="glass-card p-4 animated-fade-in shadow-sm">
-        <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-utensils text-success me-2"></i>Sales by Menu Category</h5>
-        <div class="row g-3">
-            @foreach (var c in Model.CategoryBreakdown)
-            {
-                <div class="col-md-4 col-sm-6 col-12">
-                    <div class="p-3 bg-light rounded-4 border">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="fw-bold text-dark">@c.CategoryName</span>
-                            <span class="badge bg-success-subtle text-success">@c.Percentage%</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center small text-muted">
-                            <span>@c.ItemsSold items sold</span>
-                            <span class="fw-bold text-dark fs-6">₹@c.TotalSales.ToString("N0")</span>
-                        </div>
-                        <div class="progress mt-2" style="height: 6px;">
-                            <div class="progress-bar bg-success" style="width: @c.Percentage%;"></div>
-                        </div>
+                    <div style="height: 280px; width:100%;">
+                        <canvas id="salesTrendChart"></canvas>
                     </div>
                 </div>
-            }
+            </div>
+
+            <!-- Payment Methods Donut -->
+            <div class="col-lg-4">
+                <div class="glass-card p-4 h-100 shadow-sm">
+                    <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-wallet text-primary me-2"></i>@(isMarathi ? "पेमेंट पद्धतीनुसार संकलन" : "Payment Methods")</h5>
+                    <div style="height: 220px; width:100%; position:relative;">
+                        <canvas id="paymentMethodsChart"></canvas>
+                    </div>
+                    <div class="mt-3">
+                        @foreach (var p in Model.PaymentBreakdown)
+                        {
+                            <div class="d-flex justify-content-between align-items-center small py-1 border-bottom">
+                                <span class="fw-semibold text-dark">@p.Method</span>
+                                <div>
+                                    <span class="text-muted me-2">₹@p.TotalAmount.ToString("N0")</span>
+                                    <span class="badge bg-light text-dark border">@p.Percentage%</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Breakdown Datagrid -->
+        <div class="glass-card p-4 mb-4 animated-fade-in shadow-sm">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-table-list text-success me-2"></i>@(isMarathi ? "तपशीलवार विक्री विवरण" : "Detailed Sales Statement")</h5>
+                <a href="/Reports/ExportExcel?reportType=Sales&period=@currentPeriod&year=@curYear&month=@curMonth&startDate=@Model.StartDate.ToString("yyyy-MM-dd")&endDate=@Model.EndDate.ToString("yyyy-MM-dd")" class="btn btn-sm btn-outline-success rounded-pill px-3 no-print">
+                    <i class="fa-solid fa-file-csv me-1"></i> @(isMarathi ? "एक्सेल डाउनलोड (.csv)" : "Export to Excel")
+                </a>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light text-muted small text-uppercase">
+                        <tr>
+                            <th>@(isMarathi ? "कालावधी / तारीख" : "Period")</th>
+                            <th class="text-center">@(isMarathi ? "ऑर्डर्स" : "Orders")</th>
+                            <th class="text-center">@(isMarathi ? "डायन-इन" : "Dine-in")</th>
+                            <th class="text-center">@(isMarathi ? "पार्सल" : "Takeaway")</th>
+                            <th class="text-end">@(isMarathi ? "एकूण विक्री" : "Gross Sales")</th>
+                            <th class="text-end">@(isMarathi ? "कर (GST)" : "Tax (GST)")</th>
+                            <th class="text-end">@(isMarathi ? "सूट" : "Discounts")</th>
+                            <th class="text-end">@(isMarathi ? "निव्वळ महसूल" : "Net Revenue")</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.BreakdownList.Any() || Model.BreakdownList.All(b => b.OrdersCount == 0 && b.NetRevenue == 0))
+                        {
+                            <tr>
+                                <td colspan="8" class="text-center py-5 text-muted">
+                                    <i class="fa-solid fa-chart-line fs-2 d-block mb-2 text-secondary opacity-50"></i>
+                                    <p class="small mb-0">@(isMarathi ? "या कालावधीसाठी कोणत्याही पूर्ण झालेल्या ऑर्डर्स सापडल्या नाहीत." : "No completed orders found for this selected period range.")</p>
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var row in Model.BreakdownList)
+                            {
+                                <tr class="@(row.OrdersCount > 0 ? "" : "text-muted opacity-75")">
+                                    <td class="fw-bold text-dark">@row.PeriodLabel</td>
+                                    <td class="text-center">
+                                        @if (row.OrdersCount > 0)
+                                        {
+                                            <span class="badge rounded-pill bg-info-subtle text-info-emphasis border border-info-subtle px-3 py-1">@row.OrdersCount</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td class="text-center small">@(row.DineInCount > 0 ? row.DineInCount.ToString() : "-")</td>
+                                    <td class="text-center small">
+                                        @if (row.TakeawayCount > 0)
+                                        {
+                                            <span class="badge rounded-pill" style="background:#ccfbf1; color:#0f766e; font-size:0.75rem;">@row.TakeawayCount</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td class="text-end text-secondary">₹@row.GrossSales.ToString("N0")</td>
+                                    <td class="text-end text-warning-emphasis">₹@row.TaxCollected.ToString("N0")</td>
+                                    <td class="text-end text-danger">@(row.DiscountGiven > 0 ? $"-₹{row.DiscountGiven:N0}" : "₹0")</td>
+                                    <td class="text-end fw-bold text-success fs-6">₹@row.NetRevenue.ToString("N0")</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td>@(isMarathi ? "एकूण (TOTALS)" : "TOTALS")</td>
+                            <td class="text-center text-info">@Model.TotalOrders</td>
+                            <td class="text-center">@Model.BreakdownList.Sum(b => b.DineInCount)</td>
+                            <td class="text-center" style="color:#0f766e;">@Model.BreakdownList.Sum(b => b.TakeawayCount)</td>
+                            <td class="text-end">₹@Model.BreakdownList.Sum(b => b.GrossSales).ToString("N0")</td>
+                            <td class="text-end text-warning">₹@Model.TotalTax.ToString("N0")</td>
+                            <td class="text-end text-danger">-₹@Model.TotalDiscount.ToString("N0")</td>
+                            <td class="text-end text-success fs-5">₹@Model.TotalRevenue.ToString("N0")</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- Category Sales Breakdown -->
+        @if (Model.CategoryBreakdown.Any())
+        {
+            <div class="glass-card p-4 animated-fade-in shadow-sm">
+                <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-utensils text-success me-2"></i>@(isMarathi ? "मेनू श्रेणीनुसार विक्री" : "Sales by Menu Category")</h5>
+                <div class="row g-3">
+                    @foreach (var c in Model.CategoryBreakdown)
+                    {
+                        <div class="col-md-4 col-sm-6 col-12">
+                            <div class="p-3 bg-light rounded-4 border">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="fw-bold text-dark">@c.CategoryName</span>
+                                    <span class="badge bg-success-subtle text-success">@c.Percentage%</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center small text-muted">
+                                    <span>@c.ItemsSold @(isMarathi ? "आयटम विकले" : "items sold")</span>
+                                    <span class="fw-bold text-dark fs-6">₹@c.TotalSales.ToString("N0")</span>
+                                </div>
+                                <div class="progress mt-2" style="height: 6px;">
+                                    <div class="progress-bar bg-success" style="width: @c.Percentage%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- TAB 2: TABLE-WISE COLLECTION -->
+    <div class="tab-pane fade" id="table-pane" role="tabpanel">
+        <div class="glass-card p-4 mb-4 animated-fade-in shadow-sm">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div>
+                    <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-chair text-primary me-2"></i>@(isMarathi ? "टेबलनिहाय महसूल व वसुली अहवाल" : "Table-wise Revenue & Collection Report")</h5>
+                    <div class="text-muted small">@(isMarathi ? "प्रत्येक टेबलद्वारे व्युत्पन्न झालेली एकूण बिले, ऑर्डर्स आणि महसूल वाटा" : "Orders served, total bill amount, average ticket and % share per table")</div>
+                </div>
+                <a href="/Reports/ExportExcel?reportType=Table&period=@currentPeriod&year=@curYear&month=@curMonth&startDate=@Model.StartDate.ToString("yyyy-MM-dd")&endDate=@Model.EndDate.ToString("yyyy-MM-dd")" class="btn btn-sm btn-outline-success rounded-pill px-3 no-print">
+                    <i class="fa-solid fa-file-csv me-1"></i> @(isMarathi ? "टेबल अहवाल डाउनलोड (.csv)" : "Export Table Report")
+                </a>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light text-muted small text-uppercase">
+                        <tr>
+                            <th>@(isMarathi ? "टेबल / जागा" : "Table / Location")</th>
+                            <th>@(isMarathi ? "फ्लोअर" : "Floor")</th>
+                            <th class="text-center">@(isMarathi ? "पूर्ण ऑर्डर्स" : "Orders Served")</th>
+                            <th class="text-end">@(isMarathi ? "सरासरी बिल" : "Avg Ticket (₹)")</th>
+                            <th class="text-end">@(isMarathi ? "एकूण वसुली (₹)" : "Total Collection (₹)")</th>
+                            <th style="min-width: 140px;">@(isMarathi ? "महसूल वाटा (%)" : "Revenue Share (%)")</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.TableBreakdown.Any())
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <i class="fa-solid fa-chair fs-2 d-block mb-2 text-secondary opacity-50"></i>
+                                    <p class="small mb-0">@(isMarathi ? "या कालावधीसाठी कोणताही टेबल विक्री डेटा सापडला नाही." : "No table collection data found for this period.")</p>
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var tbl in Model.TableBreakdown)
+                            {
+                                <tr>
+                                    <td class="fw-bold text-dark">
+                                        @if (tbl.TableNumber.Contains("Takeaway") || tbl.TableNumber.Contains("Parcel"))
+                                        {
+                                            <span class="badge rounded-pill" style="background:#ccfbf1; color:#0f766e; font-size:0.85rem;"><i class="fa-solid fa-box-open me-1"></i> @tbl.TableNumber</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-light text-dark border px-3 py-1 fs-6"><i class="fa-solid fa-chair text-primary me-1"></i> @tbl.TableNumber</span>
+                                        }
+                                    </td>
+                                    <td><span class="badge rounded-pill bg-light text-secondary border">@tbl.FloorName</span></td>
+                                    <td class="text-center">
+                                        <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-1">@tbl.OrdersCount</span>
+                                    </td>
+                                    <td class="text-end text-secondary fw-semibold">₹@tbl.AverageBill.ToString("N0")</td>
+                                    <td class="text-end fw-bold text-success fs-6">₹@tbl.TotalAmount.ToString("N0")</td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="progress flex-grow-1" style="height: 7px; background:#e2e8f0; border-radius:4px;">
+                                                <div class="progress-bar bg-success" style="width: @tbl.Percentage%; border-radius:4px;"></div>
+                                            </div>
+                                            <span class="small fw-bold text-dark" style="min-width: 45px;">@tbl.Percentage%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td colspan="2">@(isMarathi ? "एकूण संकलन (TOTAL)" : "TOTAL COLLECTION")</td>
+                            <td class="text-center text-primary">@Model.TableBreakdown.Sum(t => t.OrdersCount)</td>
+                            <td class="text-end text-muted">₹@(Model.TableBreakdown.Any() ? Math.Round(Model.TableBreakdown.Sum(t => t.TotalAmount) / Math.Max(1, Model.TableBreakdown.Sum(t => t.OrdersCount)), 0).ToString("N0") : "0")</td>
+                            <td class="text-end text-success fs-5">₹@Model.TableBreakdown.Sum(t => t.TotalAmount).ToString("N0")</td>
+                            <td>100.0%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
         </div>
     </div>
-}
+
+    <!-- TAB 3: MENU ITEM-WISE SALES -->
+    <div class="tab-pane fade" id="menu-pane" role="tabpanel">
+        <div class="glass-card p-4 mb-4 animated-fade-in shadow-sm">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div>
+                    <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-utensils text-success me-2"></i>@(isMarathi ? "पदार्थनिहाय विक्री व महसूल अहवाल" : "Menu Item-wise Sales & Revenue Report")</h5>
+                    <div class="text-muted small">@(isMarathi ? "प्रत्येक पदार्थाची विक्री संख्या, युनिट किंमत, एकूण उत्पन्न आणि टक्केवारी वाटा" : "Item codes, quantity sold, unit price, total revenue and contribution share")</div>
+                </div>
+                <div class="d-flex align-items-center gap-2 no-print">
+                    <input type="text" id="menuReportSearch" class="form-control form-control-sm rounded-pill" placeholder="@(isMarathi ? "पदार्थ शोधा..." : "Filter dish name...")" style="width: 200px;" onkeyup="filterMenuReportTable()" />
+                    <a href="/Reports/ExportExcel?reportType=MenuItem&period=@currentPeriod&year=@curYear&month=@curMonth&startDate=@Model.StartDate.ToString("yyyy-MM-dd")&endDate=@Model.EndDate.ToString("yyyy-MM-dd")" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                        <i class="fa-solid fa-file-csv me-1"></i> @(isMarathi ? "मेनू अहवाल डाउनलोड (.csv)" : "Export Menu Report")
+                    </a>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="menuReportTable">
+                    <thead class="table-light text-muted small text-uppercase">
+                        <tr>
+                            <th>@(isMarathi ? "कोड" : "Code")</th>
+                            <th>@(isMarathi ? "पदार्थाचे नाव" : "Dish Name")</th>
+                            <th>@(isMarathi ? "श्रेणी" : "Category")</th>
+                            <th class="text-end">@(isMarathi ? "किंमत" : "Unit Price")</th>
+                            <th class="text-center">@(isMarathi ? "विक्री संख्या" : "Qty Sold")</th>
+                            <th class="text-end">@(isMarathi ? "एकूण महसूल (₹)" : "Total Revenue (₹)")</th>
+                            <th style="min-width: 140px;">@(isMarathi ? "महसूल वाटा (%)" : "Revenue Share (%)")</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.MenuItemBreakdown.Any())
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted">
+                                    <i class="fa-solid fa-utensils fs-2 d-block mb-2 text-secondary opacity-50"></i>
+                                    <p class="small mb-0">@(isMarathi ? "या कालावधीसाठी कोणताही मेनू विक्री डेटा उपलब्ध नाही." : "No menu item sales data found for this period.")</p>
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var mi in Model.MenuItemBreakdown)
+                            {
+                                <tr>
+                                    <td><span class="badge bg-light text-secondary border">@(string.IsNullOrWhiteSpace(mi.ItemCode) ? "-" : mi.ItemCode)</span></td>
+                                    <td>
+                                        <div class="fw-bold text-dark">@mi.ItemName</div>
+                                        @if (!string.IsNullOrWhiteSpace(mi.ItemNameMarathi))
+                                        {
+                                            <div class="small text-muted">@mi.ItemNameMarathi</div>
+                                        }
+                                    </td>
+                                    <td><span class="badge rounded-pill bg-light text-dark border">@mi.CategoryName</span></td>
+                                    <td class="text-end text-secondary">₹@mi.UnitPrice.ToString("N0")</td>
+                                    <td class="text-center">
+                                        <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-1 fw-bold">@mi.QuantitySold</span>
+                                    </td>
+                                    <td class="text-end fw-bold text-success fs-6">₹@mi.TotalRevenue.ToString("N0")</td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="progress flex-grow-1" style="height: 7px; background:#e2e8f0; border-radius:4px;">
+                                                <div class="progress-bar bg-teal" style="width: @mi.Percentage%; background-color:#0f766e; border-radius:4px;"></div>
+                                            </div>
+                                            <span class="small fw-bold text-dark" style="min-width: 45px;">@mi.Percentage%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td colspan="4">@(isMarathi ? "एकूण मेनू विक्री (TOTAL)" : "TOTAL MENU SALES")</td>
+                            <td class="text-center text-success">@Model.MenuItemBreakdown.Sum(m => m.QuantitySold)</td>
+                            <td class="text-end text-success fs-5">₹@Model.MenuItemBreakdown.Sum(m => m.TotalRevenue).ToString("N0")</td>
+                            <td>100.0%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
     // 1. Sales Trend Bar/Line Chart
-    const trendCtx = document.getElementById('salesTrendChart').getContext('2d');
-    const labels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.BreakdownList.Select(b => b.PeriodLabel)));
-    const salesData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.BreakdownList.Select(b => b.NetRevenue)));
-    const ordersData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.BreakdownList.Select(b => b.OrdersCount)));
+    const trendElem = document.getElementById('salesTrendChart');
+    if (trendElem) {
+        const trendCtx = trendElem.getContext('2d');
+        const labels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.BreakdownList.Select(b => b.PeriodLabel)));
+        const salesData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.BreakdownList.Select(b => b.NetRevenue)));
+        const ordersData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.BreakdownList.Select(b => b.OrdersCount)));
 
-    new Chart(trendCtx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: 'Net Revenue (₹)',
-                    data: salesData,
-                    backgroundColor: 'rgba(16, 185, 129, 0.7)',
-                    borderColor: '#10b981',
-                    borderWidth: 1,
-                    borderRadius: 6,
-                    yAxisID: 'y'
-                },
-                {
-                    label: 'Orders Count',
-                    data: ordersData,
-                    type: 'line',
-                    borderColor: '#0284c7',
-                    backgroundColor: '#0284c7',
-                    tension: 0.3,
-                    borderWidth: 2,
-                    pointRadius: 3,
-                    yAxisID: 'y1'
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    type: 'linear',
-                    display: true,
-                    position: 'left',
-                    ticks: {
-                        callback: function(v) { return '₹' + v; }
+        new Chart(trendCtx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '@(isMarathi ? "निव्वळ महसूल (₹)" : "Net Revenue (₹)")',
+                        data: salesData,
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderColor: '#10b981',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: '@(isMarathi ? "ऑर्डर्स संख्या" : "Orders Count")',
+                        data: ordersData,
+                        type: 'line',
+                        borderColor: '#0284c7',
+                        backgroundColor: '#0284c7',
+                        tension: 0.3,
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        yAxisID: 'y1'
                     }
-                },
-                y1: {
-                    type: 'linear',
-                    display: true,
-                    position: 'right',
-                    grid: { drawOnChartArea: false },
-                    ticks: { precision: 0 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        ticks: {
+                            callback: function(v) { return '₹' + v; }
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                        ticks: { precision: 0 }
+                    }
                 }
             }
-        }
-    });
+        });
+    }
 
     // 2. Payment Methods Donut Chart
-    const payCtx = document.getElementById('paymentMethodsChart').getContext('2d');
-    const payLabels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PaymentBreakdown.Select(p => p.Method)));
-    const payAmounts = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PaymentBreakdown.Select(p => p.TotalAmount)));
+    const payElem = document.getElementById('paymentMethodsChart');
+    if (payElem) {
+        const payCtx = payElem.getContext('2d');
+        const payLabels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PaymentBreakdown.Select(p => p.Method)));
+        const payAmounts = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PaymentBreakdown.Select(p => p.TotalAmount)));
 
-    new Chart(payCtx, {
-        type: 'doughnut',
-        data: {
-            labels: payLabels,
-            datasets: [{
-                data: payAmounts,
-                backgroundColor: ['#10b981', '#0ea5e9', '#f59e0b', '#8b5cf6', '#ec4899'],
-                borderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'bottom' }
+        new Chart(payCtx, {
+            type: 'doughnut',
+            data: {
+                labels: payLabels,
+                datasets: [{
+                    data: payAmounts,
+                    backgroundColor: ['#10b981', '#0ea5e9', '#f59e0b', '#8b5cf6', '#ec4899'],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
             }
-        }
-    });
+        });
+    }
+
+    // Filter Menu Item Report Table Real-time
+    function filterMenuReportTable() {
+        var query = document.getElementById('menuReportSearch').value.toLowerCase().trim();
+        var rows = document.querySelectorAll('#menuReportTable tbody tr');
+        rows.forEach(function (row) {
+            var text = row.textContent.toLowerCase();
+            row.style.display = text.indexOf(query) > -1 ? '' : 'none';
+        });
+    }
 </script>
 }

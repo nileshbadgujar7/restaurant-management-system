@@ -1,6 +1,7 @@
 @model IEnumerable<OrderDto>
 @{
-    ViewData["Title"] = "Orders History";
+    var isMarathi = Context.Request.Cookies["GiranaRMS.Language"] == "mr";
+    ViewData["Title"] = isMarathi ? "ऑर्डर्स इतिहास" : "Orders History";
 }
 
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 animated-fade-in">
@@ -9,24 +10,24 @@
             <ol class="breadcrumb mb-1 fs-6">
                 <li class="breadcrumb-item">
                     <a href="/Dashboard" class="text-decoration-none fw-semibold text-success">
-                        <i class="fa-solid fa-chart-pie me-1" data-bs-toggle="tooltip" title="Dashboard"></i> Dashboard
+                        <i class="fa-solid fa-chart-pie me-1" data-bs-toggle="tooltip" title="Dashboard"></i> @(isMarathi ? "डॅशबोर्ड" : "Dashboard")
                     </a>
                 </li>
                 <li class="breadcrumb-item active fw-bold text-dark" aria-current="page">
-                    <i class="fa-solid fa-receipt text-primary me-1"></i> Orders History
+                    <i class="fa-solid fa-receipt text-primary me-1"></i> @(isMarathi ? "ऑर्डर्स इतिहास" : "Orders History")
                 </li>
             </ol>
         </nav>
         <h2 class="fw-bold mb-0 text-dark">
-            <i class="fa-solid fa-receipt text-primary me-2"></i>Orders History
+            <i class="fa-solid fa-receipt text-primary me-2"></i>@(isMarathi ? "ऑर्डर्स इतिहास" : "Orders History")
         </h2>
     </div>
     <div class="d-flex gap-2">
         <a href="/Dashboard" class="btn btn-outline-secondary rounded-pill px-3 shadow-sm" data-bs-toggle="tooltip" title="Back to Dashboard">
-            <i class="fa-solid fa-arrow-left me-1"></i> Back to Dashboard
+            <i class="fa-solid fa-arrow-left me-1"></i> @(isMarathi ? "डॅशबोर्डवर परत" : "Back to Dashboard")
         </a>
         <a href="/Orders/POS" class="btn btn-primary rounded-pill px-4 shadow-sm">
-            <i class="fa-solid fa-plus me-1"></i> New POS Order
+            <i class="fa-solid fa-plus me-1"></i> @(isMarathi ? "नवीन POS ऑर्डर" : "New POS Order")
         </a>
     </div>
 </div>
@@ -36,13 +37,13 @@
         <table class="table app-datagrid align-middle">
             <thead>
                 <tr>
-                    <th>Order #</th>
-                    <th>Type</th>
-                    <th>Table / Customer</th>
-                    <th>Date & Time</th>
-                    <th>Status</th>
-                    <th>Amount</th>
-                    <th class="text-end">Actions</th>
+                    <th>@(isMarathi ? "ऑर्डर क्र." : "Order #")</th>
+                    <th>@(isMarathi ? "प्रकार" : "Type")</th>
+                    <th>@(isMarathi ? "टेबल / ग्राहक" : "Table / Customer")</th>
+                    <th>@(isMarathi ? "दिनांक व वेळ" : "Date & Time")</th>
+                    <th>@(isMarathi ? "स्थिती" : "Status")</th>
+                    <th>@(isMarathi ? "रक्कम" : "Amount")</th>
+                    <th class="text-end">@(isMarathi ? "कृती" : "Actions")</th>
                 </tr>
             </thead>
             <tbody>
@@ -51,7 +52,7 @@
                     <tr>
                         <td colspan="7" class="text-center py-5 text-muted">
                             <i class="fa-solid fa-receipt fs-2 d-block mb-2 text-secondary opacity-50"></i>
-                            <p class="small mb-0 text-muted">No orders found. Click "New POS Order" to create one.</p>
+                            <p class="small mb-0 text-muted">@(isMarathi ? "कोणतीही ऑर्डर सापडली नाही. नवीन ऑर्डर तयार करण्यासाठी 'नवीन POS ऑर्डर' वर क्लिक करा." : "No orders found. Click \"New POS Order\" to create one.")</p>
                         </td>
                     </tr>
                 }
@@ -79,8 +80,8 @@
                             <td><span class="badge @statusBadge px-3 py-1 rounded-pill">@order.StatusName</span></td>
                             <td class="fw-bold text-dark fs-6">₹@order.GrandTotal.ToString("N0")</td>
                             <td class="text-end">
-                                <a href="/Billing/Generate?orderId=@order.Id" class="btn btn-sm btn-outline-success rounded-pill px-3">
-                                    <i class="fa-solid fa-file-invoice-dollar me-1"></i> Bill & Pay
+                                <a href="/Orders/POS?orderId=@order.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                    <i class="fa-solid fa-pen-to-square me-1"></i> @(isMarathi ? "तपशील / आयटम" : "Details / Items")
                                 </a>
                             </td>
                         </tr>

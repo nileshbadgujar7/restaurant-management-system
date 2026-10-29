@@ -411,10 +411,13 @@ public class OrdersController : Controller
     {
         try
         {
+            var todayUtc = DateTime.UtcNow.Date;
+            var todayLocal = DateTime.Today;
             var parcelOrders = (await _unitOfWork.Orders.FindAsync(o => 
                 !o.IsDeleted && 
                 !o.IsDraft && 
                 o.OrderType == OrderType.Takeaway && 
+                (o.CreatedAt.Date == todayUtc || o.CreatedAt.Date == todayLocal) &&
                 o.Status != OrderStatus.Completed && 
                 o.Status != OrderStatus.Cancelled))
                 .OrderByDescending(o => o.CreatedAt)

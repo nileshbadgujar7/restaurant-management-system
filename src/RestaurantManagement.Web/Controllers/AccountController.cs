@@ -181,6 +181,8 @@ public class AccountController : Controller
         {
             ReturnUrl = returnUrl,
             RestaurantName = setting.RestaurantName,
+            RestaurantNameMarathi = setting.RestaurantNameMarathi,
+            LogoUrl = setting.LogoUrl,
             KitchenModeName = kmName,
             Username = "manager",
             Password = "manager123"

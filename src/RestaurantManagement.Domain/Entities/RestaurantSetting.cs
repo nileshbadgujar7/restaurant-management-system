@@ -5,6 +5,7 @@ namespace RestaurantManagement.Domain.Entities;
 public class RestaurantSetting : BaseEntity
 {
     public string RestaurantName { get; set; } = "Girana Garden Fine Dine";
+    public string RestaurantNameMarathi { get; set; } = string.Empty;
     public string Address { get; set; } = "101 Grand Galleria, MG Road, Ahmedabad";
     public string Phone { get; set; } = "+91 98765 43210";
     public string Email { get; set; } = "contact@giranagarden.com";

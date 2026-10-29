@@ -16,6 +16,8 @@ public class LoginViewModel
 
     // Lean Branding & Mode Info
     public string RestaurantName { get; set; } = "Girana Garden Fine Dine & Bar";
+    public string RestaurantNameMarathi { get; set; } = string.Empty;
+    public string LogoUrl { get; set; } = string.Empty;
     public string KitchenModeName { get; set; } = "Mode 2: Printer Only";
 
     // Flash Messages

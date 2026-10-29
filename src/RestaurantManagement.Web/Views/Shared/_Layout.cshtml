@@ -1,5 +1,14 @@
+@inject RestaurantManagement.Application.Interfaces.IUnitOfWork UnitOfWork
+@{
+    var appSettings = (await UnitOfWork.RestaurantSettings.GetAllAsync()).FirstOrDefault() ?? new RestaurantManagement.Domain.Entities.RestaurantSetting();
+    string currentLang = Context.Request.Cookies["GiranaRMS.Language"] ?? "en";
+    bool isMarathi = currentLang == "mr";
+    string effectiveBrandName = (isMarathi && !string.IsNullOrWhiteSpace(appSettings.RestaurantNameMarathi))
+        ? appSettings.RestaurantNameMarathi
+        : appSettings.RestaurantName;
+}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="@(isMarathi ? "mr" : "en")">
 @{
     bool isAuthenticated = User.Identity?.IsAuthenticated == true;
     string displayName = isAuthenticated 
@@ -32,7 +41,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Girana Garden Restaurant Management System</title>
+    <title>@ViewData["Title"] - @effectiveBrandName</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
     <!-- FontAwesome Icons -->
@@ -59,11 +68,21 @@
         <aside class="app-sidebar" id="appSidebar">
             <!-- Sidebar Header / Brand -->
             <div class="sidebar-header">
-                <a class="sidebar-brand" href="/" title="Girana Garden">
-                    <div class="brand-logo-img" style="border-radius: 50% !important; background: #059669 !important; font-weight: 800; font-size: 1.25rem;">
-                        G
-                    </div>
-                    <span class="brand-text luxury-brand-title">Girana Garden</span>
+                <a class="sidebar-brand" href="/" title="@effectiveBrandName">
+                    @if (!string.IsNullOrEmpty(appSettings.LogoUrl))
+                    {
+                        <img src="@appSettings.LogoUrl" alt="Logo" class="brand-logo-img me-2" style="max-height: 38px; max-width: 44px; object-fit: contain; border-radius: 8px;" onerror="this.style.display='none'; document.getElementById('sidebarFallbackCrest').style.display='inline-flex';" />
+                        <div class="brand-logo-img" id="sidebarFallbackCrest" style="display: none; border-radius: 50% !important; background: #059669 !important; font-weight: 800; font-size: 1.25rem;">
+                            @(string.IsNullOrEmpty(effectiveBrandName) ? "G" : effectiveBrandName.Substring(0, 1).ToUpper())
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="brand-logo-img" style="border-radius: 50% !important; background: #059669 !important; font-weight: 800; font-size: 1.25rem;">
+                            @(string.IsNullOrEmpty(effectiveBrandName) ? "G" : effectiveBrandName.Substring(0, 1).ToUpper())
+                        </div>
+                    }
+                    <span class="brand-text luxury-brand-title">@effectiveBrandName</span>
                 </a>
                 <button class="sidebar-toggle-btn" id="sidebarToggle" title="Toggle Sidebar">
                     <i class="fa-solid fa-bars-staggered" id="toggleIcon"></i>
@@ -74,103 +93,91 @@
             <nav class="sidebar-nav">
                 <div class="nav flex-column">
                     <!-- 1. Dashboard -->
-                    <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Dashboard" ? "active" : "")" href="/Dashboard" data-title="Dashboard" data-bs-toggle="tooltip" data-bs-placement="right" title="Dashboard">
+                    <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Dashboard" ? "active" : "")" href="/Dashboard" data-title="@(isMarathi ? "डॅशबोर्ड" : "Dashboard")" data-bs-toggle="tooltip" data-bs-placement="right" title="@(isMarathi ? "डॅशबोर्ड" : "Dashboard")">
                         <i class="fa-solid fa-chart-pie nav-icon" style="color: #10b981;"></i>
-                        <span class="nav-text">Dashboard</span>
+                        <span class="nav-text">@(isMarathi ? "डॅशबोर्ड" : "Dashboard")</span>
                     </a>
 
                     <!-- 2. Tables & Floors -->
                     @if (canViewTables)
                     {
-                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Tables" ? "active" : "")" href="/Tables" data-title="Tables & Floors" data-bs-toggle="tooltip" data-bs-placement="right" title="Tables & Floors">
+                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Tables" ? "active" : "")" href="/Tables" data-title="@(isMarathi ? "टेबल्स आणि मजले" : "Tables & Floors")" data-bs-toggle="tooltip" data-bs-placement="right" title="@(isMarathi ? "टेबल्स आणि मजले" : "Tables & Floors")">
                             <i class="fa-solid fa-chair nav-icon" style="color: #f59e0b;"></i>
-                            <span class="nav-text">Tables & Floors</span>
+                            <span class="nav-text">@(isMarathi ? "टेबल्स आणि मजले" : "Tables & Floors")</span>
                         </a>
                     }
 
                     <!-- 3. Orders -->
                     @if (canViewOrders)
                     {
-                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Orders" ? "active" : "")" href="/Orders" data-title="Orders" data-bs-toggle="tooltip" data-bs-placement="right" title="Orders">
+                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Orders" ? "active" : "")" href="/Orders" data-title="@(isMarathi ? "ऑर्डर्स" : "Orders")" data-bs-toggle="tooltip" data-bs-placement="right" title="@(isMarathi ? "ऑर्डर्स" : "Orders")">
                             <i class="fa-solid fa-receipt nav-icon" style="color: #0284c7;"></i>
-                            <span class="nav-text">Orders</span>
+                            <span class="nav-text">@(isMarathi ? "ऑर्डर्स" : "Orders")</span>
                         </a>
                     }
 
                     <!-- 4. Kitchen (KDS) -->
                     @if (canViewKitchen)
                     {
-                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Kitchen" ? "active" : "")" href="/Kitchen" data-title="Kitchen (KDS)" data-bs-toggle="tooltip" data-bs-placement="right" title="Kitchen (KDS)">
+                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Kitchen" ? "active" : "")" href="/Kitchen" data-title="@(isMarathi ? "किचन (केडीएस)" : "Kitchen (KDS)")" data-bs-toggle="tooltip" data-bs-placement="right" title="@(isMarathi ? "किचन (केडीएस)" : "Kitchen (KDS)")">
                             <i class="fa-solid fa-kitchen-set nav-icon" style="color: #ef4444;"></i>
-                            <span class="nav-text">Kitchen (KDS)</span>
+                            <span class="nav-text">@(isMarathi ? "किचन (केडीएस)" : "Kitchen (KDS)")</span>
                         </a>
                     }
 
                     <!-- 5. Billing & Payments -->
                     @if (canViewBilling)
                     {
-                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Billing" ? "active" : "")" href="/Billing" data-title="Billing & Payments" data-bs-toggle="tooltip" data-bs-placement="right" title="Billing & Payments">
+                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Billing" ? "active" : "")" href="/Billing" data-title="@(isMarathi ? "बिलिंग आणि पेमेंट्स" : "Billing & Payments")" data-bs-toggle="tooltip" data-bs-placement="right" title="@(isMarathi ? "बिलिंग आणि पेमेंट्स" : "Billing & Payments")">
                             <i class="fa-solid fa-file-invoice-dollar nav-icon" style="color: #8b5cf6;"></i>
-                            <span class="nav-text">Billing & Payments</span>
+                            <span class="nav-text">@(isMarathi ? "बिलिंग आणि पेमेंट्स" : "Billing & Payments")</span>
                         </a>
                     }
 
                     <!-- 6. Stock & Inventory -->
                     @if (canViewInventory)
                     {
-                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Inventory" ? "active" : "")" href="/Inventory" data-title="Stock & Inventory" data-bs-toggle="tooltip" data-bs-placement="right" title="Stock & Inventory">
+                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Inventory" ? "active" : "")" href="/Inventory" data-title="@(isMarathi ? "स्टॉक आणि इन्व्हेंटरी" : "Stock & Inventory")" data-bs-toggle="tooltip" data-bs-placement="right" title="@(isMarathi ? "स्टॉक आणि इन्व्हेंटरी" : "Stock & Inventory")">
                             <i class="fa-solid fa-boxes-stacked nav-icon" style="color: #64748b;"></i>
-                            <span class="nav-text">Stock & Inventory</span>
+                            <span class="nav-text">@(isMarathi ? "स्टॉक आणि इन्व्हेंटरी" : "Stock & Inventory")</span>
                         </a>
                     }
 
                     <!-- 7. Staff & Roles -->
                     @if (canViewStaff)
                     {
-                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Staff" ? "active" : "")" href="/Staff" data-title="Staff & Roles" data-bs-toggle="tooltip" data-bs-placement="right" title="Staff & Roles">
+                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Staff" ? "active" : "")" href="/Staff" data-title="@(isMarathi ? "कर्मचारी आणि भूमिका" : "Staff & Roles")" data-bs-toggle="tooltip" data-bs-placement="right" title="@(isMarathi ? "कर्मचारी आणि भूमिका" : "Staff & Roles")">
                             <i class="fa-solid fa-user-group nav-icon" style="color: #6366f1;"></i>
-                            <span class="nav-text">Staff & Roles</span>
+                            <span class="nav-text">@(isMarathi ? "कर्मचारी आणि भूमिका" : "Staff & Roles")</span>
                         </a>
                     }
 
                     <!-- 8. Accounts & Payroll -->
                     @if (canViewAccounts)
                     {
-                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Accounts" ? "active" : "")" href="/Accounts" data-title="Accounts & Payroll" data-bs-toggle="tooltip" data-bs-placement="right" title="Accounts & Payroll">
+                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Accounts" ? "active" : "")" href="/Accounts" data-title="@(isMarathi ? "खाती आणि पगार" : "Accounts & Payroll")" data-bs-toggle="tooltip" data-bs-placement="right" title="@(isMarathi ? "खाती आणि पगार" : "Accounts & Payroll")">
                             <i class="fa-solid fa-wallet nav-icon" style="color: #059669;"></i>
-                            <span class="nav-text">Accounts & Payroll</span>
+                            <span class="nav-text">@(isMarathi ? "खाती आणि पगार" : "Accounts & Payroll")</span>
                         </a>
                     }
 
                     <!-- 9. Reports -->
                     @if (canViewReports)
                     {
-                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Reports" ? "active" : "")" href="/Reports" data-title="Reports" data-bs-toggle="tooltip" data-bs-placement="right" title="Reports">
+                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Reports" ? "active" : "")" href="/Reports" data-title="@(isMarathi ? "अहवाल (रिपोर्ट्स)" : "Reports")" data-bs-toggle="tooltip" data-bs-placement="right" title="@(isMarathi ? "अहवाल (रिपोर्ट्स)" : "Reports")">
                             <i class="fa-solid fa-chart-line nav-icon" style="color: #d97706;"></i>
-                            <span class="nav-text">Reports</span>
+                            <span class="nav-text">@(isMarathi ? "अहवाल (रिपोर्ट्स)" : "Reports")</span>
                         </a>
                     }
 
                     <!-- 10. Masters -->
                     @if (canViewMasters)
                     {
-                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Masters" ? "active" : "")" href="/Masters" data-title="Masters" data-bs-toggle="tooltip" data-bs-placement="right" title="Masters">
+                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Masters" ? "active" : "")" href="/Masters" data-title="@(isMarathi ? "मास्टर्स" : "Masters")" data-bs-toggle="tooltip" data-bs-placement="right" title="@(isMarathi ? "मास्टर्स" : "Masters")">
                             <i class="fa-solid fa-layer-group nav-icon" style="color: #ec4899;"></i>
-                            <span class="nav-text">Masters</span>
+                            <span class="nav-text">@(isMarathi ? "मास्टर्स" : "Masters")</span>
                         </a>
                     }
-
-                    <div class="sidebar-divider my-2 border-top border-light-subtle"></div>
-
-                    <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Account" ? "active" : "")" href="/Account/Login?switchUser=true" data-title="Switch User" data-bs-toggle="tooltip" data-bs-placement="right" title="Switch User / Terminal">
-                        <i class="fa-solid fa-arrows-rotate nav-icon" style="color: #059669;"></i>
-                        <span class="nav-text">Switch User</span>
-                    </a>
-
-                    <a class="nav-link text-danger" href="/Account/Logout" onclick="window.location.href='/Account/Logout';" data-title="Sign Out" data-bs-toggle="tooltip" data-bs-placement="right" title="Sign Out">
-                        <i class="fa-solid fa-right-from-bracket nav-icon text-danger"></i>
-                        <span class="nav-text text-danger fw-semibold">Sign Out</span>
-                    </a>
                 </div>
             </nav>
         </aside>
@@ -187,12 +194,25 @@
                                 <i class="fa-solid fa-bars"></i>
                             </button>
                             <a href="/" class="text-decoration-none d-flex align-items-center gap-2">
-                                <i class="fa-solid fa-utensils text-success fs-4"></i>
-                                <span class="luxury-brand-title">Girana Garden</span>
+                                @if (!string.IsNullOrEmpty(appSettings.LogoUrl))
+                                {
+                                    <img src="@appSettings.LogoUrl" alt="Logo" style="max-height: 32px; max-width: 36px; object-fit: contain; border-radius: 6px;" onerror="this.style.display='none'" />
+                                }
+                                else
+                                {
+                                    <i class="fa-solid fa-utensils text-success fs-4"></i>
+                                }
+                                <span class="luxury-brand-title">@effectiveBrandName</span>
                             </a>
                         </div>
                         
-                        <div class="d-flex align-items-center gap-3">
+                        <div class="d-flex align-items-center gap-2 gap-md-3">
+                            <!-- In-App Language Switcher -->
+                            <div class="btn-group btn-group-sm rounded-pill border bg-white p-1 shadow-sm" role="group">
+                                <button type="button" class="btn btn-sm rounded-pill py-0 px-2 fw-bold @(!isMarathi ? "btn-success text-white shadow-sm" : "btn-outline-secondary border-0")" onclick="changeAppLang('en')">EN</button>
+                                <button type="button" class="btn btn-sm rounded-pill py-0 px-2 fw-bold @(isMarathi ? "btn-success text-white shadow-sm" : "btn-outline-secondary border-0")" onclick="changeAppLang('mr')">मराठी</button>
+                            </div>
+
                             <!-- Live Date & Time Clock with Thin Border -->
                             <div class="live-clock-badge d-none d-md-flex" title="Current Local Time" style="border: 1.5px solid #cbd5e1;">
                                 <i class="fa-regular fa-clock text-success"></i>
@@ -203,12 +223,12 @@
                             <div class="dropdown">
                                 <button class="btn role-dropdown-btn btn-sm dropdown-toggle rounded-pill px-3 shadow-sm d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" title="Active User: @displayName">
                                     <i class="fa-solid fa-user-shield text-success"></i>
-                                    <span>Role: <strong class="text-dark">@displayRole</strong></span>
+                                    <span>@(isMarathi ? "भूमिका: " : "Role: ")<strong class="text-dark">@displayRole</strong></span>
                                 </button>
                                 <ul class="dropdown-menu role-dropdown-menu dropdown-menu-end shadow-lg" style="min-width: 210px; border-radius: 12px; border: 1.5px solid #cbd5e1;">
                                     <li class="px-3 py-2 border-bottom bg-light rounded-top">
                                         <div class="fw-bold text-dark small">@displayName</div>
-                                        <div class="text-muted small" style="font-size: 0.72rem;">@displayRole &bull; Girana RMS</div>
+                                        <div class="text-muted small" style="font-size: 0.72rem;">@displayRole &bull; @effectiveBrandName</div>
                                     </li>
                                     <li><a class="dropdown-item @(displayRole == "Administrator" || displayRole == "Admin" ? "active" : "")" href="#"><i class="fa-solid fa-user-gear text-danger me-2"></i> Admin</a></li>
                                     <li><a class="dropdown-item @(displayRole.Contains("Manager") ? "active" : "")" href="#"><i class="fa-solid fa-briefcase text-success me-2"></i> Manager</a></li>
@@ -218,14 +238,14 @@
                                     <li><hr class="dropdown-divider my-1"></li>
                                     <li>
                                         <a class="dropdown-item small" href="/Account/Login?switchUser=true">
-                                            <i class="fa-solid fa-arrows-rotate text-secondary me-2"></i> Switch User / Terminal
+                                            <i class="fa-solid fa-arrows-rotate text-secondary me-2"></i> @(isMarathi ? "वापरकर्ता बदला" : "Switch User / Terminal")
                                         </a>
                                     </li>
                                     @if (isAuthenticated)
                                     {
                                         <li>
                                             <a class="dropdown-item small text-danger fw-semibold logout-link" href="/Account/Logout" onclick="window.location.href='/Account/Logout';">
-                                                <i class="fa-solid fa-right-from-bracket me-2"></i> Sign Out
+                                                <i class="fa-solid fa-right-from-bracket me-2"></i> @(isMarathi ? "साइन आउट करा" : "Sign Out")
                                             </a>
                                         </li>
                                     }
@@ -233,7 +253,7 @@
                                     {
                                         <li>
                                             <a class="dropdown-item small text-success fw-semibold" href="/Account/Login">
-                                                <i class="fa-solid fa-right-to-bracket me-2"></i> Sign In
+                                                <i class="fa-solid fa-right-to-bracket me-2"></i> @(isMarathi ? "साइन इन करा" : "Sign In")
                                             </a>
                                         </li>
                                     }
@@ -261,6 +281,12 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+        function changeAppLang(lang) {
+            document.cookie = `GiranaRMS.Language=${lang};path=/;max-age=31536000;SameSite=Lax`;
+            try { localStorage.setItem('girana_rms_lang', lang); } catch (e) { }
+            window.location.reload();
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             // Live Clock Script
             function updateClock() {
