@@ -131,6 +131,12 @@
                 <i class="fa-solid fa-wallet me-2"></i> Restaurant Expenses
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link rounded-pill px-4 fw-bold @(activeTab == "udhari" ? "active bg-success text-white" : "text-dark bg-light")" 
+               href="/Accounts?tab=udhari">
+                <i class="fa-solid fa-handshake me-2"></i> Customer Credit (Udhari)
+            </a>
+        </li>
     </ul>
 
     <!-- Tab 1: Employee-wise Ledger -->
@@ -433,6 +439,171 @@
             </table>
         </div>
     }
+
+    <!-- Tab 4: Customer Credit (Udhari) Ledger -->
+    @if (activeTab == "udhari")
+    {
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+            <div>
+                <h5 class="fw-bold text-dark mb-1"><i class="fa-solid fa-handshake text-success me-2"></i>Customer Credit Accounts & Udhari Ledger</h5>
+                <div class="text-muted small">Track outstanding diner balances, bill-level credit issues, and payment collections.</div>
+            </div>
+            <div>
+                <button class="btn btn-success rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#collectCustomerPaymentModal">
+                    <i class="fa-solid fa-money-bill-transfer me-1"></i> Collect Udhari Payment
+                </button>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded-4 border">
+                    <div class="text-secondary small fw-bold text-uppercase">Total Outstanding Udhari</div>
+                    <div class="fs-3 fw-bold text-danger mt-1">₹@Model.TotalCustomerCreditOutstanding.ToString("N0")</div>
+                    <div class="small text-muted">Across all customer credit accounts</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded-4 border">
+                    <div class="text-secondary small fw-bold text-uppercase">Credit Account Customers</div>
+                    <div class="fs-3 fw-bold text-dark mt-1">@Model.Customers.Count(c => c.OutstandingCredit > 0)</div>
+                    <div class="small text-muted">Active customers with unpaid credit balance</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded-4 border">
+                    <div class="text-secondary small fw-bold text-uppercase">Ledger Entries</div>
+                    <div class="fs-3 fw-bold text-primary mt-1">@Model.CustomerLedgers.Count</div>
+                    <div class="small text-muted">Total debits and collections recorded</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Left: Customers Balances -->
+            <div class="col-lg-5">
+                <div class="border rounded-4 p-3 bg-white shadow-sm h-100">
+                    <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-users me-2 text-primary"></i>Customer Credit Balances</h6>
+                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light sticky-top">
+                                <tr class="text-muted small">
+                                    <th>Customer</th>
+                                    <th class="text-end">Balance</th>
+                                    <th class="text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (!Model.Customers.Any())
+                                {
+                                    <tr>
+                                        <td colspan="3" class="text-center py-4 text-muted">No customers registered yet.</td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var c in Model.Customers.OrderByDescending(c => c.OutstandingCredit))
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div class="fw-bold text-dark">@c.Name</div>
+                                                <div class="small text-muted">@c.Phone</div>
+                                            </td>
+                                            <td class="text-end">
+                                                @if (c.OutstandingCredit > 0)
+                                                {
+                                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-1 fs-6">
+                                                        ₹@c.OutstandingCredit.ToString("N0")
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1">
+                                                        Clear
+                                                    </span>
+                                                }
+                                            </td>
+                                            <td class="text-center">
+                                                @if (c.OutstandingCredit > 0)
+                                                {
+                                                    <button class="btn btn-sm btn-outline-success rounded-pill px-2 py-1" onclick="openCollectUdhariFor('@c.Id', '@c.Name', @c.OutstandingCredit)">
+                                                        <i class="fa-solid fa-coins me-1"></i> Collect
+                                                    </button>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Full Udhari Transaction Ledger -->
+            <div class="col-lg-7">
+                <div class="border rounded-4 p-3 bg-white shadow-sm h-100">
+                    <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-book-journal-whills me-2 text-success"></i>Transaction Audit Trail</h6>
+                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light sticky-top">
+                                <tr class="text-muted small">
+                                    <th>Date</th>
+                                    <th>Customer</th>
+                                    <th>Details</th>
+                                    <th class="text-end text-danger">Credit Issued</th>
+                                    <th class="text-end text-success">Collected</th>
+                                    <th class="text-end">Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (!Model.CustomerLedgers.Any())
+                                {
+                                    <tr>
+                                        <td colspan="6" class="text-center py-5 text-muted">
+                                            <i class="fa-solid fa-receipt fs-2 mb-2 d-block text-secondary opacity-50"></i>
+                                            No credit or collection transactions recorded yet.
+                                        </td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var l in Model.CustomerLedgers)
+                                    {
+                                        <tr>
+                                            <td class="small fw-semibold text-nowrap">@l.Date.ToString("dd MMM yyyy, hh:mm tt")</td>
+                                            <td>
+                                                <div class="fw-bold text-dark">@l.CustomerName</div>
+                                                <div class="small text-muted">@l.CustomerPhone</div>
+                                            </td>
+                                            <td>
+                                                <div class="small text-dark">@l.Description</div>
+                                                @if (!string.IsNullOrEmpty(l.ReferenceInvoiceNumber))
+                                                {
+                                                    <span class="badge bg-light text-secondary border small">@l.ReferenceInvoiceNumber</span>
+                                                }
+                                                @if (!string.IsNullOrEmpty(l.Notes))
+                                                {
+                                                    <div class="small text-muted fst-italic">@l.Notes</div>
+                                                }
+                                            </td>
+                                            <td class="text-end fw-bold text-danger">
+                                                @(l.DebitAmount > 0 ? $"₹{l.DebitAmount:N0}" : "-")
+                                            </td>
+                                            <td class="text-end fw-bold text-success">
+                                                @(l.CreditAmount > 0 ? $"₹{l.CreditAmount:N0}" : "-")
+                                            </td>
+                                            <td class="text-end fw-bold text-dark">₹@l.RunningBalance.ToString("N0")</td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
 <!-- Modal 1: Give Advance Pay -->
@@ -644,8 +815,73 @@
     </div>
 </div>
 
+<!-- Modal 5: Collect Customer Credit Payment (Udhari) -->
+<div class="modal fade" id="collectCustomerPaymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form asp-action="CollectCustomerPayment" method="post" class="modal-content rounded-4 border-0 shadow-lg text-start">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold text-dark"><i class="fa-solid fa-handshake text-success me-2"></i>Collect Customer Udhari Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Customer</label>
+                    <select name="CustomerId" id="udhariCustSelect" class="form-select" required onchange="onUdhariCustomerSelected()">
+                        <option value="">-- Choose Customer --</option>
+                        @foreach (var c in Model.Customers)
+                        {
+                            <option value="@c.Id" data-balance="@c.OutstandingCredit">@c.Name (@c.Phone) - Due: ₹@c.OutstandingCredit.ToString("N0")</option>
+                        }
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Collection Amount (₹)</label>
+                    <input type="number" step="1" min="1" name="Amount" id="udhariColAmount" class="form-control" placeholder="e.g. 1000" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Payment Method</label>
+                    <select name="PaymentMethod" class="form-select">
+                        <option value="Cash">Cash</option>
+                        <option value="UPI">UPI / GPay / PhonePe</option>
+                        <option value="Card">Card</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Reference / Receipt Number</label>
+                    <input type="text" name="ReferenceInvoiceNumber" class="form-control" placeholder="e.g. Cash Receipt / UPI Ref ID" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Notes</label>
+                    <textarea name="Notes" class="form-control" rows="2" placeholder="e.g. Partial repayment for previous bills"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-success rounded-pill px-4">Confirm Collection</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 @section Scripts {
 <script>
+    function openCollectUdhariFor(customerId, customerName, balance) {
+        $('#udhariCustSelect').val(customerId);
+        if (balance && balance > 0) {
+            $('#udhariColAmount').val(balance);
+        }
+        var modal = new bootstrap.Modal(document.getElementById('collectCustomerPaymentModal'));
+        modal.show();
+    }
+
+    function onUdhariCustomerSelected() {
+        var opt = $('#udhariCustSelect').find(':selected');
+        var bal = opt.data('balance');
+        if (bal && bal > 0) {
+            $('#udhariColAmount').val(bal);
+        }
+    }
     function openGiveAdvanceFor(empId, empName) {
         $('#advEmployeeId').val(empId);
         var modal = new bootstrap.Modal(document.getElementById('giveAdvanceModal'));

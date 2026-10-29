@@ -735,6 +735,188 @@ public class StaffService : IStaffService
         };
     }
 
+    public async Task<IEnumerable<LeaveRequestDto>> GetLeaveRequestsAsync()
+    {
+        var list = await _unitOfWork.LeaveRequests.GetAllAsync();
+        var emps = (await _unitOfWork.Employees.GetAllAsync()).ToDictionary(e => e.Id);
+
+        return list.Where(l => !l.IsDeleted).OrderByDescending(l => l.StartDate).Select(l => new LeaveRequestDto
+        {
+            Id = l.Id,
+            EmployeeId = l.EmployeeId,
+            EmployeeName = emps.TryGetValue(l.EmployeeId, out var e) ? e.Name : "Staff",
+            Role = emps.TryGetValue(l.EmployeeId, out var emp) ? emp.Role.ToString() : "Staff",
+            StartDate = l.StartDate,
+            EndDate = l.EndDate,
+            LeaveType = l.LeaveType,
+            Reason = l.Reason,
+            Status = l.Status,
+            ApprovedBy = l.ApprovedBy,
+            ApprovedDate = l.ApprovedDate,
+            RejectionReason = l.RejectionReason,
+            CreatedAt = l.CreatedAt
+        });
+    }
+
+    public async Task<LeaveRequestDto> CreateLeaveRequestAsync(CreateLeaveRequestDto dto)
+    {
+        var emp = await _unitOfWork.Employees.GetByIdAsync(dto.EmployeeId);
+        if (emp == null || emp.IsDeleted) throw new KeyNotFoundException($"Employee {dto.EmployeeId} not found.");
+
+        var leave = new LeaveRequest
+        {
+            EmployeeId = dto.EmployeeId,
+            StartDate = dto.StartDate.Date,
+            EndDate = dto.EndDate.Date,
+            LeaveType = string.IsNullOrWhiteSpace(dto.LeaveType) ? "Casual" : dto.LeaveType,
+            Reason = dto.Reason ?? string.Empty,
+            Status = "Pending",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _unitOfWork.LeaveRequests.AddAsync(leave);
+        await _unitOfWork.SaveChangesAsync();
+
+        return new LeaveRequestDto
+        {
+            Id = leave.Id,
+            EmployeeId = leave.EmployeeId,
+            EmployeeName = emp.Name,
+            Role = emp.Role.ToString(),
+            StartDate = leave.StartDate,
+            EndDate = leave.EndDate,
+            LeaveType = leave.LeaveType,
+            Reason = leave.Reason,
+            Status = leave.Status
+        };
+    }
+
+    public async Task<bool> ApproveLeaveRequestAsync(int leaveRequestId, string approvedBy)
+    {
+        var leave = await _unitOfWork.LeaveRequests.GetByIdAsync(leaveRequestId);
+        if (leave == null || leave.IsDeleted) return false;
+
+        leave.Status = "Approved";
+        leave.ApprovedBy = string.IsNullOrWhiteSpace(approvedBy) ? "Manager" : approvedBy;
+        leave.ApprovedDate = DateTime.UtcNow;
+        leave.UpdatedAt = DateTime.UtcNow;
+        await _unitOfWork.LeaveRequests.UpdateAsync(leave);
+
+        for (var dt = leave.StartDate.Date; dt <= leave.EndDate.Date; dt = dt.AddDays(1))
+        {
+            var existingAtt = (await _unitOfWork.Attendances.FindAsync(a => a.EmployeeId == leave.EmployeeId && a.Date == dt && !a.IsDeleted)).FirstOrDefault();
+            if (existingAtt != null)
+            {
+                existingAtt.Status = "Leave";
+                existingAtt.UpdatedAt = DateTime.UtcNow;
+                await _unitOfWork.Attendances.UpdateAsync(existingAtt);
+            }
+            else
+            {
+                await _unitOfWork.Attendances.AddAsync(new Attendance
+                {
+                    EmployeeId = leave.EmployeeId,
+                    Date = dt,
+                    CheckInTime = dt.AddHours(9),
+                    Status = "Leave",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+        }
+
+        await _unitOfWork.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> RejectLeaveRequestAsync(int leaveRequestId, string rejectedBy, string reason)
+    {
+        var leave = await _unitOfWork.LeaveRequests.GetByIdAsync(leaveRequestId);
+        if (leave == null || leave.IsDeleted) return false;
+
+        leave.Status = "Rejected";
+        leave.ApprovedBy = string.IsNullOrWhiteSpace(rejectedBy) ? "Manager" : rejectedBy;
+        leave.RejectionReason = reason ?? string.Empty;
+        leave.ApprovedDate = DateTime.UtcNow;
+        leave.UpdatedAt = DateTime.UtcNow;
+
+        await _unitOfWork.LeaveRequests.UpdateAsync(leave);
+        await _unitOfWork.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<IEnumerable<CustomerLedgerDto>> GetCustomerLedgersAsync(int? customerId = null)
+    {
+        var list = await _unitOfWork.CustomerLedgers.GetAllAsync();
+        var custs = (await _unitOfWork.Customers.GetAllAsync()).ToDictionary(c => c.Id);
+
+        var query = list.Where(l => !l.IsDeleted);
+        if (customerId.HasValue) query = query.Where(l => l.CustomerId == customerId.Value);
+
+        return query.OrderByDescending(l => l.Date).Select(l => new CustomerLedgerDto
+        {
+            Id = l.Id,
+            CustomerId = l.CustomerId,
+            CustomerName = custs.TryGetValue(l.CustomerId, out var c) ? c.Name : "Customer",
+            CustomerPhone = custs.TryGetValue(l.CustomerId, out var cu) ? cu.Phone : "",
+            Date = l.Date,
+            Description = l.Description,
+            DebitAmount = l.DebitAmount,
+            CreditAmount = l.CreditAmount,
+            RunningBalance = l.RunningBalance,
+            ReferenceInvoiceNumber = l.ReferenceInvoiceNumber,
+            Notes = l.Notes,
+            RecordedBy = l.RecordedBy
+        });
+    }
+
+    public async Task<CustomerLedgerDto> RecordCustomerCreditTransactionAsync(RecordCustomerCreditDto dto)
+    {
+        var cust = await _unitOfWork.Customers.GetByIdAsync(dto.CustomerId);
+        if (cust == null || cust.IsDeleted) throw new KeyNotFoundException($"Customer {dto.CustomerId} not found.");
+
+        decimal debit = dto.Type == "CreditGiven" ? dto.Amount : 0m;
+        decimal credit = dto.Type == "PaymentReceived" ? dto.Amount : 0m;
+
+        decimal currentBalance = cust.OutstandingCredit;
+        decimal newBalance = currentBalance + debit - credit;
+        cust.OutstandingCredit = Math.Max(0m, newBalance);
+        cust.UpdatedAt = DateTime.UtcNow;
+        await _unitOfWork.Customers.UpdateAsync(cust);
+
+        var ledger = new CustomerLedger
+        {
+            CustomerId = cust.Id,
+            Date = DateTime.UtcNow,
+            Description = dto.Type == "CreditGiven" ? "Udhari / Credit on Bill" : "Payment / Recovery Received",
+            DebitAmount = debit,
+            CreditAmount = credit,
+            RunningBalance = cust.OutstandingCredit,
+            ReferenceInvoiceNumber = dto.ReferenceInvoiceNumber ?? string.Empty,
+            Notes = dto.Notes ?? string.Empty,
+            RecordedBy = string.IsNullOrWhiteSpace(dto.RecordedBy) ? "Cashier" : dto.RecordedBy,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _unitOfWork.CustomerLedgers.AddAsync(ledger);
+        await _unitOfWork.SaveChangesAsync();
+
+        return new CustomerLedgerDto
+        {
+            Id = ledger.Id,
+            CustomerId = cust.Id,
+            CustomerName = cust.Name,
+            CustomerPhone = cust.Phone,
+            Date = ledger.Date,
+            Description = ledger.Description,
+            DebitAmount = ledger.DebitAmount,
+            CreditAmount = ledger.CreditAmount,
+            RunningBalance = ledger.RunningBalance,
+            ReferenceInvoiceNumber = ledger.ReferenceInvoiceNumber,
+            Notes = ledger.Notes,
+            RecordedBy = ledger.RecordedBy
+        };
+    }
+
     private static EmployeeDto MapToDto(Employee e)
     {
         return new EmployeeDto
@@ -769,14 +951,17 @@ public class DashboardService : IDashboardService
         var yesterday = today.AddDays(-1);
 
         var orders = await _unitOfWork.Orders.GetAllAsync();
-        var activeOrders = orders.Where(o => !o.IsDeleted).ToList();
+        var allValidOrders = orders.Where(o => !o.IsDeleted).ToList();
 
-        var todayOrders = activeOrders.Where(o => o.CreatedAt.Date == today && o.Status == OrderStatus.Completed).ToList();
-        var yesterdayOrders = activeOrders.Where(o => o.CreatedAt.Date == yesterday && o.Status == OrderStatus.Completed).ToList();
+        // Business Day Orders (Only orders created during today)
+        var todayAllOrders = allValidOrders.Where(o => o.CreatedAt.Date == today).ToList();
+        var todayCompletedOrders = todayAllOrders.Where(o => o.Status == OrderStatus.Completed).ToList();
+        var yesterdayCompletedOrders = allValidOrders.Where(o => o.CreatedAt.Date == yesterday && o.Status == OrderStatus.Completed).ToList();
 
-        decimal todaySales = todayOrders.Sum(o => o.GrandTotal);
-        decimal yesterdaySales = yesterdayOrders.Sum(o => o.GrandTotal);
+        decimal todaySales = todayCompletedOrders.Sum(o => o.GrandTotal);
+        decimal yesterdaySales = yesterdayCompletedOrders.Sum(o => o.GrandTotal);
 
+        // Operational Live State: Tables & Pending KOTs must reflect current real-time state, regardless of start date
         var tables = (await _unitOfWork.Tables.GetAllAsync()).Where(t => !t.IsDeleted).ToList();
         int totalTables = tables.Count;
         int occupiedTables = tables.Count(t => t.Status == TableStatus.Occupied || t.Status == TableStatus.Billing);
@@ -786,12 +971,14 @@ public class DashboardService : IDashboardService
         var kots = await _unitOfWork.KOTs.GetAllAsync();
         int pendingKots = kots.Count(k => !k.IsDeleted && (k.Status == KOTStatus.New || k.Status == KOTStatus.Preparing));
 
-        int completedCount = activeOrders.Count(o => o.Status == OrderStatus.Completed);
-        int cancelledCount = activeOrders.Count(o => o.Status == OrderStatus.Cancelled);
-        int newOrdersCount = activeOrders.Count(o => o.Status == OrderStatus.Pending || o.Status == OrderStatus.Confirmed);
-        int preparingOrdersCount = activeOrders.Count(o => o.Status == OrderStatus.Preparing);
-        int readyOrdersCount = activeOrders.Count(o => o.Status == OrderStatus.Ready);
-        int servedOrdersCount = activeOrders.Count(o => o.Status == OrderStatus.Completed);
+        // Accurate daily status counts (excluding cancelled from main counts)
+        int todayOrdersCount = todayAllOrders.Count(o => o.Status != OrderStatus.Cancelled);
+        int completedCount = todayCompletedOrders.Count;
+        int cancelledCount = todayAllOrders.Count(o => o.Status == OrderStatus.Cancelled);
+        int newOrdersCount = todayAllOrders.Count(o => o.Status == OrderStatus.Pending || o.Status == OrderStatus.Confirmed);
+        int preparingOrdersCount = todayAllOrders.Count(o => o.Status == OrderStatus.Preparing);
+        int readyOrdersCount = todayAllOrders.Count(o => o.Status == OrderStatus.Ready);
+        int servedOrdersCount = todayCompletedOrders.Count;
 
         var inventory = await _unitOfWork.InventoryItems.GetAllAsync();
         var lowStock = inventory.Where(i => !i.IsDeleted && i.CurrentStock <= i.MinimumStock)
@@ -821,7 +1008,7 @@ public class DashboardService : IDashboardService
         var floorTables = (await _tableService.GetFloorsWithTablesAsync()).ToList();
 
         var sevenDaysAgo = today.AddDays(-6);
-        var weeklyOrders = activeOrders.Where(o => o.CreatedAt.Date >= sevenDaysAgo && o.CreatedAt.Date <= today).ToList();
+        var weeklyOrders = allValidOrders.Where(o => o.CreatedAt.Date >= sevenDaysAgo && o.CreatedAt.Date <= today).ToList();
         var weeklyTrend = new List<DailySalesSummaryDto>();
         for (int i = 6; i >= 0; i--)
         {
@@ -835,17 +1022,9 @@ public class DashboardService : IDashboardService
             });
         }
 
-        int dineInCount = activeOrders.Count(o => o.OrderType == OrderType.DineIn && o.CreatedAt.Date == today);
-        int takeawayCount = activeOrders.Count(o => o.OrderType == OrderType.Takeaway && o.CreatedAt.Date == today);
-        int deliveryCount = activeOrders.Count(o => o.OrderType == OrderType.Delivery && o.CreatedAt.Date == today);
-        if (dineInCount == 0 && takeawayCount == 0 && deliveryCount == 0 && activeOrders.Any())
-        {
-            dineInCount = activeOrders.Count(o => o.OrderType == OrderType.DineIn);
-            takeawayCount = activeOrders.Count(o => o.OrderType == OrderType.Takeaway);
-            deliveryCount = activeOrders.Count(o => o.OrderType == OrderType.Delivery);
-        }
-
-        int totalOrdersCalculated = dineInCount + takeawayCount + deliveryCount;
+        int dineInCount = todayAllOrders.Count(o => o.OrderType == OrderType.DineIn && o.Status != OrderStatus.Cancelled);
+        int takeawayCount = todayAllOrders.Count(o => o.OrderType == OrderType.Takeaway && o.Status != OrderStatus.Cancelled);
+        int deliveryCount = todayAllOrders.Count(o => o.OrderType == OrderType.Delivery && o.Status != OrderStatus.Cancelled);
 
         var allEmployees = (await _unitOfWork.Employees.GetAllAsync()).Where(e => !e.IsDeleted).ToList();
         var todayAttendances = (await _unitOfWork.Attendances.FindAsync(a => a.Date == today && !a.IsDeleted && a.Status == "Present")).ToList();
@@ -889,9 +1068,10 @@ public class DashboardService : IDashboardService
             .GroupBy(i => i.OrderId)
             .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
 
-        var recentOrders = activeOrders
+        // Recent Orders: Today's orders, sorted by latest order time first
+        var recentOrders = todayAllOrders
             .OrderByDescending(o => o.CreatedAt)
-            .Take(6)
+            .Take(10)
             .Select(o => new RecentOrderSummaryDto
             {
                 Id = o.Id,
@@ -910,7 +1090,7 @@ public class DashboardService : IDashboardService
         {
             TodaySales = todaySales,
             YesterdaySales = yesterdaySales,
-            TodayOrdersCount = totalOrdersCalculated > 0 ? totalOrdersCalculated : (activeOrders.Count(o => o.CreatedAt.Date == today)),
+            TodayOrdersCount = todayOrdersCount,
             TotalTablesCount = totalTables,
             OccupiedTablesCount = occupiedTables,
             AvailableTablesCount = availableTables,
@@ -934,6 +1114,146 @@ public class DashboardService : IDashboardService
             PresentStaffCount = presentStaff,
             RecentOrders = recentOrders
         };
+    }
+}
+
+public class SupplierService : ISupplierService
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public SupplierService(IUnitOfWork unitOfWork)
+    {
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<IEnumerable<SupplierDto>> GetSuppliersAsync()
+    {
+        var suppliers = await _unitOfWork.Suppliers.GetAllAsync();
+        var pos = await _unitOfWork.PurchaseOrders.GetAllAsync();
+        var poCountDict = pos.Where(p => !p.IsDeleted).GroupBy(p => p.SupplierId).ToDictionary(g => g.Key, g => g.Count());
+
+        return suppliers.Where(s => !s.IsDeleted).Select(s => new SupplierDto
+        {
+            Id = s.Id,
+            Name = s.Name,
+            ContactPerson = s.ContactPerson,
+            Phone = s.Phone,
+            Email = s.Email,
+            Address = s.Address,
+            GSTNumber = s.GSTNumber,
+            OpeningBalance = s.OpeningBalance,
+            IsActive = s.IsActive,
+            PurchaseOrdersCount = poCountDict.TryGetValue(s.Id, out int c) ? c : 0
+        }).OrderBy(s => s.Name);
+    }
+
+    public async Task<SupplierDto?> GetSupplierByIdAsync(int id)
+    {
+        var s = await _unitOfWork.Suppliers.GetByIdAsync(id);
+        if (s == null || s.IsDeleted) return null;
+        var pos = await _unitOfWork.PurchaseOrders.FindAsync(p => p.SupplierId == id && !p.IsDeleted);
+
+        return new SupplierDto
+        {
+            Id = s.Id,
+            Name = s.Name,
+            ContactPerson = s.ContactPerson,
+            Phone = s.Phone,
+            Email = s.Email,
+            Address = s.Address,
+            GSTNumber = s.GSTNumber,
+            OpeningBalance = s.OpeningBalance,
+            IsActive = s.IsActive,
+            PurchaseOrdersCount = pos.Count()
+        };
+    }
+
+    public async Task<SupplierDto> CreateSupplierAsync(SupplierCreateUpdateDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Name)) throw new ArgumentException("Supplier name is required.");
+
+        var existing = (await _unitOfWork.Suppliers.FindAsync(s => !s.IsDeleted && s.Name.ToLower() == dto.Name.Trim().ToLower())).FirstOrDefault();
+        if (existing != null) throw new InvalidOperationException($"Supplier with name '{dto.Name}' already exists.");
+
+        var supplier = new Supplier
+        {
+            Name = dto.Name.Trim(),
+            ContactPerson = dto.ContactPerson?.Trim() ?? string.Empty,
+            Phone = dto.Phone?.Trim() ?? string.Empty,
+            Email = dto.Email?.Trim() ?? string.Empty,
+            Address = dto.Address?.Trim() ?? string.Empty,
+            GSTNumber = dto.GSTNumber?.Trim() ?? string.Empty,
+            OpeningBalance = dto.OpeningBalance,
+            IsActive = dto.IsActive,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _unitOfWork.Suppliers.AddAsync(supplier);
+        await _unitOfWork.SaveChangesAsync();
+
+        return new SupplierDto
+        {
+            Id = supplier.Id,
+            Name = supplier.Name,
+            ContactPerson = supplier.ContactPerson,
+            Phone = supplier.Phone,
+            Email = supplier.Email,
+            Address = supplier.Address,
+            GSTNumber = supplier.GSTNumber,
+            OpeningBalance = supplier.OpeningBalance,
+            IsActive = supplier.IsActive,
+            PurchaseOrdersCount = 0
+        };
+    }
+
+    public async Task<SupplierDto> UpdateSupplierAsync(int id, SupplierCreateUpdateDto dto)
+    {
+        var supplier = await _unitOfWork.Suppliers.GetByIdAsync(id);
+        if (supplier == null || supplier.IsDeleted) throw new KeyNotFoundException($"Supplier {id} not found.");
+
+        var duplicate = (await _unitOfWork.Suppliers.FindAsync(s => !s.IsDeleted && s.Id != id && s.Name.ToLower() == dto.Name.Trim().ToLower())).FirstOrDefault();
+        if (duplicate != null) throw new InvalidOperationException($"Supplier with name '{dto.Name}' already exists.");
+
+        supplier.Name = dto.Name.Trim();
+        supplier.ContactPerson = dto.ContactPerson?.Trim() ?? string.Empty;
+        supplier.Phone = dto.Phone?.Trim() ?? string.Empty;
+        supplier.Email = dto.Email?.Trim() ?? string.Empty;
+        supplier.Address = dto.Address?.Trim() ?? string.Empty;
+        supplier.GSTNumber = dto.GSTNumber?.Trim() ?? string.Empty;
+        supplier.OpeningBalance = dto.OpeningBalance;
+        supplier.IsActive = dto.IsActive;
+        supplier.UpdatedAt = DateTime.UtcNow;
+
+        await _unitOfWork.Suppliers.UpdateAsync(supplier);
+        await _unitOfWork.SaveChangesAsync();
+
+        return new SupplierDto
+        {
+            Id = supplier.Id,
+            Name = supplier.Name,
+            ContactPerson = supplier.ContactPerson,
+            Phone = supplier.Phone,
+            Email = supplier.Email,
+            Address = supplier.Address,
+            GSTNumber = supplier.GSTNumber,
+            OpeningBalance = supplier.OpeningBalance,
+            IsActive = supplier.IsActive
+        };
+    }
+
+    public async Task<bool> DeleteSupplierAsync(int id)
+    {
+        var supplier = await _unitOfWork.Suppliers.GetByIdAsync(id);
+        if (supplier == null || supplier.IsDeleted) return false;
+
+        var po = await _unitOfWork.PurchaseOrders.FindAsync(p => p.SupplierId == id && !p.IsDeleted);
+        if (po.Any()) throw new InvalidOperationException($"Cannot delete supplier '{supplier.Name}' because active purchase orders depend on it.");
+
+        supplier.IsDeleted = true;
+        supplier.UpdatedAt = DateTime.UtcNow;
+        await _unitOfWork.Suppliers.UpdateAsync(supplier);
+        await _unitOfWork.SaveChangesAsync();
+        return true;
     }
 }
 

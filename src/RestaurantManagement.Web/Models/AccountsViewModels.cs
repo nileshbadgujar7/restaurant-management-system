@@ -22,4 +22,10 @@ public class AccountsViewModel
 
     // Tab 3: Expenses
     public List<ExpenseDto> Expenses { get; set; } = new();
+
+    // Tab 4: Customer Credit (Udhari) Ledger
+    public decimal TotalCustomerCreditOutstanding { get; set; }
+    public List<CustomerLedgerDto> CustomerLedgers { get; set; } = new();
+    public List<CustomerDto> Customers { get; set; } = new();
 }
+

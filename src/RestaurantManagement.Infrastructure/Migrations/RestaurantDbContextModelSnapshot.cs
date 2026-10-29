@@ -249,6 +249,10 @@ namespace RestaurantManagement.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("NameMarathi")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -295,6 +299,10 @@ namespace RestaurantManagement.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<decimal>("OutstandingCredit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("Phone")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -315,6 +323,67 @@ namespace RestaurantManagement.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Customers");
+                });
+
+            modelBuilder.Entity("RestaurantManagement.Domain.Entities.CustomerLedger", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("CreditAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("DebitAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RecordedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReferenceInvoiceNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("RunningBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.ToTable("CustomerLedgers");
                 });
 
             modelBuilder.Entity("RestaurantManagement.Domain.Entities.Employee", b =>
@@ -691,6 +760,65 @@ namespace RestaurantManagement.Infrastructure.Migrations
                     b.ToTable("KOTItems");
                 });
 
+            modelBuilder.Entity("RestaurantManagement.Domain.Entities.LeaveRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ApprovedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ApprovedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LeaveType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RejectionReason")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("LeaveRequests");
+                });
+
             modelBuilder.Entity("RestaurantManagement.Domain.Entities.LoyaltyAccount", b =>
                 {
                     b.Property<int>("Id")
@@ -810,7 +938,19 @@ namespace RestaurantManagement.Infrastructure.Migrations
                     b.Property<bool>("IsVeg")
                         .HasColumnType("bit");
 
+                    b.Property<string>("ItemCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("KitchenCategory")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("NameMarathi")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -1603,6 +1743,10 @@ namespace RestaurantManagement.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("DefaultLanguage")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<decimal>("DeliveryCharge")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -1611,6 +1755,21 @@ namespace RestaurantManagement.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EmailSmtpHost")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EmailSmtpPassword")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("EmailSmtpPort")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EmailSmtpUser")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -1626,6 +1785,18 @@ namespace RestaurantManagement.Infrastructure.Migrations
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsGSTEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsKOTWorkflowEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsQRCodeEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsTaxInclusive")
                         .HasColumnType("bit");
 
                     b.Property<bool>("KitchenLiteScreen")
@@ -1650,6 +1821,10 @@ namespace RestaurantManagement.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("QRCodeData")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("RestaurantName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -1665,6 +1840,9 @@ namespace RestaurantManagement.Infrastructure.Migrations
                     b.Property<bool>("SinglePersonMode")
                         .HasColumnType("bit");
 
+                    b.Property<int>("ThermalPrinterWidth")
+                        .HasColumnType("int");
+
                     b.Property<bool>("TrackReadyStatus")
                         .HasColumnType("bit");
 
@@ -1673,6 +1851,10 @@ namespace RestaurantManagement.Infrastructure.Migrations
 
                     b.Property<int>("VoidApproval")
                         .HasColumnType("int");
+
+                    b.Property<string>("WhatsAppApiKey")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -1758,6 +1940,10 @@ namespace RestaurantManagement.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<decimal>("OpeningBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("Phone")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -1797,6 +1983,10 @@ namespace RestaurantManagement.Infrastructure.Migrations
                     b.Property<int?>("CurrentOrderId")
                         .HasColumnType("int");
 
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("FloorId")
                         .HasColumnType("int");
 
@@ -1816,6 +2006,10 @@ namespace RestaurantManagement.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("TableNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TableType")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -1909,6 +2103,17 @@ namespace RestaurantManagement.Infrastructure.Migrations
                     b.Navigation("Order");
                 });
 
+            modelBuilder.Entity("RestaurantManagement.Domain.Entities.CustomerLedger", b =>
+                {
+                    b.HasOne("RestaurantManagement.Domain.Entities.Customer", "Customer")
+                        .WithMany("Ledgers")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+                });
+
             modelBuilder.Entity("RestaurantManagement.Domain.Entities.EmployeeLedger", b =>
                 {
                     b.HasOne("RestaurantManagement.Domain.Entities.Employee", "Employee")
@@ -1940,6 +2145,17 @@ namespace RestaurantManagement.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("KOT");
+                });
+
+            modelBuilder.Entity("RestaurantManagement.Domain.Entities.LeaveRequest", b =>
+                {
+                    b.HasOne("RestaurantManagement.Domain.Entities.Employee", "Employee")
+                        .WithMany("LeaveRequests")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
                 });
 
             modelBuilder.Entity("RestaurantManagement.Domain.Entities.LoyaltyAccount", b =>
@@ -2208,12 +2424,16 @@ namespace RestaurantManagement.Infrastructure.Migrations
 
             modelBuilder.Entity("RestaurantManagement.Domain.Entities.Customer", b =>
                 {
+                    b.Navigation("Ledgers");
+
                     b.Navigation("LoyaltyAccount");
                 });
 
             modelBuilder.Entity("RestaurantManagement.Domain.Entities.Employee", b =>
                 {
                     b.Navigation("Attendances");
+
+                    b.Navigation("LeaveRequests");
 
                     b.Navigation("Ledgers");
 

@@ -32,6 +32,25 @@ public interface IStaffService
     // Attendance-Based Payroll
     Task<IEnumerable<PayrollCalculationDto>> CalculateMonthlyPayrollAsync(int month, int year);
     Task<PayrollCalculationDto> DisburseSalaryAsync(DisburseSalaryDto dto);
+
+    // Leave Management
+    Task<IEnumerable<LeaveRequestDto>> GetLeaveRequestsAsync();
+    Task<LeaveRequestDto> CreateLeaveRequestAsync(CreateLeaveRequestDto dto);
+    Task<bool> ApproveLeaveRequestAsync(int leaveRequestId, string approvedBy);
+    Task<bool> RejectLeaveRequestAsync(int leaveRequestId, string rejectedBy, string reason);
+
+    // Customer Credit / Udhari Ledger
+    Task<IEnumerable<CustomerLedgerDto>> GetCustomerLedgersAsync(int? customerId = null);
+    Task<CustomerLedgerDto> RecordCustomerCreditTransactionAsync(RecordCustomerCreditDto dto);
+}
+
+public interface ISupplierService
+{
+    Task<IEnumerable<SupplierDto>> GetSuppliersAsync();
+    Task<SupplierDto?> GetSupplierByIdAsync(int id);
+    Task<SupplierDto> CreateSupplierAsync(SupplierCreateUpdateDto dto);
+    Task<SupplierDto> UpdateSupplierAsync(int id, SupplierCreateUpdateDto dto);
+    Task<bool> DeleteSupplierAsync(int id);
 }
 
 public interface IDashboardService

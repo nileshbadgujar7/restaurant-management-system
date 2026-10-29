@@ -55,7 +55,8 @@ public enum PaymentMethod
     CreditCard = 3,
     DebitCard = 4,
     Wallet = 5,
-    Split = 6
+    Split = 6,
+    Credit = 7 // Customer Credit / Udhari
 }
 
 public enum PaymentStatus

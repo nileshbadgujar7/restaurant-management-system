@@ -13,3 +13,4 @@ public class InventoryViewModel
     public int CriticalStockCount { get; set; }
     public int MovementsTodayCount { get; set; }
 }
+

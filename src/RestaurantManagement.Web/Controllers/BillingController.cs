@@ -10,11 +10,19 @@ public class BillingController : Controller
 {
     private readonly IBillingService _billingService;
     private readonly IOrderService _orderService;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ICustomerService _customerService;
 
-    public BillingController(IBillingService billingService, IOrderService orderService)
+    public BillingController(
+        IBillingService billingService, 
+        IOrderService orderService, 
+        IUnitOfWork unitOfWork, 
+        ICustomerService customerService)
     {
         _billingService = billingService;
         _orderService = orderService;
+        _unitOfWork = unitOfWork;
+        _customerService = customerService;
     }
 
     public async Task<IActionResult> Index()
@@ -45,6 +53,11 @@ public class BillingController : Controller
     {
         var bill = await _billingService.GetBillByIdAsync(id);
         if (bill == null) return NotFound();
+
+        var settings = await _unitOfWork.RestaurantSettings.GetAllAsync();
+        ViewBag.Settings = settings.FirstOrDefault() ?? new RestaurantManagement.Domain.Entities.RestaurantSetting();
+        ViewBag.Customers = await _customerService.GetAllCustomersAsync();
+
         return View(bill);
     }
 
@@ -70,7 +83,12 @@ public class BillingController : Controller
                 Amount = decimal.TryParse(Request.Form["Amount"], out decimal amt) ? amt : 0,
                 PaymentMethod = Enum.TryParse<RestaurantManagement.Domain.Enums.PaymentMethod>(Request.Form["PaymentMethod"], out var pm) ? pm : RestaurantManagement.Domain.Enums.PaymentMethod.Cash,
                 TransactionId = Request.Form["TransactionId"].ToString(),
-                Notes = Request.Form["Notes"].ToString()
+                Notes = Request.Form["Notes"].ToString(),
+                CustomerId = int.TryParse(Request.Form["CustomerId"], out int cid) && cid > 0 ? cid : null,
+                NewCustomerName = Request.Form["NewCustomerName"].ToString(),
+                NewCustomerPhone = Request.Form["NewCustomerPhone"].ToString(),
+                SplitCashAmount = decimal.TryParse(Request.Form["SplitCashAmount"], out decimal sca) ? sca : 0m,
+                SplitOnlineAmount = decimal.TryParse(Request.Form["SplitOnlineAmount"], out decimal soa) ? soa : 0m
             };
             returnUrl = Request.Form["ReturnUrl"].ToString();
         }

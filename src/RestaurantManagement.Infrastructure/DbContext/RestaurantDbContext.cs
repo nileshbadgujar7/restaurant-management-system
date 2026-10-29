@@ -42,6 +42,8 @@ public class RestaurantDbContext : Microsoft.EntityFrameworkCore.DbContext
     public DbSet<RestaurantSetting> RestaurantSettings => Set<RestaurantSetting>();
     public DbSet<EmployeeLedger> EmployeeLedgers => Set<EmployeeLedger>();
     public DbSet<PayrollRecord> PayrollRecords => Set<PayrollRecord>();
+    public DbSet<CustomerLedger> CustomerLedgers => Set<CustomerLedger>();
+    public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -105,6 +107,18 @@ public class RestaurantDbContext : Microsoft.EntityFrameworkCore.DbContext
             .HasOne(pr => pr.Employee)
             .WithMany(e => e.PayrollRecords)
             .HasForeignKey(pr => pr.EmployeeId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<CustomerLedger>()
+            .HasOne(cl => cl.Customer)
+            .WithMany(c => c.Ledgers)
+            .HasForeignKey(cl => cl.CustomerId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<LeaveRequest>()
+            .HasOne(lr => lr.Employee)
+            .WithMany(e => e.LeaveRequests)
+            .HasForeignKey(lr => lr.EmployeeId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

@@ -46,6 +46,20 @@ public class AccountsController : Controller
         var payroll = (await _staffService.CalculateMonthlyPayrollAsync(curMonth, curYear)).ToList();
         var expenses = (await _staffService.GetExpensesAsync()).ToList();
 
+        // Customer Credit (Udhari)
+        var customerLedgers = (await _staffService.GetCustomerLedgersAsync()).ToList();
+        var allCustomers = (await _unitOfWork.Customers.GetAllAsync()).Where(c => !c.IsDeleted).Select(c => new CustomerDto
+        {
+            Id = c.Id,
+            Name = c.Name,
+            Phone = c.Phone,
+            Email = c.Email,
+            OutstandingCredit = c.OutstandingCredit,
+            TotalVisits = c.TotalVisits,
+            TotalSpent = c.TotalSpent
+        }).ToList();
+        decimal totalCustomerCredit = allCustomers.Sum(c => c.OutstandingCredit);
+
         // Financial KPIs
         var orders = await _unitOfWork.Orders.GetAllAsync();
         decimal totalRevenue = orders.Where(o => !o.IsDeleted && (o.Status == OrderStatus.Completed || o.IsSettled)).Sum(o => o.GrandTotal);
@@ -60,15 +74,36 @@ public class AccountsController : Controller
             TotalExpenses = totalExpenses,
             TotalAdvancesOutstanding = totalAdvances,
             TotalSalariesPaid = salariesPaid,
+            TotalCustomerCreditOutstanding = totalCustomerCredit,
             EmployeeLedgers = ledgers,
             SelectedEmployeeLedger = selectedLedger,
             SelectedMonth = curMonth,
             SelectedYear = curYear,
             PayrollRecords = payroll,
-            Expenses = expenses
+            Expenses = expenses,
+            CustomerLedgers = customerLedgers,
+            Customers = allCustomers
         };
 
         return View(viewModel);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> CollectCustomerPayment(RecordCustomerCreditDto dto)
+    {
+        try
+        {
+            dto.Type = "PaymentReceived";
+            dto.RecordedBy = User.Identity?.Name ?? "Cashier";
+            await _staffService.RecordCustomerCreditTransactionAsync(dto);
+            TempData["Success"] = $"Collected credit payment of ₹{dto.Amount:N0} successfully.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+
+        return RedirectToAction(nameof(Index), new { tab = "customercredit" });
     }
 
     [HttpPost]

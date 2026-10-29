@@ -8,6 +8,7 @@ public class Supplier : BaseEntity
     public string Email { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
     public string GSTNumber { get; set; } = string.Empty;
+    public decimal OpeningBalance { get; set; } = 0m;
     
     public ICollection<PurchaseOrder> PurchaseOrders { get; set; } = new List<PurchaseOrder>();
 }

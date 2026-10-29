@@ -176,11 +176,23 @@
 <body>
 
 <div class="login-card">
+    <!-- Language Switcher Pill -->
+    <div class="d-flex justify-content-end mb-2">
+        <div class="btn-group btn-group-sm rounded-pill border bg-white p-1 shadow-sm" role="group">
+            <button type="button" class="btn btn-outline-secondary rounded-pill py-0 px-2 fw-bold active" id="langEnBtn" onclick="setLanguage('en')">
+                English
+            </button>
+            <button type="button" class="btn btn-outline-secondary rounded-pill py-0 px-2 fw-bold" id="langMrBtn" onclick="setLanguage('mr')">
+                मराठी
+            </button>
+        </div>
+    </div>
+
     <!-- Brand Header -->
     <div class="text-center mb-3">
         <div class="brand-crest mb-2">G</div>
         <h2 class="brand-title mb-0">@Model.RestaurantName</h2>
-        <div class="text-muted small fw-semibold">Restaurant Management System</div>
+        <div class="text-muted small fw-semibold" id="rmsSubtitle">Restaurant Management System</div>
     </div>
 
     @if (TempData["Success"] != null)
@@ -212,11 +224,11 @@
 
     <!-- Quick Role Switcher Chips -->
     <div class="d-flex flex-wrap justify-content-center gap-1 mb-3">
-        <button type="button" class="role-chip-btn active" onclick="pickRole('manager', 'manager123', 'Restaurant Manager', 'fa-briefcase', '#059669', 'Operations Mode', this)">Manager</button>
-        <button type="button" class="role-chip-btn" onclick="pickRole('admin', 'admin123', 'Administrator', 'fa-user-gear', '#dc2626', 'Full Admin Mode', this)">Admin</button>
-        <button type="button" class="role-chip-btn" onclick="pickRole('cashier', 'cashier123', 'Cashier', 'fa-cash-register', '#4f46e5', 'Billing Mode', this)">Cashier</button>
-        <button type="button" class="role-chip-btn" onclick="pickRole('waiter', 'waiter123', 'Waiter', 'fa-tray', '#d97706', 'Fast POS Mode', this)">Waiter</button>
-        <button type="button" class="role-chip-btn" onclick="pickRole('kitchen', 'kitchen123', 'Kitchen Head', 'fa-kitchen-set', '#ea580c', 'KDS Screen Mode', this)">Kitchen</button>
+        <button type="button" class="role-chip-btn active" id="chipManager" onclick="pickRole('manager', 'manager123', 'Restaurant Manager', 'fa-briefcase', '#059669', 'Operations Mode', this)">Manager</button>
+        <button type="button" class="role-chip-btn" id="chipAdmin" onclick="pickRole('admin', 'admin123', 'Administrator', 'fa-user-gear', '#dc2626', 'Full Admin Mode', this)">Admin</button>
+        <button type="button" class="role-chip-btn" id="chipCashier" onclick="pickRole('cashier', 'cashier123', 'Cashier', 'fa-cash-register', '#4f46e5', 'Billing Mode', this)">Cashier</button>
+        <button type="button" class="role-chip-btn" id="chipWaiter" onclick="pickRole('waiter', 'waiter123', 'Waiter', 'fa-tray', '#d97706', 'Fast POS Mode', this)">Waiter</button>
+        <button type="button" class="role-chip-btn" id="chipKitchen" onclick="pickRole('kitchen', 'kitchen123', 'Kitchen Head', 'fa-kitchen-set', '#ea580c', 'KDS Screen Mode', this)">Kitchen</button>
     </div>
 
     <!-- Sign In Form Panel -->
@@ -239,15 +251,15 @@
             <div class="d-flex align-items-center justify-content-between mb-3 small">
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="rememberMe" name="RememberMe" value="true" checked />
-                    <label class="form-check-label text-secondary fw-semibold" for="rememberMe">Remember me</label>
+                    <label class="form-check-label text-secondary fw-semibold" for="rememberMe" id="rememberMeLabel">Remember me</label>
                 </div>
-                <button type="button" class="btn btn-link p-0 small text-decoration-none fw-bold" style="color: var(--brand-emerald);" onclick="toggleForgotPassword(true)">
+                <button type="button" class="btn btn-link p-0 small text-decoration-none fw-bold" style="color: var(--brand-emerald);" onclick="toggleForgotPassword(true)" id="forgotPasswordLink">
                     Forgot password?
                 </button>
             </div>
 
-            <button type="submit" class="btn btn-signin w-100">
-                <i class="fa-solid fa-right-to-bracket"></i> Sign In
+            <button type="submit" class="btn btn-signin w-100" id="signInSubmitBtn">
+                <i class="fa-solid fa-right-to-bracket me-1"></i> <span id="signInBtnText">Sign In</span>
             </button>
         </form>
     </div>
@@ -418,8 +430,84 @@
         }
     }
 
+    // Bilingual (English / Marathi) dictionary & persistence
+    const translations = {
+        en: {
+            subtitle: 'Restaurant Management System',
+            username: 'Username',
+            password: 'Password',
+            rememberMe: 'Remember me',
+            forgot: 'Forgot password?',
+            signIn: 'Sign In',
+            resetTitle: 'Reset Password',
+            chipMgr: 'Manager',
+            chipAdm: 'Admin',
+            chipCash: 'Cashier',
+            chipWait: 'Waiter',
+            chipKit: 'Kitchen'
+        },
+        mr: {
+            subtitle: 'रेस्टॉरंट व्यवस्थापन प्रणाली',
+            username: 'वापरकर्ता नाव (Username)',
+            password: 'पासवर्ड (Password)',
+            rememberMe: 'मला लक्षात ठेवा',
+            forgot: 'पासवर्ड विसरलात?',
+            signIn: 'साइन इन करा',
+            resetTitle: 'पासवर्ड रीसेट करा',
+            chipMgr: 'व्यवस्थापक',
+            chipAdm: 'अ‍ॅडमिन',
+            chipCash: 'कॅशियर',
+            chipWait: 'वेटर',
+            chipKit: 'किचन'
+        }
+    };
+
+    function setLanguage(lang) {
+        localStorage.setItem('girana_rms_lang', lang);
+        document.cookie = `GiranaRMS.Language=${lang};path=/;max-age=31536000;SameSite=Lax`;
+
+        const bEn = document.getElementById('langEnBtn');
+        const bMr = document.getElementById('langMrBtn');
+        if (lang === 'mr') {
+            bMr.classList.add('active');
+            bEn.classList.remove('active');
+        } else {
+            bEn.classList.add('active');
+            bMr.classList.remove('active');
+        }
+
+        const t = translations[lang] || translations.en;
+        const sub = document.getElementById('rmsSubtitle');
+        if (sub) sub.textContent = t.subtitle;
+        const uIn = document.getElementById('usernameInput');
+        if (uIn) uIn.placeholder = t.username;
+        const pIn = document.getElementById('passwordInput');
+        if (pIn) pIn.placeholder = t.password;
+        const rmL = document.getElementById('rememberMeLabel');
+        if (rmL) rmL.textContent = t.rememberMe;
+        const fpL = document.getElementById('forgotPasswordLink');
+        if (fpL) fpL.textContent = t.forgot;
+        const siT = document.getElementById('signInBtnText');
+        if (siT) siT.textContent = t.signIn;
+
+        const cM = document.getElementById('chipManager');
+        if (cM) cM.textContent = t.chipMgr;
+        const cA = document.getElementById('chipAdmin');
+        if (cA) cA.textContent = t.chipAdm;
+        const cC = document.getElementById('chipCashier');
+        if (cC) cC.textContent = t.chipCash;
+        const cW = document.getElementById('chipWaiter');
+        if (cW) cW.textContent = t.chipWait;
+        const cK = document.getElementById('chipKitchen');
+        if (cK) cK.textContent = t.chipKit;
+    }
+
     // Init on load
     document.addEventListener('DOMContentLoaded', function() {
+        const savedLang = localStorage.getItem('girana_rms_lang') || 
+            (document.cookie.match(/(?:^|;\s*)GiranaRMS\.Language=([^;]+)/) || [])[1] || 'en';
+        setLanguage(savedLang);
+
         const u = document.getElementById('usernameInput').value;
         if (u) onUserType(u);
     });

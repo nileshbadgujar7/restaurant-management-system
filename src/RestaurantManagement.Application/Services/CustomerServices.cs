@@ -138,7 +138,8 @@ public class CustomerService : ICustomerService
             TotalSpent = c.TotalSpent,
             LoyaltyPoints = c.LoyaltyPoints,
             Tier = c.Tier,
-            LastVisitDate = c.LastVisitDate
+            LastVisitDate = c.LastVisitDate,
+            OutstandingCredit = c.OutstandingCredit
         };
     }
 }

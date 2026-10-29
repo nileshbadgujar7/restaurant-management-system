@@ -1,0 +1,230 @@
+@model IEnumerable<MenuItemDto>
+@{
+    ViewData["Title"] = "Bilingual Menu Card (English & मराठी)";
+    var setting = ViewBag.Settings as RestaurantManagement.Domain.Entities.RestaurantSetting ?? new RestaurantManagement.Domain.Entities.RestaurantSetting();
+    var categories = ViewBag.Categories as IEnumerable<CategoryDto> ?? Enumerable.Empty<CategoryDto>();
+    string currentLang = (ViewBag.SelectedLang as string) ?? "both";
+}
+
+<style>
+    .menu-card-page {
+        background: #ffffff;
+        color: #1e293b;
+        max-width: 900px;
+        margin: 0 auto;
+        border-radius: 16px;
+        padding: 36px 40px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+        border: 1px solid #e2e8f0;
+    }
+
+    .menu-category-header {
+        border-bottom: 2px solid #059669;
+        padding-bottom: 6px;
+        margin-bottom: 18px;
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+    }
+
+    .menu-category-title {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 700;
+        font-size: 1.35rem;
+        color: #065f46;
+        margin: 0;
+    }
+
+    .menu-item-row {
+        padding: 8px 0;
+        border-bottom: 1px dashed #e2e8f0;
+    }
+    .menu-item-row:last-child {
+        border-bottom: none;
+    }
+
+    .veg-dot {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 1.5px solid #16a34a;
+        padding: 1.5px;
+        border-radius: 2px;
+        vertical-align: middle;
+        margin-right: 6px;
+    }
+    .veg-dot span {
+        display: block;
+        width: 8px;
+        height: 8px;
+        background: #16a34a;
+        border-radius: 50%;
+    }
+
+    .nonveg-dot {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 1.5px solid #dc2626;
+        padding: 1.5px;
+        border-radius: 2px;
+        vertical-align: middle;
+        margin-right: 6px;
+    }
+    .nonveg-dot span {
+        display: block;
+        width: 8px;
+        height: 8px;
+        background: #dc2626;
+        border-radius: 50%;
+    }
+
+    @@media print {
+        body {
+            background: #ffffff !important;
+            color: #000000 !important;
+        }
+        .app-sidebar, .top-header, .app-footer, .no-print, nav, .btn, .alert {
+            display: none !important;
+        }
+        .main-content {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .menu-card-page {
+            max-width: 100% !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+    }
+</style>
+
+<!-- Top Action Bar (No Print) -->
+<div class="row mb-4 align-items-center no-print">
+    <div class="col-md-6">
+        <a href="/Masters?tab=menuitems" class="btn btn-outline-secondary btn-sm rounded-pill mb-2"><i class="fa-solid fa-arrow-left me-1"></i> Back to Masters</a>
+        <h2 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-book-open text-success me-2"></i>Printable Menu Card</h2>
+    </div>
+    <div class="col-md-6 text-md-end mt-3 mt-md-0 d-flex flex-wrap gap-2 justify-content-md-end align-items-center">
+        <!-- Language Switcher -->
+        <div class="btn-group btn-group-sm rounded-pill border bg-white p-1 shadow-sm" role="group">
+            <a href="/Menu/PrintMenuCard?lang=both" class="btn btn-outline-secondary rounded-pill @(currentLang == "both" ? "active" : "")">
+                English &amp; मराठी
+            </a>
+            <a href="/Menu/PrintMenuCard?lang=en" class="btn btn-outline-secondary rounded-pill @(currentLang == "en" ? "active" : "")">
+                English Only
+            </a>
+            <a href="/Menu/PrintMenuCard?lang=mr" class="btn btn-outline-secondary rounded-pill @(currentLang == "mr" ? "active" : "")">
+                मराठी Only
+            </a>
+        </div>
+
+        <button onclick="window.print()" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">
+            <i class="fa-solid fa-print me-1"></i> Print Menu Card
+        </button>
+    </div>
+</div>
+
+<!-- Printable Menu Sheet -->
+<div class="menu-card-page">
+    <!-- Header -->
+    <div class="text-center border-bottom pb-4 mb-4">
+        @if (!string.IsNullOrEmpty(setting.LogoUrl))
+        {
+            <img src="@setting.LogoUrl" alt="Logo" style="max-height: 54px; object-fit: contain;" class="mb-2" onerror="this.style.display='none'" />
+        }
+        <h1 class="fw-bold mb-1" style="font-family: 'Outfit', sans-serif; letter-spacing: -0.5px; color: #065f46;">
+            @setting.RestaurantName
+        </h1>
+        <div class="text-secondary small fw-semibold">
+            @setting.Address &bull; Phone: @setting.Phone
+        </div>
+        <div class="small text-muted mt-1">
+            <span class="veg-dot"><span></span></span> 100% Pure Vegetarian &amp; Hygienic Kitchen Options
+        </div>
+    </div>
+
+    <!-- Category Sections -->
+    @foreach (var cat in categories)
+    {
+        var catItems = Model.Where(i => i.CategoryId == cat.Id).ToList();
+        if (catItems.Any())
+        {
+            <div class="mb-4">
+                <div class="menu-category-header">
+                    <h3 class="menu-category-title">
+                        @if (currentLang == "mr" && !string.IsNullOrEmpty(cat.NameMarathi))
+                        {
+                            @cat.NameMarathi
+                        }
+                        else if (currentLang == "both" && !string.IsNullOrEmpty(cat.NameMarathi))
+                        {
+                            <span>@cat.Name</span> <span class="text-muted fw-normal fs-6 ms-2">(@cat.NameMarathi)</span>
+                        }
+                        else
+                        {
+                            @cat.Name
+                        }
+                    </h3>
+                    <span class="small text-muted">@catItems.Count items</span>
+                </div>
+
+                <div class="row g-3">
+                    @foreach (var item in catItems)
+                    {
+                        <div class="col-md-6">
+                            <div class="menu-item-row d-flex justify-content-between align-items-start">
+                                <div class="pe-2">
+                                    <div class="fw-bold text-dark fs-6 d-flex align-items-center flex-wrap gap-1">
+                                        @if (item.IsVeg)
+                                        {
+                                            <span class="veg-dot" title="Vegetarian"><span></span></span>
+                                        }
+                                        else
+                                        {
+                                            <span class="nonveg-dot" title="Non-Vegetarian"><span></span></span>
+                                        }
+
+                                        @if (currentLang == "mr" && !string.IsNullOrEmpty(item.NameMarathi))
+                                        {
+                                            <span>@item.NameMarathi</span>
+                                        }
+                                        else if (currentLang == "both" && !string.IsNullOrEmpty(item.NameMarathi))
+                                        {
+                                            <span>@item.Name</span>
+                                            <span class="text-muted fw-normal small">/ @item.NameMarathi</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@item.Name</span>
+                                        }
+
+                                        @if (!string.IsNullOrEmpty(item.ItemCode))
+                                        {
+                                            <span class="badge bg-light text-secondary border small fw-normal py-0 px-1">#@item.ItemCode</span>
+                                        }
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(item.Description))
+                                    {
+                                        <div class="small text-muted ps-3 mt-1">@item.Description</div>
+                                    }
+                                </div>
+                                <div class="text-end fw-bold text-success text-nowrap fs-6">
+                                    ₹@item.Price.ToString("N0")
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    }
+
+    <!-- Footer -->
+    <div class="text-center border-top pt-4 mt-5 text-muted small">
+        <div>All taxes and applicable GST included. Service charge is optional.</div>
+        <div class="fw-bold text-dark mt-1">Thank you for dining with us &bull; @setting.RestaurantName</div>
+    </div>
+</div>

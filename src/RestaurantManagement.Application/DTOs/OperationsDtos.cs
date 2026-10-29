@@ -312,3 +312,57 @@ public class CategorySalesSummaryDto
     public decimal Percentage { get; set; }
 }
 
+public class CustomerLedgerDto
+{
+    public int Id { get; set; }
+    public int CustomerId { get; set; }
+    public string CustomerName { get; set; } = string.Empty;
+    public string CustomerPhone { get; set; } = string.Empty;
+    public DateTime Date { get; set; }
+    public string Description { get; set; } = string.Empty;
+    public decimal DebitAmount { get; set; }
+    public decimal CreditAmount { get; set; }
+    public decimal RunningBalance { get; set; }
+    public string ReferenceInvoiceNumber { get; set; } = string.Empty;
+    public string Notes { get; set; } = string.Empty;
+    public string RecordedBy { get; set; } = string.Empty;
+}
+
+public class RecordCustomerCreditDto
+{
+    public int CustomerId { get; set; }
+    public decimal Amount { get; set; }
+    public string Type { get; set; } = "CreditGiven"; // CreditGiven (Debit) or PaymentReceived (Credit)
+    public string ReferenceInvoiceNumber { get; set; } = string.Empty;
+    public string Notes { get; set; } = string.Empty;
+    public string RecordedBy { get; set; } = "Admin";
+}
+
+public class LeaveRequestDto
+{
+    public int Id { get; set; }
+    public int EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public int DaysCount => Math.Max(1, (int)(EndDate.Date - StartDate.Date).TotalDays + 1);
+    public string LeaveType { get; set; } = "Casual";
+    public string Reason { get; set; } = string.Empty;
+    public string Status { get; set; } = "Pending";
+    public string ApprovedBy { get; set; } = string.Empty;
+    public DateTime? ApprovedDate { get; set; }
+    public string RejectionReason { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class CreateLeaveRequestDto
+{
+    public int EmployeeId { get; set; }
+    public DateTime StartDate { get; set; } = DateTime.UtcNow.Date;
+    public DateTime EndDate { get; set; } = DateTime.UtcNow.Date;
+    public string LeaveType { get; set; } = "Casual";
+    public string Reason { get; set; } = string.Empty;
+}
+
+

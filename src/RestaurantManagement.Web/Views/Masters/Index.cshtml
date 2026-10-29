@@ -1,4 +1,5 @@
 @using RestaurantManagement.Domain.Entities
+@using RestaurantManagement.Domain.Enums
 @model MastersViewModel
 @{
     ViewData["Title"] = "Masters";
@@ -77,6 +78,13 @@
             <span class="badge bg-light text-dark border ms-1">@Model.Categories.Count()</span>
         </button>
 
+        <button class="masters-nav-tab-btn @(activeTab == "supplier" ? "active" : "")" 
+                id="supplier-tab" data-bs-toggle="tab" data-bs-target="#supplier-pane" type="button" role="tab" title="Suppliers & Vendors">
+            <i class="fa-solid fa-truck text-dark fs-5"></i>
+            <span>Suppliers</span>
+            <span class="badge bg-light text-dark border ms-1">@Model.Suppliers.Count()</span>
+        </button>
+
         <button class="masters-nav-tab-btn @(activeTab == "employee" ? "active" : "")" 
                 id="employee-tab" data-bs-toggle="tab" data-bs-target="#employee-pane" type="button" role="tab" title="Staff & Personnel">
             <i class="fa-solid fa-users text-danger fs-5"></i>
@@ -92,10 +100,10 @@
         </button>
 
         <button class="masters-nav-tab-btn @(activeTab == "settings" ? "active" : "")" 
-                id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings-pane" type="button" role="tab" title="Restaurant & Tax Configuration">
+                id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings-pane" type="button" role="tab" title="Application Configurations & Settings">
             <i class="fa-solid fa-gear text-dark fs-5"></i>
-            <span>Settings</span>
-            <span class="badge bg-light text-dark border ms-1">GST & Info</span>
+            <span>Configurations</span>
+            <span class="badge bg-light text-dark border ms-1">Master</span>
         </button>
     </div>
 </div>
@@ -103,7 +111,7 @@
 <!-- Tab Contents -->
 <div class="tab-content" id="mastersTabContent">
 
-    <!-- ==================== TAB 1: FLOORS ==================== -->
+    <!-- ==================== TAB 1: FLOORS (Section 5.1) ==================== -->
     <div class="tab-pane fade @(activeTab == "floor" ? "show active" : "")" id="floor-pane" role="tabpanel">
         <div class="glass-card p-4">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 pb-3 border-bottom">
@@ -122,6 +130,7 @@
                             <th>Description</th>
                             <th>Display Order</th>
                             <th>Total Tables</th>
+                            <th>Status</th>
                             <th class="text-end">Actions</th>
                         </tr>
                     </thead>
@@ -145,13 +154,29 @@
                                         <i class="fa-solid fa-chair me-1"></i>@floor.Tables.Count Tables
                                     </span>
                                 </td>
+                                <td>
+                                    @if (floor.IsActive)
+                                    {
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1">Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2 py-1">Inactive</span>
+                                    }
+                                </td>
                                 <td class="text-end">
                                     <button class="btn btn-outline-primary btn-sm rounded-pill px-3 me-1" 
-                                            onclick="editFloor(@floor.Id, '@floor.Name', '@floor.Description', @floor.DisplayOrder)" 
+                                            onclick="editFloor(@floor.Id, '@floor.Name', '@floor.Description', @floor.DisplayOrder, @(floor.IsActive ? "true" : "false"))" 
                                             data-bs-toggle="tooltip" title="Edit floor details">
                                         <i class="fa-solid fa-pen-to-square"></i> Edit
                                     </button>
-                                    <form asp-action="DeleteFloor" method="post" class="d-inline" onsubmit="return confirm('Delete floor @floor.Name? This will fail if tables exist on this floor.');">
+                                    <form asp-action="ToggleFloorStatus" method="post" class="d-inline">
+                                        <input type="hidden" name="id" value="@floor.Id" />
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm rounded-pill px-2 me-1" data-bs-toggle="tooltip" title="Toggle active/inactive status">
+                                            <i class="fa-solid fa-power-off @(floor.IsActive ? "text-success" : "text-muted")"></i>
+                                        </button>
+                                    </form>
+                                    <form asp-action="DeleteFloor" method="post" class="d-inline" onsubmit="return confirm('Delete floor @floor.Name? This will be blocked if tables depend on this floor.');">
                                         <input type="hidden" name="id" value="@floor.Id" />
                                         <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-2" data-bs-toggle="tooltip" title="Delete floor">
                                             <i class="fa-solid fa-trash-can"></i>
@@ -166,7 +191,7 @@
         </div>
     </div>
 
-    <!-- ==================== TAB 2: TABLES ==================== -->
+    <!-- ==================== TAB 2: TABLES (Section 5.2) ==================== -->
     <div class="tab-pane fade @(activeTab == "table" ? "show active" : "")" id="table-pane" role="tabpanel">
         <div class="glass-card p-4">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 pb-3 border-bottom">
@@ -189,8 +214,9 @@
                             <th>Table Number</th>
                             <th>Floor</th>
                             <th>Capacity</th>
-                            <th>Current Status</th>
-                            <th>Current Order</th>
+                            <th>Type</th>
+                            <th>Live Status</th>
+                            <th>Master Status</th>
                             <th class="text-end">Actions</th>
                         </tr>
                     </thead>
@@ -224,24 +250,37 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <span class="status-badge @badgeClass">@table.StatusName</span>
+                                    <span class="badge bg-light text-dark border px-2 py-1">@table.TableType</span>
                                 </td>
                                 <td>
-                                    @if (table.CurrentOrderId.HasValue)
+                                    <span class="status-badge @badgeClass">@table.StatusName</span>
+                                    @if (table.CurrentOrderId.HasValue && table.CurrentOrderAmount > 0)
                                     {
-                                        <span class="fw-bold text-success">₹@table.CurrentOrderAmount.ToString("N0")</span>
+                                        <span class="small fw-bold text-success ms-1">₹@table.CurrentOrderAmount.ToString("N0")</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (table.IsActive)
+                                    {
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1">Active</span>
                                     }
                                     else
                                     {
-                                        <span class="text-muted small">—</span>
+                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2 py-1">Inactive</span>
                                     }
                                 </td>
                                 <td class="text-end">
                                     <button class="btn btn-outline-primary btn-sm rounded-pill px-3 me-1" 
-                                            onclick="editTable(@table.Id, '@table.TableNumber', @table.FloorId, @table.Capacity)" 
+                                            onclick="editTable(@table.Id, '@table.TableNumber', @table.FloorId, @table.Capacity, '@table.TableType', '@table.Description', @(table.IsActive ? "true" : "false"))" 
                                             data-bs-toggle="tooltip" title="Edit table details">
                                         <i class="fa-solid fa-pen-to-square"></i> Edit
                                     </button>
+                                    <form asp-action="ToggleTableStatus" method="post" class="d-inline">
+                                        <input type="hidden" name="id" value="@table.Id" />
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm rounded-pill px-2 me-1" data-bs-toggle="tooltip" title="Toggle active/inactive status">
+                                            <i class="fa-solid fa-power-off @(table.IsActive ? "text-success" : "text-muted")"></i>
+                                        </button>
+                                    </form>
                                     <form asp-action="DeleteTable" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete @table.TableNumber?');">
                                         <input type="hidden" name="id" value="@table.Id" />
                                         <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-2" data-bs-toggle="tooltip" title="Delete table">
@@ -257,12 +296,15 @@
         </div>
     </div>
 
-    <!-- ==================== TAB 3: MENU ITEMS ==================== -->
+    <!-- ==================== TAB 3: MENU ITEMS (Section 5.4) ==================== -->
     <div class="tab-pane fade @(activeTab == "menu" ? "show active" : "")" id="menu-pane" role="tabpanel">
         <div class="glass-card p-4">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 pb-3 border-bottom">
                 <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-bowl-food text-success me-2"></i>Menu Items</h4>
                 <div class="d-flex gap-2">
+                    <a href="/Menu/PrintMenuCard" target="_blank" class="btn btn-outline-success rounded-pill px-3 shadow-sm" title="Preview & Print Bilingual Menu Card">
+                        <i class="fa-solid fa-print me-1"></i> Print Menu Card
+                    </a>
                     <button class="btn btn-outline-secondary rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#addCategoryModal" title="Add a new category">
                         <i class="fa-solid fa-folder-plus me-1"></i> Add Category
                     </button>
@@ -279,8 +321,12 @@
                 {
                     <span class="badge bg-light text-dark border px-3 py-2 rounded-pill d-flex align-items-center gap-2">
                         <strong>@cat.Name</strong>
+                        @if (!string.IsNullOrEmpty(cat.NameMarathi))
+                        {
+                            <span class="text-muted small">(@cat.NameMarathi)</span>
+                        }
                         <span class="badge bg-secondary rounded-pill">@cat.ItemCount</span>
-                        <button class="btn btn-link text-primary p-0 border-0" onclick="editCategory(@cat.Id, '@cat.Name', '@cat.Description', @cat.DisplayOrder)" title="Edit Category">
+                        <button class="btn btn-link text-primary p-0 border-0" onclick="editCategory(@cat.Id, '@cat.Name', '@cat.NameMarathi', '@cat.Description', @cat.DisplayOrder, @(cat.IsActive ? "true" : "false"))" title="Edit Category">
                             <i class="fa-solid fa-pen-to-square small"></i>
                         </button>
                     </span>
@@ -291,12 +337,13 @@
                 <table class="table app-datagrid align-middle">
                     <thead>
                         <tr>
-                            <th>#ID</th>
-                            <th>Dish / Item Name</th>
+                            <th>#Code</th>
+                            <th>Dish Name (English / मराठी)</th>
                             <th>Category</th>
                             <th>Type</th>
                             <th>Price</th>
-                            <th>Prep Time</th>
+                            <th>Tax</th>
+                            <th>Kitchen</th>
                             <th>Status</th>
                             <th class="text-end">Actions</th>
                         </tr>
@@ -305,10 +352,14 @@
                         @foreach (var item in Model.MenuItems)
                         {
                             <tr>
-                                <td class="fw-bold text-muted">#@item.Id</td>
+                                <td class="fw-bold text-muted">@(string.IsNullOrEmpty(item.ItemCode) ? $"#{item.Id}" : item.ItemCode)</td>
                                 <td>
                                     <div>
                                         <span class="fw-bold text-dark fs-6">@item.Name</span>
+                                        @if (!string.IsNullOrEmpty(item.NameMarathi))
+                                        {
+                                            <span class="text-success small fw-semibold ms-1">(@item.NameMarathi)</span>
+                                        }
                                         @if (!string.IsNullOrWhiteSpace(item.Description))
                                         {
                                             <div class="small text-muted text-truncate" style="max-width: 250px;">@item.Description</div>
@@ -338,33 +389,48 @@
                                     <span class="fw-bold text-dark fs-6">₹@item.Price.ToString("N0")</span>
                                 </td>
                                 <td>
-                                    <span class="small text-secondary">
-                                        <i class="fa-regular fa-clock me-1"></i>@item.PreparationTimeMinutes mins
-                                    </span>
+                                    <span class="small text-muted">@item.TaxPercentage%</span>
+                                </td>
+                                <td>
+                                    <span class="small text-secondary">@item.KitchenCategory</span>
                                 </td>
                                 <td>
                                     <form asp-action="ToggleMenuItemAvailability" method="post" class="d-inline">
                                         <input type="hidden" name="id" value="@item.Id" />
                                         @if (item.IsAvailable)
                                         {
-                                            <button type="submit" class="badge bg-success border-0 px-3 py-2 rounded-pill text-white cursor-pointer" data-bs-toggle="tooltip" title="Click to mark Out of Stock">
+                                            <button type="submit" class="badge bg-success border-0 px-2 py-1 rounded-pill text-white cursor-pointer" data-bs-toggle="tooltip" title="Click to mark Out of Stock">
                                                 <i class="fa-solid fa-check me-1"></i> Available
                                             </button>
                                         }
                                         else
                                         {
-                                            <button type="submit" class="badge bg-danger border-0 px-3 py-2 rounded-pill text-white cursor-pointer" data-bs-toggle="tooltip" title="Click to mark Available">
+                                            <button type="submit" class="badge bg-danger border-0 px-2 py-1 rounded-pill text-white cursor-pointer" data-bs-toggle="tooltip" title="Click to mark Available">
                                                 <i class="fa-solid fa-ban me-1"></i> Out of Stock
                                             </button>
                                         }
                                     </form>
+                                    @if (item.IsActive)
+                                    {
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 ms-1">Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2 py-1 ms-1">Inactive</span>
+                                    }
                                 </td>
                                 <td class="text-end">
                                     <button class="btn btn-outline-primary btn-sm rounded-pill px-3 me-1" 
-                                            onclick="editMenuItem(@item.Id, @item.CategoryId, '@item.Name', '@item.Description', @item.Price, @item.TaxPercentage, @(item.IsVeg ? "true" : "false"), @item.PreparationTimeMinutes)" 
+                                            onclick="editMenuItem(@item.Id, @item.CategoryId, '@item.Name', '@item.NameMarathi', '@item.ItemCode', '@item.Description', @item.Price, @item.TaxPercentage, @(item.IsVeg ? "true" : "false"), @item.PreparationTimeMinutes, '@item.KitchenCategory', @(item.IsActive ? "true" : "false"))" 
                                             data-bs-toggle="tooltip" title="Edit menu item">
                                         <i class="fa-solid fa-pen-to-square"></i> Edit
                                     </button>
+                                    <form asp-action="ToggleMenuItemStatus" method="post" class="d-inline">
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm rounded-pill px-2 me-1" data-bs-toggle="tooltip" title="Toggle active status">
+                                            <i class="fa-solid fa-power-off @(item.IsActive ? "text-success" : "text-muted")"></i>
+                                        </button>
+                                    </form>
                                     <form asp-action="DeleteMenuItem" method="post" class="d-inline" onsubmit="return confirm('Delete @item.Name from menu?');">
                                         <input type="hidden" name="id" value="@item.Id" />
                                         <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-2" data-bs-toggle="tooltip" title="Delete menu item">
@@ -380,7 +446,7 @@
         </div>
     </div>
 
-    <!-- ==================== TAB 4: CATEGORIES ==================== -->
+    <!-- ==================== TAB 4: CATEGORIES (Section 5.3) ==================== -->
     <div class="tab-pane fade @(activeTab == "category" ? "show active" : "")" id="category-pane" role="tabpanel">
         <div class="glass-card p-4">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 pb-3 border-bottom">
@@ -395,10 +461,11 @@
                     <thead>
                         <tr>
                             <th>#ID</th>
-                            <th>Category Name</th>
+                            <th>Category Name (English / मराठी)</th>
                             <th>Description</th>
                             <th>Display Order</th>
-                            <th>Total Menu Items</th>
+                            <th>Total Items</th>
+                            <th>Status</th>
                             <th class="text-end">Actions</th>
                         </tr>
                     </thead>
@@ -411,23 +478,41 @@
                                     <span class="fw-bold text-dark fs-6 d-flex align-items-center gap-2">
                                         <i class="fa-solid fa-tag text-primary"></i>
                                         @cat.Name
+                                        @if (!string.IsNullOrEmpty(cat.NameMarathi))
+                                        {
+                                            <span class="text-success small fw-semibold">(@cat.NameMarathi)</span>
+                                        }
                                     </span>
                                 </td>
                                 <td class="text-secondary">@(string.IsNullOrWhiteSpace(cat.Description) ? "—" : cat.Description)</td>
+                                <td><span class="badge bg-light text-dark border px-2 py-1">Order @cat.DisplayOrder</span></td>
                                 <td>
-                                    <span class="badge bg-light text-dark border px-2 py-1">Order @cat.DisplayOrder</span>
-                                </td>
-                                <td>
-                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-1 fw-bold">
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1 fw-bold">
                                         @cat.ItemCount Items
                                     </span>
                                 </td>
+                                <td>
+                                    @if (cat.IsActive)
+                                    {
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1">Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2 py-1">Inactive</span>
+                                    }
+                                </td>
                                 <td class="text-end">
                                     <button class="btn btn-outline-primary btn-sm rounded-pill px-3 me-1" 
-                                            onclick="editCategory(@cat.Id, '@cat.Name', '@cat.Description', @cat.DisplayOrder)" 
+                                            onclick="editCategory(@cat.Id, '@cat.Name', '@cat.NameMarathi', '@cat.Description', @cat.DisplayOrder, @(cat.IsActive ? "true" : "false"))" 
                                             data-bs-toggle="tooltip" title="Edit category">
                                         <i class="fa-solid fa-pen-to-square"></i> Edit
                                     </button>
+                                    <form asp-action="ToggleCategoryStatus" method="post" class="d-inline">
+                                        <input type="hidden" name="id" value="@cat.Id" />
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm rounded-pill px-2 me-1" data-bs-toggle="tooltip" title="Toggle active status">
+                                            <i class="fa-solid fa-power-off @(cat.IsActive ? "text-success" : "text-muted")"></i>
+                                        </button>
+                                    </form>
                                     <form asp-action="DeleteCategory" method="post" class="d-inline" onsubmit="return confirm('Delete category @cat.Name?');">
                                         <input type="hidden" name="id" value="@cat.Id" />
                                         <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-2" data-bs-toggle="tooltip" title="Delete category">
@@ -443,36 +528,14 @@
         </div>
     </div>
 
-    <!-- ==================== TAB 5: EMPLOYEES ==================== -->
-    <div class="tab-pane fade @(activeTab == "employee" ? "show active" : "")" id="employee-pane" role="tabpanel">
+    <!-- ==================== TAB 5: SUPPLIERS (Section 5.5) ==================== -->
+    <div class="tab-pane fade @(activeTab == "supplier" ? "show active" : "")" id="supplier-pane" role="tabpanel">
         <div class="glass-card p-4">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 pb-3 border-bottom">
-                <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-users text-danger me-2"></i>Employees</h4>
-                <button class="btn btn-primary rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#addEmployeeModal" title="Register a new employee">
-                    <i class="fa-solid fa-user-plus me-1"></i> Add Employee
+                <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-truck text-dark me-2"></i>Suppliers & Vendors</h4>
+                <button class="btn btn-dark rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#addSupplierModal" title="Add a new supplier">
+                    <i class="fa-solid fa-plus me-1"></i> Add Supplier
                 </button>
-            </div>
-
-            <!-- Role Summary Badges -->
-            <div class="d-flex flex-wrap gap-2 mb-4 pb-3 border-bottom">
-                <span class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle px-3 py-2 rounded-pill">
-                    All Staff: <strong>@Model.Employees.Count()</strong>
-                </span>
-                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 rounded-pill">
-                    <i class="fa-solid fa-briefcase me-1"></i>Managers: <strong>@Model.Employees.Count(e => e.Role == UserRole.Manager)</strong>
-                </span>
-                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2 rounded-pill">
-                    <i class="fa-solid fa-kitchen-set me-1"></i>Cooks / Kitchen: <strong>@Model.Employees.Count(e => e.Role == UserRole.Cook || e.Role == UserRole.KitchenStaff)</strong>
-                </span>
-                <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-3 py-2 rounded-pill">
-                    <i class="fa-solid fa-tray me-1"></i>Waiters: <strong>@Model.Employees.Count(e => e.Role == UserRole.Waiter)</strong>
-                </span>
-                <span class="badge bg-teal-subtle text-teal border px-3 py-2 rounded-pill" style="background:#ccfbf1; color:#0f766e; border-color:#99f6e4;">
-                    <i class="fa-solid fa-broom me-1"></i>Housekeeping: <strong>@Model.Employees.Count(e => e.Role == UserRole.Housekeeping)</strong>
-                </span>
-                <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill">
-                    <i class="fa-solid fa-cash-register me-1"></i>Cashiers: <strong>@Model.Employees.Count(e => e.Role == UserRole.Cashier)</strong>
-                </span>
             </div>
 
             <div class="table-responsive">
@@ -480,11 +543,113 @@
                     <thead>
                         <tr>
                             <th>#ID</th>
-                            <th>Employee Name</th>
+                            <th>Supplier / Company</th>
+                            <th>Contact Person</th>
+                            <th>Phone</th>
+                            <th>GST Number</th>
+                            <th>Opening Balance</th>
+                            <th>Purchase Orders</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.Suppliers.Any())
+                        {
+                            <tr>
+                                <td colspan="9" class="text-center py-4 text-muted">
+                                    <i class="fa-solid fa-truck fs-3 d-block mb-2 text-secondary opacity-50"></i>
+                                    <span>No suppliers registered yet. Click "Add Supplier" to record your vendor masters.</span>
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var s in Model.Suppliers)
+                            {
+                                <tr>
+                                    <td class="fw-bold text-muted">#@s.Id</td>
+                                    <td>
+                                        <span class="fw-bold text-dark fs-6 d-flex align-items-center gap-2">
+                                            <i class="fa-solid fa-building text-secondary"></i>
+                                            @s.Name
+                                        </span>
+                                        @if (!string.IsNullOrEmpty(s.Email))
+                                        {
+                                            <div class="small text-muted">@s.Email</div>
+                                        }
+                                    </td>
+                                    <td>@(string.IsNullOrWhiteSpace(s.ContactPerson) ? "—" : s.ContactPerson)</td>
+                                    <td class="fw-semibold text-dark"><i class="fa-solid fa-phone me-1 small text-muted"></i>@s.Phone</td>
+                                    <td><span class="badge bg-light text-dark border">@(string.IsNullOrEmpty(s.GSTNumber) ? "Unregistered" : s.GSTNumber)</span></td>
+                                    <td class="fw-bold text-dark">₹@s.OpeningBalance.ToString("N0")</td>
+                                    <td>
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill px-3 py-1">
+                                            @s.PurchaseOrdersCount Orders
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if (s.IsActive)
+                                        {
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2 py-1">Inactive</span>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        <button class="btn btn-outline-primary btn-sm rounded-pill px-3 me-1" 
+                                                onclick="editSupplier(@s.Id, '@s.Name', '@s.ContactPerson', '@s.Phone', '@s.Email', '@s.Address', '@s.GSTNumber', @s.OpeningBalance, @(s.IsActive ? "true" : "false"))" 
+                                                data-bs-toggle="tooltip" title="Edit supplier details">
+                                            <i class="fa-solid fa-pen-to-square"></i> Edit
+                                        </button>
+                                        <form asp-action="ToggleSupplierStatus" method="post" class="d-inline">
+                                            <input type="hidden" name="id" value="@s.Id" />
+                                            <button type="submit" class="btn btn-outline-secondary btn-sm rounded-pill px-2 me-1" data-bs-toggle="tooltip" title="Toggle active status">
+                                                <i class="fa-solid fa-power-off @(s.IsActive ? "text-success" : "text-muted")"></i>
+                                            </button>
+                                        </form>
+                                        <form asp-action="DeleteSupplier" method="post" class="d-inline" onsubmit="return confirm('Delete supplier @s.Name?');">
+                                            <input type="hidden" name="id" value="@s.Id" />
+                                            <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-2" data-bs-toggle="tooltip" title="Delete supplier">
+                                                <i class="fa-solid fa-trash-can"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== TAB 6: EMPLOYEES ==================== -->
+    <div class="tab-pane fade @(activeTab == "employee" ? "show active" : "")" id="employee-pane" role="tabpanel">
+        <div class="glass-card p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 pb-3 border-bottom">
+                <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-users text-danger me-2"></i>Employees</h4>
+                <div class="d-flex gap-2">
+                    <a href="/Staff" class="btn btn-outline-secondary rounded-pill px-3 shadow-sm" data-bs-toggle="tooltip" title="Open staff attendance & roles">
+                        <i class="fa-solid fa-user-check me-1"></i> Staff & Attendance
+                    </a>
+                    <button class="btn btn-danger rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#addEmployeeModal" title="Register new employee">
+                        <i class="fa-solid fa-user-plus me-1"></i> Add Employee
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table app-datagrid align-middle">
+                    <thead>
+                        <tr>
+                            <th>#ID</th>
+                            <th>Staff Name</th>
                             <th>Role / Designation</th>
-                            <th>Contact Phone</th>
-                            <th>Email</th>
-                            <th>Work Shift</th>
+                            <th>Mobile</th>
+                            <th>Shift</th>
                             <th>Base Salary</th>
                             <th>Status</th>
                             <th class="text-end">Actions</th>
@@ -493,59 +658,21 @@
                     <tbody>
                         @foreach (var emp in Model.Employees)
                         {
-                            string roleBadgeClass = emp.Role switch {
-                                UserRole.Admin => "bg-danger text-white",
-                                UserRole.Manager => "bg-dark text-white",
-                                UserRole.Cashier => "bg-success text-white",
-                                UserRole.Waiter => "bg-info text-white",
-                                UserRole.Cook => "bg-warning text-dark",
-                                UserRole.KitchenStaff => "bg-warning text-dark",
-                                UserRole.Housekeeping => "text-white",
-                                _ => "bg-secondary text-white"
-                            };
-
-                            string roleIcon = emp.Role switch {
-                                UserRole.Admin => "fa-user-gear",
-                                UserRole.Manager => "fa-briefcase",
-                                UserRole.Cashier => "fa-cash-register",
-                                UserRole.Waiter => "fa-tray",
-                                UserRole.Cook => "fa-kitchen-set",
-                                UserRole.KitchenStaff => "fa-fire-burner",
-                                UserRole.Housekeeping => "fa-broom",
-                                _ => "fa-user"
-                            };
-
                             <tr>
                                 <td class="fw-bold text-muted">#@emp.Id</td>
                                 <td>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <div class="rounded-circle bg-light border d-flex align-items-center justify-content-center text-primary fw-bold" style="width:36px; height:36px;">
-                                            @emp.Name.FirstOrDefault()
-                                        </div>
-                                        <div>
-                                            <div class="fw-bold text-dark fs-6">@emp.Name</div>
-                                            <div class="small text-muted">Joined: @emp.JoiningDate.ToString("MMM yyyy")</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    <span class="badge @roleBadgeClass px-3 py-1 rounded-pill" style="@(emp.Role == UserRole.Housekeeping ? "background-color: #0d9488;" : "")">
-                                        <i class="fa-solid @roleIcon me-1"></i>@emp.RoleName
+                                    <span class="fw-bold text-dark fs-6 d-flex align-items-center gap-2">
+                                        <i class="fa-solid fa-user-tie text-danger"></i>
+                                        @emp.Name
                                     </span>
                                 </td>
                                 <td>
-                                    <span class="text-dark fw-semibold">
-                                        <i class="fa-solid fa-phone text-muted me-1 small"></i>@emp.Phone
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-3 py-1">
+                                        @emp.RoleName
                                     </span>
                                 </td>
-                                <td>
-                                    <span class="text-secondary small">@(string.IsNullOrWhiteSpace(emp.Email) ? "—" : emp.Email)</span>
-                                </td>
-                                <td>
-                                    <span class="badge bg-light text-dark border px-2 py-1">
-                                        <i class="fa-regular fa-sun text-warning me-1"></i>@emp.Shift
-                                    </span>
-                                </td>
+                                <td><i class="fa-solid fa-phone me-1 small text-muted"></i>@emp.Phone</td>
+                                <td><span class="badge bg-light text-dark border px-2 py-1">@emp.Shift</span></td>
                                 <td>
                                     <span class="fw-bold text-dark">₹@emp.BaseSalary.ToString("N0")</span>
                                 </td>
@@ -580,7 +707,7 @@
         </div>
     </div>
 
-    <!-- ==================== TAB 6: INVENTORY ==================== -->
+    <!-- ==================== TAB 7: INVENTORY ==================== -->
     <div class="tab-pane fade @(activeTab == "inventory" ? "show active" : "")" id="inventory-pane" role="tabpanel">
         <div class="glass-card p-4">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 pb-3 border-bottom">
@@ -641,81 +768,288 @@
         </div>
     </div>
 
-    <!-- ==================== TAB 7: SETTINGS ==================== -->
+    <!-- ==================== TAB 8: APPLICATION CONFIGURATION MASTER (Section 5.6) ==================== -->
     <div class="tab-pane fade @(activeTab == "settings" ? "show active" : "")" id="settings-pane" role="tabpanel">
         <div class="glass-card p-4">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 pb-3 border-bottom">
-                <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-gear text-dark me-2"></i>Settings</h4>
+                <div>
+                    <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-sliders text-dark me-2"></i>Application Configuration Master</h4>
+                    <span class="text-muted small">Manage centralized operational parameters, profiles, GST tax rules, and workflows</span>
+                </div>
             </div>
 
             @{
                 var setting = Model.Setting ?? new RestaurantSetting();
             }
-            <form asp-action="UpdateSettings" method="post" class="needs-validation">
+            <form asp-action="UpdateSettings" method="post" enctype="multipart/form-data" class="needs-validation">
                 <input type="hidden" name="Id" value="@setting.Id" />
-                
-                <h5 class="fw-bold text-primary mb-3"><i class="fa-solid fa-store me-2"></i>Restaurant Profile</h5>
-                <div class="row g-3 mb-4">
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold small">Restaurant Brand Name</label>
-                        <input type="text" name="RestaurantName" class="form-control" value="@setting.RestaurantName" required />
+
+                <!-- SECTION A: ROLE-BASED MENU ACCESS MATRIX (5.6 A) -->
+                <div class="card rounded-4 border p-4 mb-4 shadow-sm bg-light-subtle">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold text-dark mb-0">
+                            <i class="fa-solid fa-user-shield text-primary me-2"></i>Section A: Role-Based Access Control Matrix
+                        </h5>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-1">Enforced Backend & Frontend</span>
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold small">GSTIN (Tax Identification Number)</label>
-                        <input type="text" name="GSTIN" class="form-control" value="@setting.GSTIN" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold small">Phone Contact</label>
-                        <input type="tel" name="Phone" class="form-control" value="@setting.Phone" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold small">Official Email</label>
-                        <input type="email" name="Email" class="form-control" value="@setting.Email" />
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label fw-bold small">Physical Address (Appears on Tax Invoices)</label>
-                        <textarea name="Address" class="form-control" rows="2">@setting.Address</textarea>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm align-middle text-center mb-0 bg-white">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-start">Module / Menu</th>
+                                    <th>Admin</th>
+                                    <th>Manager</th>
+                                    <th>Cashier</th>
+                                    <th>Waiter</th>
+                                    <th>Kitchen / Chef</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="text-start fw-bold"><i class="fa-solid fa-chart-pie text-success me-1"></i> Dashboard</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> Full</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> Full</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> View</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> View</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> View</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start fw-bold"><i class="fa-solid fa-chair text-warning me-1"></i> Tables & Floors</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> Full</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> Full</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> Status</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> Status</td>
+                                    <td><i class="fa-solid fa-minus text-muted"></i></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start fw-bold"><i class="fa-solid fa-receipt text-primary me-1"></i> Orders & POS</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> Full</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> Full</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> Create/Edit</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> Create/Edit</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> View KOT</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start fw-bold"><i class="fa-solid fa-kitchen-set text-danger me-1"></i> Kitchen (KDS)</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> Full</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> Full</td>
+                                    <td><i class="fa-solid fa-minus text-muted"></i></td>
+                                    <td><i class="fa-solid fa-minus text-muted"></i></td>
+                                    <td><i class="fa-solid fa-check text-success"></i> Complete/Serve</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start fw-bold"><i class="fa-solid fa-file-invoice-dollar text-purple me-1"></i> Billing & Payments</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> Full</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> Full</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> Settle & Print</td>
+                                    <td><i class="fa-solid fa-minus text-muted"></i></td>
+                                    <td><i class="fa-solid fa-minus text-muted"></i></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start fw-bold"><i class="fa-solid fa-layer-group text-danger me-1"></i> Masters & Configs</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> Full</td>
+                                    <td><i class="fa-solid fa-check text-success"></i> Manage</td>
+                                    <td><i class="fa-solid fa-minus text-muted"></i></td>
+                                    <td><i class="fa-solid fa-minus text-muted"></i></td>
+                                    <td><i class="fa-solid fa-minus text-muted"></i></td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
-                <h5 class="fw-bold text-success mb-3 border-top pt-4"><i class="fa-solid fa-percent me-2"></i>Tax & Surcharge Configuration</h5>
-                <div class="row g-3 mb-4">
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold small">Currency Symbol</label>
-                        <input type="text" name="CurrencySymbol" class="form-control" value="@setting.CurrencySymbol" required />
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold small">CGST (%)</label>
-                        <input type="number" step="0.1" name="CGSTPercentage" class="form-control" value="@setting.CGSTPercentage" required />
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold small">SGST (%)</label>
-                        <input type="number" step="0.1" name="SGSTPercentage" class="form-control" value="@setting.SGSTPercentage" required />
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold small">Service Charge (%)</label>
-                        <input type="number" step="0.1" name="ServiceChargePercentage" class="form-control" value="@setting.ServiceChargePercentage" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold small">Takeaway Packaging Charge (₹)</label>
-                        <input type="number" step="1" name="PackagingCharge" class="form-control" value="@setting.PackagingCharge" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold small">Delivery Charge (₹)</label>
-                        <input type="number" step="1" name="DeliveryCharge" class="form-control" value="@setting.DeliveryCharge" />
+                <!-- SECTION B: RESTAURANT PROFILE & BRANDING (5.6 B) -->
+                <div class="card rounded-4 border p-4 mb-4 shadow-sm bg-light-subtle">
+                    <h5 class="fw-bold text-primary mb-3">
+                        <i class="fa-solid fa-store me-2"></i>Section B: Restaurant Profile & Brand Details
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Restaurant Brand Name</label>
+                            <input type="text" name="RestaurantName" class="form-control" value="@setting.RestaurantName" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">GSTIN (Tax Identification Number)</label>
+                            <input type="text" name="GSTIN" class="form-control" value="@setting.GSTIN" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Phone Contact Number</label>
+                            <input type="tel" name="Phone" class="form-control" value="@setting.Phone" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Official Email Address</label>
+                            <input type="email" name="Email" class="form-control" value="@setting.Email" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Invoice Prefix (e.g. GIR, INV)</label>
+                            <input type="text" name="InvoicePrefix" class="form-control" value="@setting.InvoicePrefix" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Currency Symbol</label>
+                            <input type="text" name="CurrencySymbol" class="form-control" value="@setting.CurrencySymbol" required />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold small">Physical Address (Prints on Bills & Invoices)</label>
+                            <textarea name="Address" class="form-control" rows="2">@setting.Address</textarea>
+                        </div>
+
+                        <!-- Logo Upload, Preview & Removal -->
+                        <div class="col-12 border-top pt-3">
+                            <label class="form-label fw-bold small">Restaurant Logo</label>
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="p-2 border rounded-3 bg-white" style="width: 70px; height: 70px; display: flex; align-items: center; justify-content: center;">
+                                    @if (!string.IsNullOrEmpty(setting.LogoUrl))
+                                    {
+                                        <img src="@setting.LogoUrl" alt="Restaurant Logo" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+                                    }
+                                    else
+                                    {
+                                        <i class="fa-solid fa-utensils fs-3 text-success"></i>
+                                    }
+                                </div>
+                                <div class="flex-grow-1">
+                                    <input type="file" name="logoFile" class="form-control form-control-sm mb-1" accept="image/*" />
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="small text-muted">Upload PNG or JPG (will appear on thermal receipts and headers)</span>
+                                        @if (!string.IsNullOrEmpty(setting.LogoUrl))
+                                        {
+                                            <div class="form-check form-check-inline small">
+                                                <input class="form-check-input" type="checkbox" name="removeLogo" id="removeLogoCheck" value="true" />
+                                                <label class="form-check-label text-danger" for="removeLogoCheck">Remove Logo</label>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="row g-3 mb-4 border-top pt-3">
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small">Manager Security PIN</label>
-                        <input type="password" name="ManagerPIN" class="form-control" value="@setting.ManagerPIN" placeholder="Default: 1234" />
+                <!-- SECTION C: GST CONFIGURATION (5.6 C) -->
+                <div class="card rounded-4 border p-4 mb-4 shadow-sm bg-light-subtle">
+                    <h5 class="fw-bold text-success mb-3">
+                        <i class="fa-solid fa-percent me-2"></i>Section C: GST Configuration
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch p-3 bg-white rounded-3 border">
+                                <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="gstToggle" name="IsGSTEnabled" value="true" @(setting.IsGSTEnabled ? "checked" : "") />
+                                <label class="form-check-label fw-bold" for="gstToggle">
+                                    Enable GST Tax Calculation
+                                    <div class="text-muted small fw-normal">When disabled, CGST and SGST will not be charged on food orders.</div>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch p-3 bg-white rounded-3 border">
+                                <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="taxInclusiveToggle" name="IsTaxInclusive" value="true" @(setting.IsTaxInclusive ? "checked" : "") />
+                                <label class="form-check-label fw-bold" for="taxInclusiveToggle">
+                                    Menu Prices are Tax-Inclusive
+                                    <div class="text-muted small fw-normal">When enabled, menu price includes applicable GST taxes.</div>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small">CGST (%)</label>
+                            <input type="number" step="0.1" name="CGSTPercentage" class="form-control" value="@setting.CGSTPercentage" required />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small">SGST (%)</label>
+                            <input type="number" step="0.1" name="SGSTPercentage" class="form-control" value="@setting.SGSTPercentage" required />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small">Service Charge (%)</label>
+                            <input type="number" step="0.1" name="ServiceChargePercentage" class="form-control" value="@setting.ServiceChargePercentage" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small">Packaging Charge (₹)</label>
+                            <input type="number" step="1" name="PackagingCharge" class="form-control" value="@setting.PackagingCharge" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION D: QR CODE SETTINGS (5.6 D) -->
+                <div class="card rounded-4 border p-4 mb-4 shadow-sm bg-light-subtle">
+                    <h5 class="fw-bold text-info mb-3">
+                        <i class="fa-solid fa-qrcode me-2"></i>Section D: QR Code Settings
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch p-3 bg-white rounded-3 border">
+                                <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="qrToggle" name="IsQRCodeEnabled" value="true" @(setting.IsQRCodeEnabled ? "checked" : "") />
+                                <label class="form-check-label fw-bold" for="qrToggle">
+                                    Enable QR Code on Invoices & Tables
+                                    <div class="text-muted small fw-normal">Prints dynamic UPI payment QR on customer bills and allows digital menu scanning.</div>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Digital Menu / UPI QR Payload String</label>
+                            <input type="text" name="QRCodeData" class="form-control" value="@setting.QRCodeData" placeholder="e.g. upi://pay?pa=restaurant@upi or https://..." />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION E: KITCHEN (KDS) & KOT WORKFLOW TOGGLE (5.6 E) -->
+                <div class="card rounded-4 border p-4 mb-4 shadow-sm bg-light-subtle">
+                    <h5 class="fw-bold text-danger mb-3">
+                        <i class="fa-solid fa-kitchen-set me-2"></i>Section E: Kitchen / KOT Workflow Mode
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch p-3 bg-white rounded-3 border">
+                                <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="kotToggle" name="IsKOTWorkflowEnabled" value="true" @(setting.IsKOTWorkflowEnabled ? "checked" : "") />
+                                <label class="form-check-label fw-bold" for="kotToggle">
+                                    Mode A: KOT Workflow Enabled
+                                    <div class="text-muted small fw-normal">Orders route through KDS tickets. When unchecked (Mode B), direct order creation and immediate billing operate without KDS requirement.</div>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Billing Policy with Unserved Items</label>
+                            <select name="AllowBillingWithUnservedItems" class="form-select">
+                                <option value="1" selected="@(setting.AllowBillingWithUnservedItems == BillingUnservedItemsSetting.Yes)">Allow Billing (Auto-serve items upon bill creation)</option>
+                                <option value="2" selected="@(setting.AllowBillingWithUnservedItems == BillingUnservedItemsSetting.Ask)">Ask Confirmation (Warn cashier if items still in kitchen)</option>
+                                <option value="3" selected="@(setting.AllowBillingWithUnservedItems == BillingUnservedItemsSetting.No)">Block Billing (Enforce all items must be marked Served first)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION F: HARDWARE & INTEGRATIONS -->
+                <div class="card rounded-4 border p-4 mb-4 shadow-sm bg-light-subtle">
+                    <h5 class="fw-bold text-secondary mb-3">
+                        <i class="fa-solid fa-print me-2"></i>Section F: POS Printing & Messaging Integration
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">Thermal Printer Paper Width</label>
+                            <select name="ThermalPrinterWidth" class="form-select">
+                                <option value="80" selected="@(setting.ThermalPrinterWidth == 80)">80mm (Standard POS Thermal Receipt)</option>
+                                <option value="58" selected="@(setting.ThermalPrinterWidth == 58)">58mm (Compact Mobile / Handheld Printer)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">Default UI Language</label>
+                            <select name="DefaultLanguage" class="form-select">
+                                <option value="en" selected="@(setting.DefaultLanguage == "en")">English</option>
+                                <option value="mr" selected="@(setting.DefaultLanguage == "mr")">मराठी (Marathi)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">Manager PIN</label>
+                            <input type="password" name="ManagerPIN" class="form-control" value="@setting.ManagerPIN" placeholder="Default: 1234" />
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold small">WhatsApp Gateway / Share Integration Key (Optional)</label>
+                            <input type="text" name="WhatsAppApiKey" class="form-control" value="@setting.WhatsAppApiKey" placeholder="API Key for direct WhatsApp bill dispatch" />
+                        </div>
                     </div>
                 </div>
 
                 <div class="border-top pt-3 d-flex justify-content-end">
                     <button type="submit" class="btn btn-primary rounded-pill px-5 shadow-sm fw-bold">
-                        <i class="fa-solid fa-floppy-disk me-1"></i> Save Settings
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Save Application Configurations
                     </button>
                 </div>
             </form>
@@ -737,15 +1071,21 @@
             <div class="modal-body">
                 <div class="mb-3">
                     <label class="form-label fw-bold small">Floor / Area Name</label>
-                    <input type="text" name="Name" class="form-control" placeholder="e.g. Terrace Garden / First Floor" required />
+                    <input type="text" name="Name" class="form-control" placeholder="e.g. Terrace Garden / AC Hall" required />
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-bold small">Description</label>
-                    <input type="text" name="Description" class="form-control" placeholder="e.g. Open air dining with city view" />
+                    <input type="text" name="Description" class="form-control" placeholder="e.g. Open air dining with scenic lawn view" />
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-bold small">Display Order</label>
                     <input type="number" name="DisplayOrder" class="form-control" value="@(Model.Floors.Count() + 1)" min="1" required />
+                </div>
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="IsActive" value="true" id="addFloorActive" checked />
+                        <label class="form-check-label fw-bold small" for="addFloorActive">Active Status</label>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer border-top">
@@ -778,6 +1118,12 @@
                     <label class="form-label fw-bold small">Display Order</label>
                     <input type="number" name="DisplayOrder" id="editFloorOrder" class="form-control" min="1" required />
                 </div>
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="IsActive" value="true" id="editFloorActive" />
+                        <label class="form-check-label fw-bold small" for="editFloorActive">Active Status</label>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer border-top">
                 <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
@@ -787,7 +1133,7 @@
     </div>
 </div>
 
-<!-- 3. Add Table Modal -->
+<!-- 3. Add Table Modal (Section 5.2) -->
 <div class="modal fade" id="addTableModal" tabindex="-1">
     <div class="modal-dialog">
         <form asp-action="CreateTable" method="post" class="modal-content rounded-4 border-0 shadow-lg">
@@ -798,7 +1144,7 @@
             <div class="modal-body">
                 <div class="mb-3">
                     <label class="form-label fw-bold small">Table Number / Label</label>
-                    <input type="text" name="TableNumber" class="form-control" placeholder="e.g. Table 06" required />
+                    <input type="text" name="TableNumber" class="form-control" placeholder="e.g. Table 07" required />
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-bold small">Floor / Area</label>
@@ -809,9 +1155,31 @@
                         }
                     </select>
                 </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Seating Capacity</label>
+                        <input type="number" name="Capacity" class="form-control" value="4" min="1" max="50" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Table Type</label>
+                        <select name="TableType" class="form-select">
+                            <option value="Dine-In">Dine-In</option>
+                            <option value="AC Section">AC Section</option>
+                            <option value="Garden Lawns">Garden Lawns</option>
+                            <option value="Family Lounge">Family Lounge</option>
+                            <option value="VIP Booth">VIP Booth</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="mb-3">
-                    <label class="form-label fw-bold small">Seating Capacity (Guests)</label>
-                    <input type="number" name="Capacity" class="form-control" value="4" min="1" max="50" required />
+                    <label class="form-label fw-bold small">Description / Notes</label>
+                    <input type="text" name="Description" class="form-control" placeholder="e.g. Corner window seat" />
+                </div>
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="IsActive" value="true" id="addTableActive" checked />
+                        <label class="form-check-label fw-bold small" for="addTableActive">Active Status</label>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer border-top">
@@ -845,9 +1213,31 @@
                         }
                     </select>
                 </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Capacity (Seats)</label>
+                        <input type="number" name="Capacity" id="editTableCapacity" class="form-control" min="1" max="50" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Table Type</label>
+                        <select name="TableType" id="editTableType" class="form-select">
+                            <option value="Dine-In">Dine-In</option>
+                            <option value="AC Section">AC Section</option>
+                            <option value="Garden Lawns">Garden Lawns</option>
+                            <option value="Family Lounge">Family Lounge</option>
+                            <option value="VIP Booth">VIP Booth</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="mb-3">
-                    <label class="form-label fw-bold small">Capacity (Seats)</label>
-                    <input type="number" name="Capacity" id="editTableCapacity" class="form-control" min="1" max="50" required />
+                    <label class="form-label fw-bold small">Description</label>
+                    <input type="text" name="Description" id="editTableDescription" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="IsActive" value="true" id="editTableActive" />
+                        <label class="form-check-label fw-bold small" for="editTableActive">Active Status</label>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer border-top">
@@ -858,7 +1248,7 @@
     </div>
 </div>
 
-<!-- 5. Add Category Modal -->
+<!-- 5. Add Category Modal (Section 5.3) -->
 <div class="modal fade" id="addCategoryModal" tabindex="-1">
     <div class="modal-dialog">
         <form asp-action="CreateCategory" method="post" class="modal-content rounded-4 border-0 shadow-lg">
@@ -868,16 +1258,26 @@
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <label class="form-label fw-bold small">Category Name</label>
-                    <input type="text" name="Name" class="form-control" placeholder="e.g. Sizzlers & Grills" required />
+                    <label class="form-label fw-bold small">Category Name (English)</label>
+                    <input type="text" name="Name" class="form-control" placeholder="e.g. Starters & Snacks" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Category Name (मराठी)</label>
+                    <input type="text" name="NameMarathi" class="form-control" placeholder="e.g. स्टार्टर्स आणि स्नॅक्स" />
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-bold small">Description</label>
-                    <input type="text" name="Description" class="form-control" placeholder="e.g. Hot sizzling platters" />
+                    <input type="text" name="Description" class="form-control" placeholder="e.g. Hot sizzling snacks" />
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-bold small">Display Order</label>
                     <input type="number" name="DisplayOrder" class="form-control" value="@(Model.Categories.Count() + 1)" min="1" required />
+                </div>
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="IsActive" value="true" id="addCategoryActive" checked />
+                        <label class="form-check-label fw-bold small" for="addCategoryActive">Active Status</label>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer border-top">
@@ -899,8 +1299,12 @@
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <label class="form-label fw-bold small">Category Name</label>
+                    <label class="form-label fw-bold small">Category Name (English)</label>
                     <input type="text" name="Name" id="editCategoryName" class="form-control" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Category Name (मराठी)</label>
+                    <input type="text" name="NameMarathi" id="editCategoryNameMarathi" class="form-control" />
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-bold small">Description</label>
@@ -909,6 +1313,12 @@
                 <div class="mb-3">
                     <label class="form-label fw-bold small">Display Order</label>
                     <input type="number" name="DisplayOrder" id="editCategoryOrder" class="form-control" min="1" required />
+                </div>
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="IsActive" value="true" id="editCategoryActive" />
+                        <label class="form-check-label fw-bold small" for="editCategoryActive">Active Status</label>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer border-top">
@@ -919,7 +1329,7 @@
     </div>
 </div>
 
-<!-- 7. Add Menu Item Modal (Supports returnUrl to return to POS!) -->
+<!-- 7. Add Menu Item Modal (Section 5.4) -->
 <div class="modal fade" id="addMenuItemModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <form asp-action="CreateMenuItem" method="post" class="modal-content rounded-4 border-0 shadow-lg">
@@ -939,9 +1349,17 @@
                     </div>
                 }
                 <div class="row g-3">
-                    <div class="col-md-8">
-                        <label class="form-label fw-bold small">Item / Dish Name</label>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Dish Name (English)</label>
                         <input type="text" name="Name" class="form-control" placeholder="e.g. Kadhai Paneer" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Dish Name (मराठी)</label>
+                        <input type="text" name="NameMarathi" class="form-control" placeholder="e.g. कढाई पनीर" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Item Code / Short ID</label>
+                        <input type="text" name="ItemCode" class="form-control" placeholder="e.g. KP-01" />
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small">Category</label>
@@ -952,28 +1370,44 @@
                             }
                         </select>
                     </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Kitchen Category / Station</label>
+                        <select name="KitchenCategory" class="form-select">
+                            <option value="Main Kitchen">Main Kitchen</option>
+                            <option value="Tandoor Section">Tandoor Section</option>
+                            <option value="Chinese / Wok">Chinese / Wok</option>
+                            <option value="Beverages & Bar">Beverages & Bar</option>
+                            <option value="Desserts">Desserts</option>
+                        </select>
+                    </div>
                     <div class="col-12">
-                        <label class="form-label fw-bold small">Description</label>
+                        <label class="form-label fw-bold small">Description / Ingredients</label>
                         <textarea name="Description" class="form-control" rows="2" placeholder="Ingredients, taste notes..."></textarea>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <label class="form-label fw-bold small">Price (₹)</label>
                         <input type="number" name="Price" class="form-control" step="1" min="1" placeholder="250" required />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Dietary Preference</label>
+                        <select name="IsVeg" class="form-select">
+                            <option value="true">Vegetarian</option>
+                            <option value="false">Non-Vegetarian</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Tax (GST %)</label>
+                        <input type="number" name="TaxPercentage" class="form-control" value="5" step="0.5" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-bold small">Prep Time (Minutes)</label>
                         <input type="number" name="PreparationTimeMinutes" class="form-control" value="15" min="1" required />
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold small">Dietary Type</label>
-                        <select name="IsVeg" class="form-select">
-                            <option value="true">Veg</option>
-                            <option value="false">Non-Veg</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold small">Tax (GST %)</label>
-                        <input type="number" name="TaxPercentage" class="form-control" value="5" step="0.5" />
+                    <div class="col-md-6 d-flex align-items-center pt-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="IsActive" value="true" id="addMenuItemActive" checked />
+                            <label class="form-check-label fw-bold small" for="addMenuItemActive">Active Menu Status</label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -996,9 +1430,17 @@
             </div>
             <div class="modal-body">
                 <div class="row g-3">
-                    <div class="col-md-8">
-                        <label class="form-label fw-bold small">Dish Name</label>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Dish Name (English)</label>
                         <input type="text" name="Name" id="editMenuItemName" class="form-control" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Dish Name (मराठी)</label>
+                        <input type="text" name="NameMarathi" id="editMenuItemNameMarathi" class="form-control" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Item Code</label>
+                        <input type="text" name="ItemCode" id="editMenuItemCode" class="form-control" />
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small">Category</label>
@@ -1009,28 +1451,44 @@
                             }
                         </select>
                     </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Kitchen Category</label>
+                        <select name="KitchenCategory" id="editMenuItemKitchenCat" class="form-select">
+                            <option value="Main Kitchen">Main Kitchen</option>
+                            <option value="Tandoor Section">Tandoor Section</option>
+                            <option value="Chinese / Wok">Chinese / Wok</option>
+                            <option value="Beverages & Bar">Beverages & Bar</option>
+                            <option value="Desserts">Desserts</option>
+                        </select>
+                    </div>
                     <div class="col-12">
                         <label class="form-label fw-bold small">Description</label>
                         <textarea name="Description" id="editMenuItemDesc" class="form-control" rows="2"></textarea>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <label class="form-label fw-bold small">Price (₹)</label>
                         <input type="number" name="Price" id="editMenuItemPrice" class="form-control" step="1" min="1" required />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Dietary</label>
+                        <select name="IsVeg" id="editMenuItemIsVeg" class="form-select">
+                            <option value="true">Vegetarian</option>
+                            <option value="false">Non-Vegetarian</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Tax (GST %)</label>
+                        <input type="number" name="TaxPercentage" id="editMenuItemTax" class="form-control" step="0.5" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-bold small">Prep Time (Mins)</label>
                         <input type="number" name="PreparationTimeMinutes" id="editMenuItemPrepTime" class="form-control" min="1" required />
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold small">Dietary</label>
-                        <select name="IsVeg" id="editMenuItemIsVeg" class="form-select">
-                            <option value="true">Veg</option>
-                            <option value="false">Non-Veg</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold small">Tax (GST %)</label>
-                        <input type="number" name="TaxPercentage" id="editMenuItemTax" class="form-control" step="0.5" />
+                    <div class="col-md-6 d-flex align-items-center pt-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="IsActive" value="true" id="editMenuItemActive" />
+                            <label class="form-check-label fw-bold small" for="editMenuItemActive">Active Menu Status</label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1042,7 +1500,116 @@
     </div>
 </div>
 
-<!-- 9. Add Employee Modal -->
+<!-- 9. Add Supplier Modal (Section 5.5) -->
+<div class="modal fade" id="addSupplierModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <form asp-action="CreateSupplier" method="post" class="modal-content rounded-4 border-0 shadow-lg">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold text-dark"><i class="fa-solid fa-truck text-dark me-2"></i>Add Supplier / Vendor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Supplier / Vendor Name</label>
+                        <input type="text" name="Name" class="form-control" placeholder="e.g. Fresh Dairy Farm Ltd" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Contact Person</label>
+                        <input type="text" name="ContactPerson" class="form-control" placeholder="e.g. Rajesh Patil" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Mobile / Phone</label>
+                        <input type="tel" name="Phone" class="form-control" placeholder="9823000000" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Email Address</label>
+                        <input type="email" name="Email" class="form-control" placeholder="supplier@example.com" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">GSTIN Number</label>
+                        <input type="text" name="GSTNumber" class="form-control" placeholder="27ABCDE1234F1Z5" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Opening Balance (₹)</label>
+                        <input type="number" step="0.01" name="OpeningBalance" class="form-control" value="0.00" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-bold small">Address</label>
+                        <textarea name="Address" class="form-control" rows="2" placeholder="Warehouse address..."></textarea>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="IsActive" value="true" id="addSupplierActive" checked />
+                            <label class="form-check-label fw-bold small" for="addSupplierActive">Active Supplier</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-dark rounded-pill px-4">Register Supplier</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 10. Edit Supplier Modal -->
+<div class="modal fade" id="editSupplierModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <form asp-action="UpdateSupplier" method="post" class="modal-content rounded-4 border-0 shadow-lg">
+            <input type="hidden" name="id" id="editSupplierId" />
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold text-dark"><i class="fa-solid fa-pen-to-square text-dark me-2"></i>Edit Supplier Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Supplier Name</label>
+                        <input type="text" name="Name" id="editSupplierName" class="form-control" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Contact Person</label>
+                        <input type="text" name="ContactPerson" id="editSupplierContact" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Mobile / Phone</label>
+                        <input type="tel" name="Phone" id="editSupplierPhone" class="form-control" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Email</label>
+                        <input type="email" name="Email" id="editSupplierEmail" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">GSTIN Number</label>
+                        <input type="text" name="GSTNumber" id="editSupplierGST" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Opening Balance (₹)</label>
+                        <input type="number" step="0.01" name="OpeningBalance" id="editSupplierBalance" class="form-control" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-bold small">Address</label>
+                        <textarea name="Address" id="editSupplierAddress" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="IsActive" value="true" id="editSupplierActive" />
+                            <label class="form-check-label fw-bold small" for="editSupplierActive">Active Supplier</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-dark rounded-pill px-4">Update Supplier</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 11. Add Employee Modal -->
 <div class="modal fade" id="addEmployeeModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <form asp-action="CreateEmployee" method="post" class="modal-content rounded-4 border-0 shadow-lg">
@@ -1100,7 +1667,7 @@
     </div>
 </div>
 
-<!-- 10. Edit Employee Modal -->
+<!-- 12. Edit Employee Modal -->
 <div class="modal fade" id="editEmployeeModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <form asp-action="UpdateEmployee" method="post" class="modal-content rounded-4 border-0 shadow-lg">
@@ -1166,7 +1733,7 @@
     </div>
 </div>
 
-<!-- 11. Adjust Stock Modal -->
+<!-- 13. Adjust Stock Modal -->
 <div class="modal fade" id="adjustStockModal" tabindex="-1">
     <div class="modal-dialog">
         <form asp-action="AdjustStock" method="post" class="modal-content rounded-4 border-0 shadow-lg">
@@ -1203,40 +1770,63 @@
 
 @section Scripts {
 <script>
-    function editFloor(id, name, desc, order) {
+    function editFloor(id, name, desc, order, isActive) {
         $('#editFloorId').val(id);
         $('#editFloorName').val(name);
         $('#editFloorDescription').val(desc);
         $('#editFloorOrder').val(order);
+        $('#editFloorActive').prop('checked', isActive);
         new bootstrap.Modal('#editFloorModal').show();
     }
 
-    function editTable(id, number, floorId, cap) {
+    function editTable(id, number, floorId, cap, type, desc, isActive) {
         $('#editTableId').val(id);
         $('#editTableNumber').val(number);
         $('#editTableFloorId').val(floorId);
         $('#editTableCapacity').val(cap);
+        $('#editTableType').val(type || 'Dine-In');
+        $('#editTableDescription').val(desc || '');
+        $('#editTableActive').prop('checked', isActive);
         new bootstrap.Modal('#editTableModal').show();
     }
 
-    function editCategory(id, name, desc, order) {
+    function editCategory(id, name, nameMarathi, desc, order, isActive) {
         $('#editCategoryId').val(id);
         $('#editCategoryName').val(name);
+        $('#editCategoryNameMarathi').val(nameMarathi || '');
         $('#editCategoryDescription').val(desc);
         $('#editCategoryOrder').val(order);
+        $('#editCategoryActive').prop('checked', isActive);
         new bootstrap.Modal('#editCategoryModal').show();
     }
 
-    function editMenuItem(id, catId, name, desc, price, tax, isVeg, prepTime) {
+    function editMenuItem(id, catId, name, nameMarathi, code, desc, price, tax, isVeg, prepTime, kitchenCat, isActive) {
         $('#editMenuItemId').val(id);
         $('#editMenuItemCatId').val(catId);
         $('#editMenuItemName').val(name);
+        $('#editMenuItemNameMarathi').val(nameMarathi || '');
+        $('#editMenuItemCode').val(code || '');
         $('#editMenuItemDesc').val(desc);
         $('#editMenuItemPrice').val(price);
         $('#editMenuItemTax').val(tax);
         $('#editMenuItemIsVeg').val(isVeg ? "true" : "false");
         $('#editMenuItemPrepTime').val(prepTime);
+        $('#editMenuItemKitchenCat').val(kitchenCat || 'Main Kitchen');
+        $('#editMenuItemActive').prop('checked', isActive);
         new bootstrap.Modal('#editMenuItemModal').show();
+    }
+
+    function editSupplier(id, name, contact, phone, email, address, gst, balance, isActive) {
+        $('#editSupplierId').val(id);
+        $('#editSupplierName').val(name);
+        $('#editSupplierContact').val(contact || '');
+        $('#editSupplierPhone').val(phone);
+        $('#editSupplierEmail').val(email || '');
+        $('#editSupplierAddress').val(address || '');
+        $('#editSupplierGST').val(gst || '');
+        $('#editSupplierBalance').val(balance || 0);
+        $('#editSupplierActive').prop('checked', isActive);
+        new bootstrap.Modal('#editSupplierModal').show();
     }
 
     function editEmployee(id, name, email, phone, role, shift, salary, isActive) {

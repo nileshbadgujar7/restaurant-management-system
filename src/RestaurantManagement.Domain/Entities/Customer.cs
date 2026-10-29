@@ -14,6 +14,8 @@ public class Customer : BaseEntity
     public int LoyaltyPoints { get; set; } = 0;
     public LoyaltyTier Tier { get; set; } = LoyaltyTier.Silver;
     public DateTime? LastVisitDate { get; set; }
+    public decimal OutstandingCredit { get; set; } = 0m;
     
     public LoyaltyAccount? LoyaltyAccount { get; set; }
+    public ICollection<CustomerLedger> Ledgers { get; set; } = new List<CustomerLedger>();
 }

@@ -9,16 +9,29 @@ namespace RestaurantManagement.Web.Controllers;
 public class MenuController : Controller
 {
     private readonly IMenuService _menuService;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public MenuController(IMenuService menuService)
+    public MenuController(IMenuService menuService, IUnitOfWork unitOfWork)
     {
         _menuService = menuService;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<IActionResult> Index()
     {
         ViewBag.Categories = await _menuService.GetCategoriesAsync();
         var items = await _menuService.GetMenuItemsAsync();
+        return View(items);
+    }
+
+    public async Task<IActionResult> PrintMenuCard(string lang = "both")
+    {
+        var settings = await _unitOfWork.RestaurantSettings.GetAllAsync();
+        ViewBag.Settings = settings.FirstOrDefault() ?? new RestaurantManagement.Domain.Entities.RestaurantSetting();
+        ViewBag.Categories = (await _menuService.GetCategoriesAsync()).Where(c => c.IsActive).OrderBy(c => c.DisplayOrder).ToList();
+        ViewBag.SelectedLang = lang;
+
+        var items = (await _menuService.GetMenuItemsAsync()).Where(i => i.IsActive && i.IsAvailable).ToList();
         return View(items);
     }
 

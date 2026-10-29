@@ -25,6 +25,19 @@ public class BillingService : IBillingService
             throw new InvalidOperationException("Cannot generate bill for completed or cancelled order.");
         }
 
+        var settings = await _unitOfWork.RestaurantSettings.GetAllAsync();
+        var setting = settings.FirstOrDefault() ?? new RestaurantSetting();
+
+        // Mode A / KOT Workflow enforcement: Block if unserved items exist and block setting is active
+        if (setting.IsKOTWorkflowEnabled && setting.AllowBillingWithUnservedItems == BillingUnservedItemsSetting.No)
+        {
+            var kots = await _unitOfWork.KOTs.FindAsync(k => k.OrderId == dto.OrderId && !k.IsDeleted);
+            if (kots.Any(k => k.Status != KOTStatus.Served))
+            {
+                throw new InvalidOperationException("Cannot finalize bill: Kitchen ticket items are still being prepared. All items must be marked Served before billing in Mode A.");
+            }
+        }
+
         // Check if bill already exists
         var existingBill = (await _unitOfWork.Bills.FindAsync(b => b.OrderId == dto.OrderId && !b.IsDeleted)).FirstOrDefault();
         if (existingBill != null)
@@ -33,15 +46,21 @@ public class BillingService : IBillingService
         }
 
         int billCount = await _unitOfWork.Bills.CountAsync();
-        string invoiceNo = $"INV-{(billCount + 10001)}";
+        string prefix = string.IsNullOrWhiteSpace(setting.InvoicePrefix) ? "INV" : setting.InvoicePrefix;
+        string invoiceNo = $"{prefix}-{(billCount + 10001)}";
 
         decimal subtotal = order.SubTotal;
         decimal discount = dto.DiscountAmount;
         decimal serviceCharge = dto.ServiceCharge;
         decimal taxableSubtotal = Math.Max(0, subtotal - discount + serviceCharge);
 
-        decimal cgst = Math.Round(taxableSubtotal * 0.025m, 2);
-        decimal sgst = Math.Round(taxableSubtotal * 0.025m, 2);
+        decimal cgst = 0m;
+        decimal sgst = 0m;
+        if (setting.IsGSTEnabled)
+        {
+            cgst = Math.Round(taxableSubtotal * (setting.CGSTPercentage / 100m), 2);
+            sgst = Math.Round(taxableSubtotal * (setting.SGSTPercentage / 100m), 2);
+        }
         decimal grandTotal = Math.Round(taxableSubtotal + cgst + sgst, 0); // Rounded grand total
 
         var bill = new Bill
@@ -161,18 +180,111 @@ public class BillingService : IBillingService
             throw new InvalidOperationException($"Payment amount ₹{dto.Amount} exceeds remaining bill balance ₹{remaining}.");
         }
 
-        var payment = new Payment
+        if (dto.PaymentMethod == PaymentMethod.Split && dto.SplitCashAmount > 0 && dto.SplitOnlineAmount > 0)
         {
-            BillId = dto.BillId,
-            PaymentMethod = dto.PaymentMethod,
-            Amount = dto.Amount,
-            PaymentStatus = PaymentStatus.Paid,
-            TransactionId = string.IsNullOrEmpty(dto.TransactionId) ? $"TXN-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}" : dto.TransactionId,
-            PaymentDate = DateTime.UtcNow,
-            Notes = dto.Notes
-        };
+            var pCash = new Payment
+            {
+                BillId = dto.BillId,
+                PaymentMethod = PaymentMethod.Cash,
+                Amount = dto.SplitCashAmount,
+                PaymentStatus = PaymentStatus.Paid,
+                TransactionId = string.IsNullOrEmpty(dto.TransactionId) ? $"CASH-{Guid.NewGuid().ToString().Substring(0, 6).ToUpper()}" : $"{dto.TransactionId}-CASH",
+                PaymentDate = DateTime.UtcNow,
+                Notes = dto.Notes
+            };
+            var pOnline = new Payment
+            {
+                BillId = dto.BillId,
+                PaymentMethod = PaymentMethod.UPI,
+                Amount = dto.SplitOnlineAmount,
+                PaymentStatus = PaymentStatus.Paid,
+                TransactionId = string.IsNullOrEmpty(dto.TransactionId) ? $"UPI-{Guid.NewGuid().ToString().Substring(0, 6).ToUpper()}" : $"{dto.TransactionId}-UPI",
+                PaymentDate = DateTime.UtcNow,
+                Notes = dto.Notes
+            };
+            await _unitOfWork.Payments.AddAsync(pCash);
+            await _unitOfWork.Payments.AddAsync(pOnline);
+        }
+        else
+        {
+            var payment = new Payment
+            {
+                BillId = dto.BillId,
+                PaymentMethod = dto.PaymentMethod,
+                Amount = dto.Amount,
+                PaymentStatus = PaymentStatus.Paid,
+                TransactionId = string.IsNullOrEmpty(dto.TransactionId) ? $"TXN-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}" : dto.TransactionId,
+                PaymentDate = DateTime.UtcNow,
+                Notes = dto.Notes
+            };
+            await _unitOfWork.Payments.AddAsync(payment);
+        }
 
-        await _unitOfWork.Payments.AddAsync(payment);
+        // Customer Credit (Udhari) Record
+        if (dto.PaymentMethod == PaymentMethod.Credit)
+        {
+            var ord = await _unitOfWork.Orders.GetByIdAsync(bill.OrderId);
+            Customer? cust = null;
+
+            if (dto.CustomerId.HasValue && dto.CustomerId.Value > 0)
+            {
+                cust = await _unitOfWork.Customers.GetByIdAsync(dto.CustomerId.Value);
+            }
+            else if (ord?.CustomerId.HasValue == true)
+            {
+                cust = await _unitOfWork.Customers.GetByIdAsync(ord.CustomerId.Value);
+            }
+            else if (!string.IsNullOrWhiteSpace(dto.NewCustomerName))
+            {
+                if (!string.IsNullOrWhiteSpace(dto.NewCustomerPhone))
+                {
+                    var found = await _unitOfWork.Customers.FindAsync(c => c.Phone == dto.NewCustomerPhone.Trim() && !c.IsDeleted);
+                    cust = found.FirstOrDefault();
+                }
+
+                if (cust == null)
+                {
+                    cust = new Customer
+                    {
+                        Name = dto.NewCustomerName.Trim(),
+                        Phone = dto.NewCustomerPhone?.Trim() ?? string.Empty,
+                        OutstandingCredit = 0m,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    await _unitOfWork.Customers.AddAsync(cust);
+                    await _unitOfWork.SaveChangesAsync();
+                }
+            }
+
+            if (cust != null)
+            {
+                cust.OutstandingCredit += dto.Amount;
+                cust.UpdatedAt = DateTime.UtcNow;
+                await _unitOfWork.Customers.UpdateAsync(cust);
+
+                if (ord != null && !ord.CustomerId.HasValue)
+                {
+                    ord.CustomerId = cust.Id;
+                    ord.CustomerName = cust.Name;
+                    ord.CustomerPhone = cust.Phone;
+                    await _unitOfWork.Orders.UpdateAsync(ord);
+                }
+
+                await _unitOfWork.CustomerLedgers.AddAsync(new CustomerLedger
+                {
+                    CustomerId = cust.Id,
+                    Date = DateTime.UtcNow,
+                    Description = $"Udhari on Invoice #{bill.InvoiceNumber}",
+                    DebitAmount = dto.Amount,
+                    CreditAmount = 0m,
+                    RunningBalance = cust.OutstandingCredit,
+                    ReferenceInvoiceNumber = bill.InvoiceNumber,
+                    Notes = dto.Notes ?? "Customer credit settlement",
+                    RecordedBy = "Cashier",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+        }
 
         if (paidSoFar + dto.Amount >= bill.GrandTotal - 0.01m)
         {

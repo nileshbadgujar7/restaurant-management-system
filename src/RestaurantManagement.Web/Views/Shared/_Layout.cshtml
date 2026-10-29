@@ -43,9 +43,20 @@
     <link rel="stylesheet" href="~/css/site.css" />
 </head>
 <body>
-    <div class="app-layout layout-collapsed" id="appLayout">
+    <script>
+        // Synchronous check to avoid layout flicker
+        (function() {
+            try {
+                var saved = localStorage.getItem('girana_sidebar_collapsed');
+                if (saved === '1' || (saved === null && window.innerWidth < 992)) {
+                    document.documentElement.classList.add('init-collapsed');
+                }
+            } catch(e) {}
+        })();
+    </script>
+    <div class="app-layout" id="appLayout">
         <!-- Collapsible Vertical Sidebar Tabs -->
-        <aside class="app-sidebar sidebar-collapsed" id="appSidebar">
+        <aside class="app-sidebar" id="appSidebar">
             <!-- Sidebar Header / Brand -->
             <div class="sidebar-header">
                 <a class="sidebar-brand" href="/" title="Girana Garden">
@@ -54,51 +65,48 @@
                     </div>
                     <span class="brand-text luxury-brand-title">Girana Garden</span>
                 </a>
-                <button class="sidebar-toggle-btn" id="sidebarToggle" title="Expand Sidebar">
-                    <i class="fa-solid fa-angles-right" id="toggleIcon"></i>
+                <button class="sidebar-toggle-btn" id="sidebarToggle" title="Toggle Sidebar">
+                    <i class="fa-solid fa-bars-staggered" id="toggleIcon"></i>
                 </button>
             </div>
 
-            <!-- Sidebar Vertical Navigation Tabs Based on Role -->
+            <!-- Sidebar Vertical Navigation Tabs: Strict 1-10 Order (Section 4) -->
             <nav class="sidebar-nav">
                 <div class="nav flex-column">
+                    <!-- 1. Dashboard -->
                     <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Dashboard" ? "active" : "")" href="/Dashboard" data-title="Dashboard" data-bs-toggle="tooltip" data-bs-placement="right" title="Dashboard">
                         <i class="fa-solid fa-chart-pie nav-icon" style="color: #10b981;"></i>
                         <span class="nav-text">Dashboard</span>
                     </a>
 
+                    <!-- 2. Tables & Floors -->
                     @if (canViewTables)
                     {
-                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Tables" ? "active" : "")" href="/Tables" data-title="Tables & Floor" data-bs-toggle="tooltip" data-bs-placement="right" title="Tables & Floor">
+                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Tables" ? "active" : "")" href="/Tables" data-title="Tables & Floors" data-bs-toggle="tooltip" data-bs-placement="right" title="Tables & Floors">
                             <i class="fa-solid fa-chair nav-icon" style="color: #f59e0b;"></i>
-                            <span class="nav-text">Tables & Floor</span>
+                            <span class="nav-text">Tables & Floors</span>
                         </a>
                     }
 
-                    @if (canTakeOrders)
-                    {
-                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Orders" && ViewContext.RouteData.Values["action"]?.ToString() == "POS" ? "active" : "")" href="/Orders/POS" data-title="New POS Order" data-bs-toggle="tooltip" data-bs-placement="right" title="New POS Order">
-                            <i class="fa-solid fa-cash-register nav-icon" style="color: #6366f1;"></i>
-                            <span class="nav-text">New POS Order</span>
-                        </a>
-                    }
-
+                    <!-- 3. Orders -->
                     @if (canViewOrders)
                     {
-                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Orders" && ViewContext.RouteData.Values["action"]?.ToString() == "Index" ? "active" : "")" href="/Orders" data-title="All Orders" data-bs-toggle="tooltip" data-bs-placement="right" title="All Orders">
+                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Orders" ? "active" : "")" href="/Orders" data-title="Orders" data-bs-toggle="tooltip" data-bs-placement="right" title="Orders">
                             <i class="fa-solid fa-receipt nav-icon" style="color: #0284c7;"></i>
-                            <span class="nav-text">All Orders</span>
+                            <span class="nav-text">Orders</span>
                         </a>
                     }
 
+                    <!-- 4. Kitchen (KDS) -->
                     @if (canViewKitchen)
                     {
-                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Kitchen" ? "active" : "")" href="/Kitchen" data-title="Kitchen KDS" data-bs-toggle="tooltip" data-bs-placement="right" title="Kitchen (KDS)">
+                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Kitchen" ? "active" : "")" href="/Kitchen" data-title="Kitchen (KDS)" data-bs-toggle="tooltip" data-bs-placement="right" title="Kitchen (KDS)">
                             <i class="fa-solid fa-kitchen-set nav-icon" style="color: #ef4444;"></i>
                             <span class="nav-text">Kitchen (KDS)</span>
                         </a>
                     }
 
+                    <!-- 5. Billing & Payments -->
                     @if (canViewBilling)
                     {
                         <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Billing" ? "active" : "")" href="/Billing" data-title="Billing & Payments" data-bs-toggle="tooltip" data-bs-placement="right" title="Billing & Payments">
@@ -107,51 +115,48 @@
                         </a>
                     }
 
-                    @if (canViewMenu)
+                    <!-- 6. Stock & Inventory -->
+                    @if (canViewInventory)
                     {
-                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Menu" ? "active" : "")" href="/Menu" data-title="Menu Items" data-bs-toggle="tooltip" data-bs-placement="right" title="Menu Items">
-                            <i class="fa-solid fa-bowl-food nav-icon" style="color: #0d9488;"></i>
-                            <span class="nav-text">Menu Items</span>
+                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Inventory" ? "active" : "")" href="/Inventory" data-title="Stock & Inventory" data-bs-toggle="tooltip" data-bs-placement="right" title="Stock & Inventory">
+                            <i class="fa-solid fa-boxes-stacked nav-icon" style="color: #64748b;"></i>
+                            <span class="nav-text">Stock & Inventory</span>
                         </a>
                     }
 
+                    <!-- 7. Staff & Roles -->
+                    @if (canViewStaff)
+                    {
+                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Staff" ? "active" : "")" href="/Staff" data-title="Staff & Roles" data-bs-toggle="tooltip" data-bs-placement="right" title="Staff & Roles">
+                            <i class="fa-solid fa-user-group nav-icon" style="color: #6366f1;"></i>
+                            <span class="nav-text">Staff & Roles</span>
+                        </a>
+                    }
+
+                    <!-- 8. Accounts & Payroll -->
+                    @if (canViewAccounts)
+                    {
+                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Accounts" ? "active" : "")" href="/Accounts" data-title="Accounts & Payroll" data-bs-toggle="tooltip" data-bs-placement="right" title="Accounts & Payroll">
+                            <i class="fa-solid fa-wallet nav-icon" style="color: #059669;"></i>
+                            <span class="nav-text">Accounts & Payroll</span>
+                        </a>
+                    }
+
+                    <!-- 9. Reports -->
+                    @if (canViewReports)
+                    {
+                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Reports" ? "active" : "")" href="/Reports" data-title="Reports" data-bs-toggle="tooltip" data-bs-placement="right" title="Reports">
+                            <i class="fa-solid fa-chart-line nav-icon" style="color: #d97706;"></i>
+                            <span class="nav-text">Reports</span>
+                        </a>
+                    }
+
+                    <!-- 10. Masters -->
                     @if (canViewMasters)
                     {
                         <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Masters" ? "active" : "")" href="/Masters" data-title="Masters" data-bs-toggle="tooltip" data-bs-placement="right" title="Masters">
                             <i class="fa-solid fa-layer-group nav-icon" style="color: #ec4899;"></i>
                             <span class="nav-text">Masters</span>
-                        </a>
-                    }
-
-                    @if (canViewInventory)
-                    {
-                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Inventory" ? "active" : "")" href="/Inventory" data-title="Stock & Inventory" data-bs-toggle="tooltip" data-bs-placement="right" title="Stock & Inventory">
-                            <i class="fa-solid fa-boxes-stacked nav-icon" style="color: #64748b;"></i>
-                            <span class="nav-text">Stock</span>
-                        </a>
-                    }
-
-                    @if (canViewStaff)
-                    {
-                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Staff" ? "active" : "")" href="/Staff" data-title="Staff & Attendance" data-bs-toggle="tooltip" data-bs-placement="right" title="Staff & Attendance">
-                            <i class="fa-solid fa-user-group nav-icon" style="color: #6366f1;"></i>
-                            <span class="nav-text">Staff & Attendance</span>
-                        </a>
-                    }
-
-                    @if (canViewAccounts)
-                    {
-                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Accounts" ? "active" : "")" href="/Accounts" data-title="Accounts & Payroll" data-bs-toggle="tooltip" data-bs-placement="right" title="Accounts & Payroll">
-                            <i class="fa-solid fa-file-invoice-dollar nav-icon" style="color: #059669;"></i>
-                            <span class="nav-text">Accounts & Ledger</span>
-                        </a>
-                    }
-
-                    @if (canViewReports)
-                    {
-                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Reports" ? "active" : "")" href="/Reports" data-title="Reports & Analytics" data-bs-toggle="tooltip" data-bs-placement="right" title="Reports & Analytics">
-                            <i class="fa-solid fa-chart-line nav-icon" style="color: #d97706;"></i>
-                            <span class="nav-text">Reports</span>
                         </a>
                     }
 
@@ -270,43 +275,51 @@
             setInterval(updateClock, 1000);
             updateClock();
 
-            // Collapsible Sidebar Script
+            // Collapsible Sidebar Script with User Preference Persistence (Section 2)
             const sidebar = document.getElementById('appSidebar');
             const layout = document.getElementById('appLayout');
             const toggleBtn = document.getElementById('sidebarToggle');
             const toggleIcon = document.getElementById('toggleIcon');
             const mobileToggle = document.getElementById('mobileSidebarToggle');
 
-            let isCollapsed = true;
+            // Default to expanded on desktop unless explicitly set to collapsed in localStorage
+            var savedPref = localStorage.getItem('girana_sidebar_collapsed');
+            var isDesktop = window.innerWidth >= 992;
+            var isCollapsed = savedPref !== null ? (savedPref === '1') : !isDesktop;
 
-            function updateSidebarState() {
-                if (isCollapsed) {
+            function applySidebarState(collapsed) {
+                if (collapsed) {
                     sidebar.classList.add('sidebar-collapsed');
                     layout.classList.add('layout-collapsed');
-                    if (toggleIcon) toggleIcon.className = 'fa-solid fa-angles-right';
                     if (toggleBtn) toggleBtn.setAttribute('title', 'Expand Sidebar');
                 } else {
                     sidebar.classList.remove('sidebar-collapsed');
                     layout.classList.remove('layout-collapsed');
-                    if (toggleIcon) toggleIcon.className = 'fa-solid fa-angles-left';
                     if (toggleBtn) toggleBtn.setAttribute('title', 'Collapse Sidebar');
+                }
+                if (toggleIcon) {
+                    toggleIcon.className = 'fa-solid fa-bars-staggered';
                 }
             }
 
             if (toggleBtn) {
-                toggleBtn.addEventListener('click', function () {
+                toggleBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
                     isCollapsed = !isCollapsed;
-                    updateSidebarState();
+                    localStorage.setItem('girana_sidebar_collapsed', isCollapsed ? '1' : '0');
+                    applySidebarState(isCollapsed);
                 });
             }
 
             if (mobileToggle) {
-                mobileToggle.addEventListener('click', function () {
+                mobileToggle.addEventListener('click', function (e) {
+                    e.preventDefault();
                     sidebar.classList.toggle('mobile-open');
                 });
             }
 
-            updateSidebarState();
+            // Apply immediately on load
+            applySidebarState(isCollapsed);
 
             // Initialize all Bootstrap 5 tooltips across the application
             function initTooltips() {

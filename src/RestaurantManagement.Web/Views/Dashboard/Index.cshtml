@@ -217,10 +217,18 @@
                                     }
                                 </div>
 
-                                <!-- Middle Row: Floor & Capacity -->
+                                <!-- Middle Row: Floor, Capacity & Live Turnaround Timer (Section 7) -->
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <span class="badge rounded-pill floor-pill">@floor.Name</span>
-                                    <span class="text-muted small">@table.Capacity Seats</span>
+                                    <div class="d-flex align-items-center gap-1">
+                                        <span class="badge bg-light text-secondary border" title="Seating Capacity" style="font-size: 0.72rem;">@table.Capacity Seats</span>
+                                        @if (table.OccupiedAt.HasValue)
+                                        {
+                                            <span class="badge bg-white text-danger border border-danger-subtle fw-bold" title="Live Table Turnaround Duration" style="font-size: 0.72rem;">
+                                                <i class="fa-regular fa-clock me-1 text-danger"></i><span class="live-turnaround-timer" data-start-time="@table.OccupiedAt.Value.ToString("o")">@($"{table.OccupiedMinutes / 60:D2}:{table.OccupiedMinutes % 60:D2}")</span>
+                                            </span>
+                                        }
+                                    </div>
                                 </div>
 
                                 <!-- Bottom Status / Bill & Operator Buttons -->
@@ -1120,6 +1128,25 @@
     loadParcelOrders();
     // Refresh parcel orders every 15 seconds
     setInterval(loadParcelOrders, 15000);
+
+    // Live Table Turnaround Timer (Section 7)
+    function updateTurnaroundTimers() {
+        const now = new Date();
+        document.querySelectorAll('.live-turnaround-timer').forEach(el => {
+            const startStr = el.getAttribute('data-start-time');
+            if (!startStr) return;
+            const startTime = new Date(startStr);
+            const diffMs = now - startTime;
+            if (diffMs >= 0) {
+                const totalMins = Math.floor(diffMs / 60000);
+                const hrs = Math.floor(totalMins / 60);
+                const mins = totalMins % 60;
+                el.textContent = `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+            }
+        });
+    }
+    updateTurnaroundTimers();
+    setInterval(updateTurnaroundTimers, 20000);
 
 </script>
 }

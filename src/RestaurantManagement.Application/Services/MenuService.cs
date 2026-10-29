@@ -24,8 +24,10 @@ public class MenuService : IMenuService
         {
             Id = c.Id,
             Name = c.Name,
+            NameMarathi = c.NameMarathi,
             Description = c.Description,
             DisplayOrder = c.DisplayOrder,
+            IsActive = c.IsActive,
             ImageUrl = c.ImageUrl,
             ItemCount = activeItems.Count(m => m.CategoryId == c.Id)
         });
@@ -42,8 +44,10 @@ public class MenuService : IMenuService
         {
             Id = category.Id,
             Name = category.Name,
+            NameMarathi = category.NameMarathi,
             Description = category.Description,
             DisplayOrder = category.DisplayOrder,
+            IsActive = category.IsActive,
             ImageUrl = category.ImageUrl,
             ItemCount = items.Count(),
             MenuItems = items.Select(m => MapToMenuItemDto(m, category.Name)).ToList()
@@ -54,10 +58,12 @@ public class MenuService : IMenuService
     {
         var category = new Category
         {
-            Name = dto.Name,
-            Description = dto.Description,
+            Name = dto.Name.Trim(),
+            NameMarathi = dto.NameMarathi?.Trim() ?? string.Empty,
+            Description = dto.Description ?? string.Empty,
             DisplayOrder = dto.DisplayOrder,
-            ImageUrl = dto.ImageUrl
+            IsActive = dto.IsActive,
+            ImageUrl = dto.ImageUrl ?? string.Empty
         };
 
         await _unitOfWork.Categories.AddAsync(category);
@@ -72,10 +78,12 @@ public class MenuService : IMenuService
         var category = await _unitOfWork.Categories.GetByIdAsync(id);
         if (category == null || category.IsDeleted) throw new KeyNotFoundException($"Category with id {id} not found.");
 
-        category.Name = dto.Name;
-        category.Description = dto.Description;
+        category.Name = dto.Name.Trim();
+        category.NameMarathi = dto.NameMarathi?.Trim() ?? string.Empty;
+        category.Description = dto.Description ?? string.Empty;
         category.DisplayOrder = dto.DisplayOrder;
-        category.ImageUrl = dto.ImageUrl;
+        category.IsActive = dto.IsActive;
+        category.ImageUrl = dto.ImageUrl ?? string.Empty;
         category.UpdatedAt = DateTime.UtcNow;
 
         await _unitOfWork.Categories.UpdateAsync(category);
@@ -132,13 +140,17 @@ public class MenuService : IMenuService
         var item = new MenuItem
         {
             CategoryId = dto.CategoryId,
-            Name = dto.Name,
-            Description = dto.Description,
+            Name = dto.Name.Trim(),
+            NameMarathi = dto.NameMarathi?.Trim() ?? string.Empty,
+            ItemCode = dto.ItemCode?.Trim() ?? string.Empty,
+            Description = dto.Description ?? string.Empty,
             Price = dto.Price,
             TaxPercentage = dto.TaxPercentage,
             IsVeg = dto.IsVeg,
-            ImageUrl = dto.ImageUrl,
+            ImageUrl = dto.ImageUrl ?? string.Empty,
             IsAvailable = dto.IsAvailable,
+            IsActive = dto.IsActive,
+            KitchenCategory = string.IsNullOrWhiteSpace(dto.KitchenCategory) ? "Main Kitchen" : dto.KitchenCategory.Trim(),
             PreparationTimeMinutes = dto.PreparationTimeMinutes
         };
 
@@ -155,13 +167,17 @@ public class MenuService : IMenuService
         if (item == null) throw new KeyNotFoundException($"Menu item {id} not found");
 
         item.CategoryId = dto.CategoryId;
-        item.Name = dto.Name;
-        item.Description = dto.Description;
+        item.Name = dto.Name.Trim();
+        item.NameMarathi = dto.NameMarathi?.Trim() ?? string.Empty;
+        item.ItemCode = dto.ItemCode?.Trim() ?? string.Empty;
+        item.Description = dto.Description ?? string.Empty;
         item.Price = dto.Price;
         item.TaxPercentage = dto.TaxPercentage;
         item.IsVeg = dto.IsVeg;
-        item.ImageUrl = dto.ImageUrl;
+        item.ImageUrl = dto.ImageUrl ?? string.Empty;
         item.IsAvailable = dto.IsAvailable;
+        item.IsActive = dto.IsActive;
+        item.KitchenCategory = string.IsNullOrWhiteSpace(dto.KitchenCategory) ? "Main Kitchen" : dto.KitchenCategory.Trim();
         item.PreparationTimeMinutes = dto.PreparationTimeMinutes;
         item.UpdatedAt = DateTime.UtcNow;
 
@@ -203,12 +219,16 @@ public class MenuService : IMenuService
             CategoryId = m.CategoryId,
             CategoryName = categoryName,
             Name = m.Name,
+            NameMarathi = m.NameMarathi,
+            ItemCode = m.ItemCode,
             Description = m.Description,
             Price = m.Price,
             TaxPercentage = m.TaxPercentage,
             IsVeg = m.IsVeg,
             ImageUrl = m.ImageUrl,
             IsAvailable = m.IsAvailable,
+            IsActive = m.IsActive,
+            KitchenCategory = m.KitchenCategory,
             PreparationTimeMinutes = m.PreparationTimeMinutes,
             Variants = variants?.Select(v => new MenuItemVariantDto
             {

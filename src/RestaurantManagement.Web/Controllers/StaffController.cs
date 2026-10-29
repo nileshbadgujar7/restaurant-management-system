@@ -20,21 +20,75 @@ public class StaffController : Controller
     {
         var employees = (await _staffService.GetEmployeesAsync()).ToList();
         var attendances = (await _staffService.GetTodayAttendanceAsync()).ToList();
+        var leaves = (await _staffService.GetLeaveRequestsAsync()).ToList();
 
         int presentCount = attendances.Count(a => a.Status == "Present" || a.Status == "Late");
-        int leaveCount = attendances.Count(a => a.Status == "Leave" || a.Status == "Half day");
+        int leaveCount = attendances.Count(a => a.Status == "Leave" || a.Status == "Half day") + leaves.Count(l => l.Status == "Approved" && l.StartDate <= DateTime.UtcNow.Date && l.EndDate >= DateTime.UtcNow.Date);
 
         var model = new StaffViewModel
         {
             ActiveTab = tab.ToLower(),
             Employees = employees,
             Attendances = attendances,
+            LeaveRequests = leaves,
             TotalStaffCount = employees.Count,
             PresentStaffCount = presentCount,
             OnLeaveCount = leaveCount
         };
 
         return View(model);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> ApplyLeave(CreateLeaveRequestDto dto)
+    {
+        try
+        {
+            await _staffService.CreateLeaveRequestAsync(dto);
+            TempData["Success"] = "Leave application submitted successfully.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+
+        return RedirectToAction(nameof(Index), new { tab = "leaves" });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> ApproveLeave(int id)
+    {
+        try
+        {
+            string approver = User.Identity?.Name ?? "Manager";
+            bool success = await _staffService.ApproveLeaveRequestAsync(id, approver);
+            if (success) TempData["Success"] = "Leave request approved and attendance synchronized.";
+            else TempData["Error"] = "Leave request could not be approved.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+
+        return RedirectToAction(nameof(Index), new { tab = "leaves" });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> RejectLeave(int id, string reason)
+    {
+        try
+        {
+            string rejector = User.Identity?.Name ?? "Manager";
+            bool success = await _staffService.RejectLeaveRequestAsync(id, rejector, reason);
+            if (success) TempData["Success"] = "Leave request rejected.";
+            else TempData["Error"] = "Leave request could not be rejected.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+
+        return RedirectToAction(nameof(Index), new { tab = "leaves" });
     }
 
     [HttpGet]

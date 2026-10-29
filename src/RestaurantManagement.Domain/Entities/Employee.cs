@@ -15,4 +15,5 @@ public class Employee : BaseEntity
     public ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
     public ICollection<EmployeeLedger> Ledgers { get; set; } = new List<EmployeeLedger>();
     public ICollection<PayrollRecord> PayrollRecords { get; set; } = new List<PayrollRecord>();
+    public ICollection<LeaveRequest> LeaveRequests { get; set; } = new List<LeaveRequest>();
 }

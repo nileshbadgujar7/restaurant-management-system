@@ -24,3 +24,4 @@ public class PayrollRecord : BaseEntity
     public string Notes { get; set; } = string.Empty;
     public string ProcessedBy { get; set; } = string.Empty;
 }
+

@@ -49,6 +49,11 @@ public class CollectPaymentDto
     public decimal Amount { get; set; }
     public string TransactionId { get; set; } = string.Empty;
     public string Notes { get; set; } = string.Empty;
+    public int? CustomerId { get; set; }
+    public string? NewCustomerName { get; set; }
+    public string? NewCustomerPhone { get; set; }
+    public decimal SplitCashAmount { get; set; }
+    public decimal SplitOnlineAmount { get; set; }
 }
 
 public class CustomerDto
@@ -65,6 +70,7 @@ public class CustomerDto
     public LoyaltyTier Tier { get; set; }
     public string TierName => Tier.ToString();
     public DateTime? LastVisitDate { get; set; }
+    public decimal OutstandingCredit { get; set; }
 }
 
 public class CustomerCreateUpdateDto

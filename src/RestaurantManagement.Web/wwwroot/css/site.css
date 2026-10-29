@@ -115,6 +115,14 @@ p, .text-secondary, .text-muted {
     width: var(--sidebar-width-collapsed);
 }
 
+html.init-collapsed .app-sidebar {
+    width: var(--sidebar-width-collapsed);
+}
+
+html.init-collapsed .app-layout .app-main {
+    margin-left: var(--sidebar-width-collapsed);
+}
+
 /* Sidebar Brand Header */
 .sidebar-header {
     height: 70px;

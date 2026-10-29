@@ -6,6 +6,8 @@ public class Table : BaseEntity
 {
     public string TableNumber { get; set; } = string.Empty;
     public int Capacity { get; set; } = 4;
+    public string TableType { get; set; } = "Dine-In";
+    public string Description { get; set; } = string.Empty;
     public int FloorId { get; set; }
     public Floor? Floor { get; set; }
     public TableStatus Status { get; set; } = TableStatus.Available;

@@ -56,10 +56,16 @@ public class TableService : ITableService
 
     public async Task<TableDto> CreateTableAsync(TableCreateUpdateDto dto)
     {
+        var existing = (await _unitOfWork.Tables.FindAsync(t => !t.IsDeleted && t.TableNumber.Trim().ToLower() == dto.TableNumber.Trim().ToLower())).FirstOrDefault();
+        if (existing != null) throw new InvalidOperationException($"Table number '{dto.TableNumber}' already exists.");
+
         var table = new Table
         {
-            TableNumber = dto.TableNumber,
+            TableNumber = dto.TableNumber.Trim(),
             Capacity = dto.Capacity,
+            TableType = string.IsNullOrWhiteSpace(dto.TableType) ? "Dine-In" : dto.TableType,
+            Description = dto.Description ?? string.Empty,
+            IsActive = dto.IsActive,
             FloorId = dto.FloorId,
             Status = TableStatus.Available
         };
@@ -76,8 +82,14 @@ public class TableService : ITableService
         var table = await _unitOfWork.Tables.GetByIdAsync(id);
         if (table == null) throw new KeyNotFoundException($"Table {id} not found");
 
-        table.TableNumber = dto.TableNumber;
+        var duplicate = (await _unitOfWork.Tables.FindAsync(t => !t.IsDeleted && t.Id != id && t.TableNumber.Trim().ToLower() == dto.TableNumber.Trim().ToLower())).FirstOrDefault();
+        if (duplicate != null) throw new InvalidOperationException($"Table number '{dto.TableNumber}' already exists.");
+
+        table.TableNumber = dto.TableNumber.Trim();
         table.Capacity = dto.Capacity;
+        table.TableType = string.IsNullOrWhiteSpace(dto.TableType) ? "Dine-In" : dto.TableType;
+        table.Description = dto.Description ?? string.Empty;
+        table.IsActive = dto.IsActive;
         table.FloorId = dto.FloorId;
         table.UpdatedAt = DateTime.UtcNow;
 
@@ -187,9 +199,10 @@ public class TableService : ITableService
     {
         var floor = new Floor
         {
-            Name = dto.Name,
-            Description = dto.Description,
-            DisplayOrder = dto.DisplayOrder
+            Name = dto.Name.Trim(),
+            Description = dto.Description ?? string.Empty,
+            DisplayOrder = dto.DisplayOrder,
+            IsActive = dto.IsActive
         };
 
         await _unitOfWork.Floors.AddAsync(floor);
@@ -200,7 +213,8 @@ public class TableService : ITableService
             Id = floor.Id,
             Name = floor.Name,
             Description = floor.Description,
-            DisplayOrder = floor.DisplayOrder
+            DisplayOrder = floor.DisplayOrder,
+            IsActive = floor.IsActive
         };
     }
 
@@ -217,6 +231,7 @@ public class TableService : ITableService
             Name = floor.Name,
             Description = floor.Description,
             DisplayOrder = floor.DisplayOrder,
+            IsActive = floor.IsActive,
             Tables = tables.Select(t => MapToTableDto(t, floor.Name)).ToList()
         };
     }
@@ -226,9 +241,10 @@ public class TableService : ITableService
         var floor = await _unitOfWork.Floors.GetByIdAsync(id);
         if (floor == null || floor.IsDeleted) throw new KeyNotFoundException($"Floor with id {id} not found.");
 
-        floor.Name = dto.Name;
-        floor.Description = dto.Description;
+        floor.Name = dto.Name.Trim();
+        floor.Description = dto.Description ?? string.Empty;
         floor.DisplayOrder = dto.DisplayOrder;
+        floor.IsActive = dto.IsActive;
         floor.UpdatedAt = DateTime.UtcNow;
 
         await _unitOfWork.Floors.UpdateAsync(floor);
@@ -239,7 +255,8 @@ public class TableService : ITableService
             Id = floor.Id,
             Name = floor.Name,
             Description = floor.Description,
-            DisplayOrder = floor.DisplayOrder
+            DisplayOrder = floor.DisplayOrder,
+            IsActive = floor.IsActive
         };
     }
 
@@ -247,6 +264,13 @@ public class TableService : ITableService
     {
         var floor = await _unitOfWork.Floors.GetByIdAsync(id);
         if (floor == null || floor.IsDeleted) return false;
+
+        // Constraint check: Cannot delete floor if active tables are associated with it
+        var associatedTables = await _unitOfWork.Tables.FindAsync(t => t.FloorId == id && !t.IsDeleted);
+        if (associatedTables.Any())
+        {
+            throw new InvalidOperationException($"Cannot delete Floor '{floor.Name}' because it has {associatedTables.Count()} associated table(s). Please move or delete the tables first.");
+        }
 
         floor.IsDeleted = true;
         floor.UpdatedAt = DateTime.UtcNow;
@@ -259,10 +283,12 @@ public class TableService : ITableService
     {
         decimal amount = 0m;
         string? orderNo = null;
+        DateTime? occupiedAt = null;
         if (t.CurrentOrderId.HasValue && orderDict != null && orderDict.TryGetValue(t.CurrentOrderId.Value, out var order))
         {
             amount = order.GrandTotal;
             orderNo = order.OrderNumber;
+            occupiedAt = order.CreatedAt;
         }
 
         string? waiterName = null;
@@ -276,6 +302,9 @@ public class TableService : ITableService
             Id = t.Id,
             TableNumber = t.TableNumber,
             Capacity = t.Capacity,
+            TableType = t.TableType ?? "Dine-In",
+            Description = t.Description ?? string.Empty,
+            IsActive = t.IsActive,
             FloorId = t.FloorId,
             FloorName = floorName,
             Status = t.Status,
@@ -286,7 +315,8 @@ public class TableService : ITableService
             WaiterName = waiterName,
             HasActiveDraft = t.HasActiveDraft,
             ActiveDraftUserName = t.ActiveDraftUserName,
-            ActiveDraftMinutesAgo = t.ActiveDraftTime.HasValue ? (int?)(DateTime.UtcNow - t.ActiveDraftTime.Value).TotalMinutes : null
+            ActiveDraftMinutesAgo = t.ActiveDraftTime.HasValue ? (int?)(DateTime.UtcNow - t.ActiveDraftTime.Value).TotalMinutes : null,
+            OccupiedAt = occupiedAt
         };
     }
 }

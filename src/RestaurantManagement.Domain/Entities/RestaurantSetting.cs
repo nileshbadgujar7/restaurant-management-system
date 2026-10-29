@@ -28,5 +28,19 @@ public class RestaurantSetting : BaseEntity
     public decimal PackagingCharge { get; set; } = 15.0m;
     public decimal DeliveryCharge { get; set; } = 30.0m;
     public string ManagerPIN { get; set; } = "1234";
+
+    // Centralized Configuration Masters (Section 5.6)
+    public bool IsGSTEnabled { get; set; } = true;
+    public bool IsTaxInclusive { get; set; } = false;
+    public bool IsKOTWorkflowEnabled { get; set; } = true; // Mode A (true) vs Mode B (false)
+    public bool IsQRCodeEnabled { get; set; } = true;
+    public string QRCodeData { get; set; } = "https://giranagarden.com/menu";
+    public int ThermalPrinterWidth { get; set; } = 80; // 58mm or 80mm
+    public string WhatsAppApiKey { get; set; } = "";
+    public string EmailSmtpHost { get; set; } = "";
+    public int EmailSmtpPort { get; set; } = 587;
+    public string EmailSmtpUser { get; set; } = "";
+    public string EmailSmtpPassword { get; set; } = "";
+    public string DefaultLanguage { get; set; } = "en"; // "en" or "mr"
 }
 

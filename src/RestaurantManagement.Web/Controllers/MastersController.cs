@@ -14,6 +14,7 @@ public class MastersController : Controller
     private readonly IMenuService _menuService;
     private readonly IStaffService _staffService;
     private readonly IInventoryService _inventoryService;
+    private readonly ISupplierService _supplierService;
     private readonly IUnitOfWork _unitOfWork;
 
     public MastersController(
@@ -21,12 +22,14 @@ public class MastersController : Controller
         IMenuService menuService, 
         IStaffService staffService,
         IInventoryService inventoryService,
+        ISupplierService supplierService,
         IUnitOfWork unitOfWork)
     {
         _tableService = tableService;
         _menuService = menuService;
         _staffService = staffService;
         _inventoryService = inventoryService;
+        _supplierService = supplierService;
         _unitOfWork = unitOfWork;
     }
 
@@ -44,6 +47,7 @@ public class MastersController : Controller
             Tables = await _tableService.GetAllTablesAsync(),
             Categories = await _menuService.GetCategoriesAsync(),
             MenuItems = await _menuService.GetMenuItemsAsync(),
+            Suppliers = await _supplierService.GetSuppliersAsync(),
             Employees = await _staffService.GetEmployeesAsync(),
             InventoryItems = await _inventoryService.GetInventoryItemsAsync(),
             Setting = setting
@@ -84,9 +88,31 @@ public class MastersController : Controller
     [HttpPost]
     public async Task<IActionResult> DeleteFloor(int id)
     {
-        bool success = await _tableService.DeleteFloorAsync(id);
-        if (success) TempData["Success"] = "Floor deleted successfully.";
-        else TempData["Error"] = "Could not delete floor.";
+        try
+        {
+            bool success = await _tableService.DeleteFloorAsync(id);
+            if (success) TempData["Success"] = "Floor deleted successfully.";
+            else TempData["Error"] = "Could not delete floor.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+        return RedirectToAction(nameof(Index), new { tab = "floor" });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> ToggleFloorStatus(int id)
+    {
+        var floor = await _unitOfWork.Floors.GetByIdAsync(id);
+        if (floor != null && !floor.IsDeleted)
+        {
+            floor.IsActive = !floor.IsActive;
+            floor.UpdatedAt = DateTime.UtcNow;
+            await _unitOfWork.Floors.UpdateAsync(floor);
+            await _unitOfWork.SaveChangesAsync();
+            TempData["Success"] = $"Floor '{floor.Name}' is now {(floor.IsActive ? "Active" : "Inactive")}.";
+        }
         return RedirectToAction(nameof(Index), new { tab = "floor" });
     }
 
@@ -100,8 +126,15 @@ public class MastersController : Controller
             return RedirectToAction(nameof(Index), new { tab = "table" });
         }
 
-        await _tableService.CreateTableAsync(dto);
-        TempData["Success"] = $"Table '{dto.TableNumber}' created successfully.";
+        try
+        {
+            await _tableService.CreateTableAsync(dto);
+            TempData["Success"] = $"Table '{dto.TableNumber}' created successfully.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
         return RedirectToAction(nameof(Index), new { tab = "table" });
     }
 
@@ -114,8 +147,15 @@ public class MastersController : Controller
             return RedirectToAction(nameof(Index), new { tab = "table" });
         }
 
-        await _tableService.UpdateTableAsync(id, dto);
-        TempData["Success"] = $"Table '{dto.TableNumber}' updated successfully.";
+        try
+        {
+            await _tableService.UpdateTableAsync(id, dto);
+            TempData["Success"] = $"Table '{dto.TableNumber}' updated successfully.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
         return RedirectToAction(nameof(Index), new { tab = "table" });
     }
 
@@ -125,6 +165,21 @@ public class MastersController : Controller
         bool success = await _tableService.DeleteTableAsync(id);
         if (success) TempData["Success"] = "Table deleted successfully.";
         else TempData["Error"] = "Could not delete table.";
+        return RedirectToAction(nameof(Index), new { tab = "table" });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> ToggleTableStatus(int id)
+    {
+        var table = await _unitOfWork.Tables.GetByIdAsync(id);
+        if (table != null && !table.IsDeleted)
+        {
+            table.IsActive = !table.IsActive;
+            table.UpdatedAt = DateTime.UtcNow;
+            await _unitOfWork.Tables.UpdateAsync(table);
+            await _unitOfWork.SaveChangesAsync();
+            TempData["Success"] = $"Table '{table.TableNumber}' is now {(table.IsActive ? "Active" : "Inactive")}.";
+        }
         return RedirectToAction(nameof(Index), new { tab = "table" });
     }
 
@@ -175,6 +230,21 @@ public class MastersController : Controller
     }
 
     [HttpPost]
+    public async Task<IActionResult> ToggleMenuItemStatus(int id, string? tab = "menu")
+    {
+        var item = await _unitOfWork.MenuItems.GetByIdAsync(id);
+        if (item != null && !item.IsDeleted)
+        {
+            item.IsActive = !item.IsActive;
+            item.UpdatedAt = DateTime.UtcNow;
+            await _unitOfWork.MenuItems.UpdateAsync(item);
+            await _unitOfWork.SaveChangesAsync();
+            TempData["Success"] = $"Menu item '{item.Name}' is now {(item.IsActive ? "Active" : "Inactive")}.";
+        }
+        return RedirectToAction(nameof(Index), new { tab = tab ?? "menu" });
+    }
+
+    [HttpPost]
     public async Task<IActionResult> ToggleMenuItemAvailability(int id, string? tab = "menu")
     {
         await _menuService.ToggleItemAvailabilityAsync(id);
@@ -219,6 +289,98 @@ public class MastersController : Controller
         return RedirectToAction(nameof(Index), new { tab = "category" });
     }
 
+    [HttpPost]
+    public async Task<IActionResult> ToggleCategoryStatus(int id)
+    {
+        var cat = await _unitOfWork.Categories.GetByIdAsync(id);
+        if (cat != null && !cat.IsDeleted)
+        {
+            cat.IsActive = !cat.IsActive;
+            cat.UpdatedAt = DateTime.UtcNow;
+            await _unitOfWork.Categories.UpdateAsync(cat);
+            await _unitOfWork.SaveChangesAsync();
+            TempData["Success"] = $"Category '{cat.Name}' is now {(cat.IsActive ? "Active" : "Inactive")}.";
+        }
+        return RedirectToAction(nameof(Index), new { tab = "category" });
+    }
+
+    // ================= Supplier Operations =================
+    [HttpPost]
+    public async Task<IActionResult> CreateSupplier(SupplierCreateUpdateDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.Phone))
+        {
+            TempData["Error"] = "Supplier Name and Phone number are required.";
+            return RedirectToAction(nameof(Index), new { tab = "supplier" });
+        }
+
+        try
+        {
+            await _supplierService.CreateSupplierAsync(dto);
+            TempData["Success"] = $"Supplier '{dto.Name}' registered successfully.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+
+        return RedirectToAction(nameof(Index), new { tab = "supplier" });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> UpdateSupplier(int id, SupplierCreateUpdateDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.Phone))
+        {
+            TempData["Error"] = "Supplier Name and Phone number are required.";
+            return RedirectToAction(nameof(Index), new { tab = "supplier" });
+        }
+
+        try
+        {
+            await _supplierService.UpdateSupplierAsync(id, dto);
+            TempData["Success"] = $"Supplier '{dto.Name}' updated successfully.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+
+        return RedirectToAction(nameof(Index), new { tab = "supplier" });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> DeleteSupplier(int id)
+    {
+        try
+        {
+            bool success = await _supplierService.DeleteSupplierAsync(id);
+            if (success) TempData["Success"] = "Supplier removed successfully.";
+            else TempData["Error"] = "Could not remove supplier.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+
+        return RedirectToAction(nameof(Index), new { tab = "supplier" });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> ToggleSupplierStatus(int id)
+    {
+        var supplier = await _unitOfWork.Suppliers.GetByIdAsync(id);
+        if (supplier != null && !supplier.IsDeleted)
+        {
+            supplier.IsActive = !supplier.IsActive;
+            supplier.UpdatedAt = DateTime.UtcNow;
+            await _unitOfWork.Suppliers.UpdateAsync(supplier);
+            await _unitOfWork.SaveChangesAsync();
+            TempData["Success"] = $"Supplier '{supplier.Name}' is now {(supplier.IsActive ? "Active" : "Inactive")}.";
+        }
+        return RedirectToAction(nameof(Index), new { tab = "supplier" });
+    }
+
     // ================= Employee Operations =================
     [HttpPost]
     public async Task<IActionResult> CreateEmployee(EmployeeDto dto)
@@ -259,7 +421,7 @@ public class MastersController : Controller
 
     // ================= Restaurant Settings Operations =================
     [HttpPost]
-    public async Task<IActionResult> UpdateSettings(RestaurantSetting updated)
+    public async Task<IActionResult> UpdateSettings(RestaurantSetting updated, IFormFile? logoFile, bool removeLogo = false)
     {
         var settings = await _unitOfWork.RestaurantSettings.GetAllAsync();
         var setting = settings.FirstOrDefault();
@@ -275,10 +437,18 @@ public class MastersController : Controller
             setting.Phone = updated.Phone;
             setting.Email = updated.Email;
             setting.GSTIN = updated.GSTIN;
+            setting.InvoicePrefix = string.IsNullOrWhiteSpace(updated.InvoicePrefix) ? "INV" : updated.InvoicePrefix;
             setting.CurrencySymbol = updated.CurrencySymbol;
+
+            // GST Configurations (5.6 C)
+            setting.IsGSTEnabled = updated.IsGSTEnabled;
+            setting.IsTaxInclusive = updated.IsTaxInclusive;
             setting.CGSTPercentage = updated.CGSTPercentage;
             setting.SGSTPercentage = updated.SGSTPercentage;
             setting.ServiceChargePercentage = updated.ServiceChargePercentage;
+
+            // Kitchen / KOT Workflow (5.6 E)
+            setting.IsKOTWorkflowEnabled = updated.IsKOTWorkflowEnabled;
             setting.KitchenMode = updated.KitchenMode;
             setting.TrackReadyStatus = updated.TrackReadyStatus;
             setting.AutoMarkServedMinutes = updated.AutoMarkServedMinutes;
@@ -290,12 +460,49 @@ public class MastersController : Controller
             setting.PackagingCharge = updated.PackagingCharge;
             setting.DeliveryCharge = updated.DeliveryCharge;
             if (!string.IsNullOrWhiteSpace(updated.ManagerPIN)) setting.ManagerPIN = updated.ManagerPIN;
+
+            // QR Code Configurations (5.6 D)
+            setting.IsQRCodeEnabled = updated.IsQRCodeEnabled;
+            if (!string.IsNullOrWhiteSpace(updated.QRCodeData)) setting.QRCodeData = updated.QRCodeData;
+
+            // Printing & Integrations
+            setting.ThermalPrinterWidth = updated.ThermalPrinterWidth > 0 ? updated.ThermalPrinterWidth : 80;
+            setting.WhatsAppApiKey = updated.WhatsAppApiKey ?? string.Empty;
+            setting.DefaultLanguage = updated.DefaultLanguage ?? "en";
+
+            // Logo Upload & Removal (5.6 B)
+            if (removeLogo)
+            {
+                setting.LogoUrl = string.Empty;
+            }
+            else if (logoFile != null && logoFile.Length > 0)
+            {
+                try
+                {
+                    var webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                    var uploadsFolder = Path.Combine(webRoot, "images");
+                    if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+                    var ext = Path.GetExtension(logoFile.FileName);
+                    var fileName = $"logo_{DateTime.UtcNow.Ticks}{ext}";
+                    var filePath = Path.Combine(uploadsFolder, fileName);
+                    using (var fs = new FileStream(filePath, FileMode.Create))
+                    {
+                        await logoFile.CopyToAsync(fs);
+                    }
+                    setting.LogoUrl = $"/images/{fileName}";
+                }
+                catch
+                {
+                    // Fallback to existing or provided url
+                }
+            }
+
             setting.UpdatedAt = DateTime.UtcNow;
             await _unitOfWork.RestaurantSettings.UpdateAsync(setting);
         }
 
         await _unitOfWork.SaveChangesAsync();
-        TempData["Success"] = "Restaurant settings & tax configuration saved successfully.";
+        TempData["Success"] = "Application configurations & master settings updated successfully.";
         return RedirectToAction(nameof(Index), new { tab = "settings" });
     }
 
