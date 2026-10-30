@@ -28,6 +28,7 @@ public class BillingController : Controller
     public async Task<IActionResult> Index()
     {
         var bills = await _billingService.GetRecentBillsAsync();
+        ViewBag.Customers = await _customerService.GetAllCustomersAsync();
         return View(bills);
     }
 

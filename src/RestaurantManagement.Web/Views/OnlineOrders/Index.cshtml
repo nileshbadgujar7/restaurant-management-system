@@ -1,0 +1,687 @@
+@model IEnumerable<OrderDto>
+@{
+    bool isMarathi = Context.Request.Cookies["GiranaRMS.Language"] == "mr";
+    ViewData["Title"] = isMarathi ? "ऑनलाइन ऑर्डर्स" : "Online Orders";
+    var categories = ViewBag.Categories as IEnumerable<CategoryDto> ?? Enumerable.Empty<CategoryDto>();
+    var menuItems = ViewBag.MenuItems as IEnumerable<MenuItemDto> ?? Enumerable.Empty<MenuItemDto>();
+    var setting = ViewBag.Setting as RestaurantManagement.Domain.Entities.RestaurantSetting ?? new RestaurantManagement.Domain.Entities.RestaurantSetting();
+
+    string currentPlatform = ViewBag.CurrentPlatform ?? "all";
+    string currentStatus = ViewBag.CurrentStatus ?? "all";
+}
+
+<style>
+    .platform-badge-swiggy {
+        background-color: #ffedd5;
+        color: #c2410c;
+        border: 1px solid #fed7aa;
+    }
+    .platform-badge-zomato {
+        background-color: #fee2e2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+    }
+    .platform-badge-direct {
+        background-color: #e0f2fe;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+    }
+    .online-order-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .online-order-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08) !important;
+    }
+</style>
+
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 animated-fade-in">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-1 fs-6">
+                <li class="breadcrumb-item">
+                    <a href="/Dashboard" class="text-decoration-none fw-semibold text-success">
+                        <i class="fa-solid fa-chart-pie me-1"></i> @(isMarathi ? "डॅशबोर्ड" : "Dashboard")
+                    </a>
+                </li>
+                <li class="breadcrumb-item active fw-bold text-dark" aria-current="page">
+                    <i class="fa-solid fa-globe text-info me-1"></i> @(isMarathi ? "ऑनलाइन ऑर्डर्स" : "Online Orders")
+                </li>
+            </ol>
+        </nav>
+        <h2 class="fw-bold mb-0 text-dark">
+            <i class="fa-solid fa-globe text-info me-2"></i>@(isMarathi ? "ऑनलाइन ऑर्डर्स आणि अ‍ॅग्रीगेटर्स" : "Online Orders & Aggregators")
+        </h2>
+        <div class="text-muted small">
+            @(isMarathi ? "Swiggy, Zomato आणि थेट ऑनलाइन पार्सल/डिलिव्हरी व्यवस्थापन" : "Manage Swiggy, Zomato & Direct Delivery Online Orders")
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="/Orders" class="btn btn-outline-secondary rounded-pill px-3 shadow-sm">
+            <i class="fa-solid fa-receipt me-1"></i> @(isMarathi ? "सर्व ऑर्डर्स" : "All Orders")
+        </a>
+        <button type="button" class="btn btn-success rounded-pill px-4 shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#newOnlineOrderModal">
+            <i class="fa-solid fa-plus me-1"></i> @(isMarathi ? "नवीन ऑनलाइन ऑर्डर" : "New Online Order")
+        </button>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show rounded-4 border-0 shadow-sm mb-4" role="alert">
+        <i class="fa-solid fa-circle-check me-2"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show rounded-4 border-0 shadow-sm mb-4" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i>@TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- KPI Cards Overview -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card rounded-4 border-0 shadow-sm p-3 h-100 bg-white">
+            <div class="d-flex align-items-center gap-2 mb-2 text-muted small fw-semibold">
+                <i class="fa-solid fa-calendar-day text-success fs-5"></i>
+                <span>@(isMarathi ? "आजच्या ऑर्डर्स" : "Today's Orders")</span>
+            </div>
+            <div class="fs-3 fw-bold text-dark">@ViewBag.TotalOrdersToday</div>
+            <div class="small text-muted">@(isMarathi ? "आज आलेले" : "Total received")</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card rounded-4 border-0 shadow-sm p-3 h-100 bg-white">
+            <div class="d-flex align-items-center gap-2 mb-2 text-muted small fw-semibold">
+                <i class="fa-solid fa-indian-rupee-sign text-emerald fs-5" style="color: #059669;"></i>
+                <span>@(isMarathi ? "आजची विक्री" : "Today's Sales")</span>
+            </div>
+            <div class="fs-3 fw-bold text-success">₹@(((decimal)ViewBag.TotalRevenueToday).ToString("N0"))</div>
+            <div class="small text-muted">@(isMarathi ? "पूर्ण ऑर्डर्स" : "Delivered / Settled")</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card rounded-4 border-0 shadow-sm p-3 h-100 bg-white">
+            <div class="d-flex align-items-center gap-2 mb-2 text-muted small fw-semibold">
+                <i class="fa-solid fa-bell text-warning fs-5"></i>
+                <span>@(isMarathi ? "नवीन / प्रलंबित" : "New / Pending")</span>
+            </div>
+            <div class="fs-3 fw-bold text-warning-emphasis">@ViewBag.NewCount</div>
+            <div class="small text-muted">@(isMarathi ? "स्वीकृती बाकी" : "Needs action")</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card rounded-4 border-0 shadow-sm p-3 h-100 bg-white">
+            <div class="d-flex align-items-center gap-2 mb-2 text-muted small fw-semibold">
+                <i class="fa-solid fa-kitchen-set text-primary fs-5"></i>
+                <span>@(isMarathi ? "किचनमध्ये तयार" : "In Kitchen")</span>
+            </div>
+            <div class="fs-3 fw-bold text-primary">@ViewBag.PreparingCount</div>
+            <div class="small text-muted">@(isMarathi ? "तयार होत आहे" : "Preparing now")</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card rounded-4 border-0 shadow-sm p-3 h-100 bg-white">
+            <div class="d-flex align-items-center gap-2 mb-2 text-muted small fw-semibold">
+                <i class="fa-solid fa-check-double text-success fs-5"></i>
+                <span>@(isMarathi ? "पॅक तयार" : "Food Ready")</span>
+            </div>
+            <div class="fs-3 fw-bold text-success">@ViewBag.ReadyCount</div>
+            <div class="small text-muted">@(isMarathi ? "रायडर वाट पाहत आहे" : "Ready for pickup")</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card rounded-4 border-0 shadow-sm p-3 h-100 bg-white">
+            <div class="d-flex align-items-center gap-2 mb-2 text-muted small fw-semibold">
+                <i class="fa-solid fa-circle-check text-secondary fs-5"></i>
+                <span>@(isMarathi ? "पूर्ण / वितरीत" : "Delivered Orders")</span>
+            </div>
+            <div class="fs-3 fw-bold text-secondary">@ViewBag.CompletedCount</div>
+            <div class="small text-muted">@(isMarathi ? "डिलिव्हरी पूर्ण" : "Completed today")</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Controls Bar -->
+<div class="card rounded-4 border-0 shadow-sm p-3 mb-4 bg-white">
+    <div class="row g-3 align-items-center">
+        <!-- Platform Filter Pills -->
+        <div class="col-lg-6">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="small fw-bold text-secondary me-1">@(isMarathi ? "प्लॅटफॉर्म:" : "Platform:")</span>
+                <a href="/OnlineOrders?platform=all&status=@currentStatus" class="btn btn-sm rounded-pill px-3 fw-semibold @(currentPlatform == "all" ? "btn-dark" : "btn-outline-secondary")">
+                    @(isMarathi ? "सर्व प्लॅटफॉर्म" : "All Platforms")
+                </a>
+                <a href="/OnlineOrders?platform=Swiggy&status=@currentStatus" class="btn btn-sm rounded-pill px-3 fw-semibold @(currentPlatform == "Swiggy" ? "btn-warning text-dark" : "btn-outline-warning text-dark")">
+                    <i class="fa-solid fa-utensils me-1"></i> Swiggy
+                </a>
+                <a href="/OnlineOrders?platform=Zomato&status=@currentStatus" class="btn btn-sm rounded-pill px-3 fw-semibold @(currentPlatform == "Zomato" ? "btn-danger" : "btn-outline-danger")">
+                    <i class="fa-solid fa-bowl-food me-1"></i> Zomato
+                </a>
+                <a href="/OnlineOrders?platform=Direct&status=@currentStatus" class="btn btn-sm rounded-pill px-3 fw-semibold @(currentPlatform == "Direct" ? "btn-info text-white" : "btn-outline-info")">
+                    <i class="fa-solid fa-globe me-1"></i> Direct Web
+                </a>
+            </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="col-lg-6">
+            <div class="input-group">
+                <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                <input type="text" id="orderSearchBox" class="form-control bg-light border-start-0" placeholder="@(isMarathi ? "ऑर्डर क्रमांक, ग्राहकाचे नाव, फोन किंवा संदर्भ शोधा..." : "Search order #, customer name, mobile or platform ID...")" oninput="filterOrders(this.value)" />
+                <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('orderSearchBox').value=''; filterOrders('');"><i class="fa-solid fa-times"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Tabs -->
+    <div class="d-flex flex-wrap gap-2 mt-3 pt-3 border-top">
+        <span class="small fw-bold text-secondary me-1 align-self-center">@(isMarathi ? "स्थिती:" : "Status:")</span>
+        <a href="/OnlineOrders?platform=@currentPlatform&status=all" class="badge rounded-pill px-3 py-2 text-decoration-none @(currentStatus == "all" ? "bg-dark text-white" : "bg-light text-dark border")">
+            @(isMarathi ? "सर्व स्थिती" : "All Status")
+        </a>
+        <a href="/OnlineOrders?platform=@currentPlatform&status=Pending" class="badge rounded-pill px-3 py-2 text-decoration-none @(currentStatus == "Pending" ? "bg-warning text-dark" : "bg-light text-dark border")">
+            @(isMarathi ? "नवीन / प्रलंबित" : "New / Pending") (@ViewBag.NewCount)
+        </a>
+        <a href="/OnlineOrders?platform=@currentPlatform&status=Preparing" class="badge rounded-pill px-3 py-2 text-decoration-none @(currentStatus == "Preparing" ? "bg-primary text-white" : "bg-light text-dark border")">
+            @(isMarathi ? "किचनमध्ये" : "Preparing") (@ViewBag.PreparingCount)
+        </a>
+        <a href="/OnlineOrders?platform=@currentPlatform&status=Ready" class="badge rounded-pill px-3 py-2 text-decoration-none @(currentStatus == "Ready" ? "bg-success text-white" : "bg-light text-dark border")">
+            @(isMarathi ? "अन्न तयार" : "Food Ready") (@ViewBag.ReadyCount)
+        </a>
+        <a href="/OnlineOrders?platform=@currentPlatform&status=Completed" class="badge rounded-pill px-3 py-2 text-decoration-none @(currentStatus == "Completed" ? "bg-secondary text-white" : "bg-light text-dark border")">
+            @(isMarathi ? "पूर्ण / वितरीत" : "Delivered / Completed") (@ViewBag.CompletedCount)
+        </a>
+    </div>
+</div>
+
+<!-- Orders Grid -->
+<div class="row g-3" id="ordersGrid">
+    @if (!Model.Any())
+    {
+        <div class="col-12 text-center py-5">
+            <div class="card rounded-4 border-0 shadow-sm p-5 bg-white">
+                <i class="fa-solid fa-boxes-packing text-muted fs-1 mb-3"></i>
+                <h4 class="fw-bold text-dark">@(isMarathi ? "कोणतीही ऑनलाइन ऑर्डर आढळली नाही" : "No Online Orders Found")</h4>
+                <p class="text-muted small">@(isMarathi ? "नवीन ऑनलाइन ऑर्डर तयार करण्यासाठी वर दिलेल्या बटणावर क्लिक करा." : "Click on '+ New Online Order' above to punch incoming aggregator orders.")</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        @foreach (var order in Model)
+        {
+            string platformClass = "platform-badge-direct";
+            string platformIcon = "fa-solid fa-globe";
+            string pName = string.IsNullOrWhiteSpace(order.OnlinePlatform) ? "Direct Online" : order.OnlinePlatform;
+            if (pName.Contains("Swiggy", StringComparison.OrdinalIgnoreCase))
+            {
+                platformClass = "platform-badge-swiggy";
+                platformIcon = "fa-solid fa-utensils";
+            }
+            else if (pName.Contains("Zomato", StringComparison.OrdinalIgnoreCase))
+            {
+                platformClass = "platform-badge-zomato";
+                platformIcon = "fa-solid fa-bowl-food";
+            }
+
+            string statusBadgeClass = order.Status switch
+            {
+                OrderStatus.Pending => "bg-warning-subtle text-warning-emphasis border border-warning-subtle",
+                OrderStatus.Confirmed => "bg-info-subtle text-info border border-info-subtle",
+                OrderStatus.Preparing => "bg-primary-subtle text-primary border border-primary-subtle",
+                OrderStatus.Ready => "bg-success-subtle text-success border border-success-subtle",
+                OrderStatus.Completed => "bg-secondary-subtle text-secondary border border-secondary-subtle",
+                OrderStatus.Cancelled => "bg-danger-subtle text-danger border border-danger-subtle",
+                _ => "bg-light text-dark border"
+            };
+
+            string searchMeta = $"{order.OrderNumber.ToLower()} {order.OnlineOrderReference.ToLower()} {order.CustomerName.ToLower()} {order.CustomerPhone.ToLower()} {pName.ToLower()} {order.DeliveryPartnerName.ToLower()}";
+
+            <div class="col-12 col-lg-6 col-xl-4 order-card-item" data-search="@searchMeta">
+                <div class="card h-100 rounded-4 border-0 shadow-sm bg-white online-order-card">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <!-- Top Header: Platform, Reference & Status -->
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <span class="badge rounded-pill px-3 py-1 fw-bold @platformClass">
+                                    <i class="@platformIcon me-1"></i> @pName
+                                </span>
+                                <div class="fw-bold text-dark fs-5 mt-1">#@order.OrderNumber</div>
+                                @if (!string.IsNullOrEmpty(order.OnlineOrderReference))
+                                {
+                                    <div class="small text-muted font-monospace"><i class="fa-solid fa-hashtag me-1"></i>Ref: @order.OnlineOrderReference</div>
+                                }
+                            </div>
+                            <div class="text-end">
+                                <span class="badge rounded-pill px-3 py-1 fw-bold @statusBadgeClass">
+                                    @order.Status.ToString()
+                                </span>
+                                <div class="small text-muted mt-1">
+                                    <i class="fa-regular fa-clock me-1"></i>@order.CreatedAt.ToString("hh:mm tt")
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Customer Details -->
+                        <div class="p-3 rounded-3 bg-light border mb-3">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div class="fw-bold text-dark"><i class="fa-solid fa-user me-2 text-secondary"></i>@(string.IsNullOrWhiteSpace(order.CustomerName) ? "Guest Customer" : order.CustomerName)</div>
+                                @if (!string.IsNullOrEmpty(order.CustomerPhone))
+                                {
+                                    <a href="tel:@order.CustomerPhone" class="btn btn-sm btn-outline-success rounded-pill px-2 py-0" title="Call Customer">
+                                        <i class="fa-solid fa-phone me-1"></i>@order.CustomerPhone
+                                    </a>
+                                }
+                            </div>
+                            @if (!string.IsNullOrEmpty(order.DeliveryAddress))
+                            {
+                                <div class="small text-muted mt-2">
+                                    <i class="fa-solid fa-location-dot me-1 text-danger"></i>@order.DeliveryAddress
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Ordered Items List -->
+                        <div class="mb-3 flex-grow-1">
+                            <div class="small fw-bold text-secondary mb-2 text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.5px;">
+                                @(isMarathi ? "मागवलेले पदार्थ" : "Ordered Items") (@order.Items.Sum(i => i.Quantity))
+                            </div>
+                            <div class="list-group list-group-flush border-top border-bottom py-1" style="max-height: 140px; overflow-y: auto;">
+                                @foreach (var item in order.Items)
+                                {
+                                    <div class="list-group-item px-0 py-1 border-0 d-flex justify-content-between align-items-center small">
+                                        <div>
+                                            <span class="badge bg-secondary-subtle text-dark rounded-pill me-1">@item.Quantity x</span>
+                                            <span class="fw-semibold text-dark">@item.ItemName</span>
+                                            @if (!string.IsNullOrEmpty(item.SpecialInstructions))
+                                            {
+                                                <div class="text-muted fst-italic" style="font-size: 0.75rem;">Note: @item.SpecialInstructions</div>
+                                            }
+                                        </div>
+                                        <div class="fw-bold text-dark">₹@item.TotalPrice.ToString("N0")</div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Delivery Partner / Rider Assignment -->
+                        <div class="d-flex justify-content-between align-items-center p-2 rounded-3 bg-light border mb-3 small">
+                            <div>
+                                <span class="text-muted d-block" style="font-size: 0.72rem;">@(isMarathi ? "डिलिव्हरी रायडर:" : "Delivery Rider:")</span>
+                                <strong class="text-dark">
+                                    <i class="fa-solid fa-motorcycle text-info me-1"></i>
+                                    @(string.IsNullOrWhiteSpace(order.DeliveryPartnerName) ? (isMarathi ? "नियुक्त केलेला नाही" : "Not Assigned") : order.DeliveryPartnerName)
+                                </strong>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-2 py-0" onclick="openAssignRiderModal(@order.Id, '@order.OrderNumber', '@order.DeliveryPartnerName')">
+                                <i class="fa-solid fa-user-plus me-1"></i> @(string.IsNullOrWhiteSpace(order.DeliveryPartnerName) ? (isMarathi ? "रायडर द्या" : "Assign") : (isMarathi ? "बदला" : "Edit"))
+                            </button>
+                        </div>
+
+                        <!-- Financial Summary -->
+                        <div class="d-flex justify-content-between align-items-center mb-3 pt-2 border-top">
+                            <div>
+                                <span class="text-muted small">Packaging/Delivery:</span>
+                                <span class="fw-semibold text-dark small">₹@((order.PackagingCharge + order.DeliveryCharge).ToString("N0"))</span>
+                            </div>
+                            <div class="text-end">
+                                <span class="text-muted small">Total: </span>
+                                <span class="fs-4 fw-bold text-success">₹@order.GrandTotal.ToString("N0")</span>
+                            </div>
+                        </div>
+
+                        <!-- Order Workflow Action Buttons -->
+                        <div class="d-flex flex-wrap gap-2 pt-2 border-top">
+                            @if (order.Status == OrderStatus.Pending || order.Status == OrderStatus.Confirmed)
+                            {
+                                <form asp-action="UpdateStatus" method="post" class="flex-grow-1">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@order.Id" />
+                                    <input type="hidden" name="status" value="@OrderStatus.Preparing" />
+                                    <button type="submit" class="btn btn-sm btn-primary w-100 rounded-pill fw-bold">
+                                        <i class="fa-solid fa-fire-burner me-1"></i> @(isMarathi ? "स्वीकारा आणि बनवा" : "Accept & Prepare")
+                                    </button>
+                                </form>
+                            }
+                            else if (order.Status == OrderStatus.Preparing)
+                            {
+                                <form asp-action="UpdateStatus" method="post" class="flex-grow-1">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@order.Id" />
+                                    <input type="hidden" name="status" value="@OrderStatus.Ready" />
+                                    <button type="submit" class="btn btn-sm btn-success w-100 rounded-pill fw-bold">
+                                        <i class="fa-solid fa-check me-1"></i> @(isMarathi ? "अन्न तयार (Food Ready)" : "Mark Food Ready")
+                                    </button>
+                                </form>
+                            }
+                            else if (order.Status == OrderStatus.Ready)
+                            {
+                                <form asp-action="UpdateStatus" method="post" class="flex-grow-1">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@order.Id" />
+                                    <input type="hidden" name="status" value="@OrderStatus.Completed" />
+                                    <button type="submit" class="btn btn-sm btn-dark w-100 rounded-pill fw-bold">
+                                        <i class="fa-solid fa-circle-check text-success me-1"></i> @(isMarathi ? "रायडरकडे दिले / वितरीत" : "Handover & Deliver")
+                                    </button>
+                                </form>
+                            }
+
+                            <!-- Cancel Order Option -->
+                            @if (order.Status != OrderStatus.Completed && order.Status != OrderStatus.Cancelled)
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="openCancelModal(@order.Id, '@order.OrderNumber')">
+                                    <i class="fa-solid fa-ban"></i>
+                                </button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+<!-- Modal: New Online Order -->
+<div class="modal fade" id="newOnlineOrderModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <form asp-action="Create" method="post" class="modal-content rounded-4 border-0 shadow-lg text-dark">
+            @Html.AntiForgeryToken()
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="fa-solid fa-globe text-info me-2"></i>@(isMarathi ? "नवीन ऑनलाइन ऑर्डर नोंदवा" : "Punch New Online Order")
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label text-dark fw-bold small">Online Platform</label>
+                        <select name="onlinePlatform" class="form-select fw-semibold" id="platformSelect" onchange="onPlatformSelect(this.value)" required>
+                            <option value="Swiggy">Swiggy</option>
+                            <option value="Zomato">Zomato</option>
+                            <option value="Direct Online">Direct Online / Web</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-dark fw-bold small">Aggregator Order / Ref #</label>
+                        <input type="text" name="onlineOrderReference" class="form-control" placeholder="e.g. SWIGGY-89472" value="ONL-@DateTime.UtcNow.ToString("MMddHHmm")" required />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-dark fw-bold small">Packaging Charge (₹)</label>
+                        <input type="number" step="1" name="packagingCharge" class="form-control" value="@setting.PackagingCharge" id="modalPackagingInput" oninput="calculateModalTotal()" />
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label text-dark fw-bold small">Customer Name</label>
+                        <input type="text" name="customerName" class="form-control" placeholder="e.g. Rahul Sharma" required />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-dark fw-bold small">Customer Mobile</label>
+                        <input type="tel" name="customerPhone" class="form-control" placeholder="10-digit number" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-dark fw-bold small">Delivery Rider (Optional)</label>
+                        <input type="text" name="deliveryPartnerName" class="form-control" placeholder="Rider name & phone" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label text-dark fw-bold small">Delivery Address</label>
+                        <textarea name="deliveryAddress" class="form-control" rows="2" placeholder="Customer flat/house no, street, landmark..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Item Selector Section -->
+                <div class="border rounded-4 p-3 bg-light mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label text-dark fw-bold small mb-0">Select Food Items</label>
+                        <input type="text" id="itemSearchBox" class="form-control form-control-sm w-50" placeholder="Filter dishes..." oninput="filterMenuItems(this.value)" />
+                    </div>
+
+                    <div class="row g-2 overflow-auto" id="menuItemsPickList" style="max-height: 220px;">
+                        @foreach (var mi in menuItems.Where(m => m.IsAvailable))
+                        {
+                            <div class="col-md-6 menu-pick-card" data-name="@mi.Name.ToLower()">
+                                <div class="p-2 border rounded-3 bg-white d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <div class="fw-bold text-dark small">@mi.Name</div>
+                                        <div class="text-success small fw-semibold">₹@mi.Price.ToString("N0")</div>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3" onclick="addOrderItemRow(@mi.Id, '@mi.Name.Replace("'", "\\'")', @mi.Price)">
+                                        <i class="fa-solid fa-plus me-1"></i> Add
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Selected Items Table -->
+                <div class="mb-3">
+                    <label class="form-label text-dark fw-bold small">Order Items Summary</label>
+                    <div class="table-responsive border rounded-3 bg-white">
+                        <table class="table table-sm align-middle mb-0" id="orderItemsTable">
+                            <thead class="bg-light small">
+                                <tr>
+                                    <th>Item</th>
+                                    <th style="width: 110px;" class="text-center">Qty</th>
+                                    <th class="text-end" style="width: 90px;">Rate</th>
+                                    <th class="text-end" style="width: 90px;">Amt</th>
+                                    <th style="width: 40px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="selectedItemsTableBody">
+                                <tr id="emptyItemsRow">
+                                    <td colspan="5" class="text-center text-muted py-3 small">
+                                        No items added yet. Click "+ Add" on dishes above.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Total Row -->
+                <div class="d-flex justify-content-between align-items-center p-3 rounded-3 bg-success-subtle border border-success-subtle">
+                    <span class="fw-bold text-success-emphasis">Total Payable Online:</span>
+                    <strong class="fs-4 text-success" id="modalGrandTotalDisplay">₹0</strong>
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" id="submitOrderBtn" class="btn btn-success rounded-pill px-4 fw-bold" disabled>
+                    <i class="fa-solid fa-circle-check me-1"></i> Punch Online Order
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Assign Rider -->
+<div class="modal fade" id="assignRiderModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <form asp-action="AssignRider" method="post" class="modal-content rounded-4 border-0 shadow-lg text-dark">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" id="assignRiderOrderId" value="" />
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="fa-solid fa-motorcycle text-info me-2"></i>Assign Delivery Rider - <span id="assignRiderOrderNum"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label text-dark fw-bold small">Rider / Delivery Partner Name</label>
+                    <input type="text" name="riderName" id="assignRiderNameInput" class="form-control" placeholder="e.g. Ramesh Kumar" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-dark fw-bold small">Rider Contact Number</label>
+                    <input type="tel" name="riderPhone" id="assignRiderPhoneInput" class="form-control" placeholder="e.g. 9876543210" />
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold">
+                    <i class="fa-solid fa-check me-1"></i> Confirm Rider
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Cancel Order -->
+<div class="modal fade" id="cancelOrderModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <form asp-action="Cancel" method="post" class="modal-content rounded-4 border-0 shadow-lg text-dark">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" id="cancelOrderId" value="" />
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold text-danger">
+                    <i class="fa-solid fa-ban me-2"></i>Cancel Online Order - <span id="cancelOrderNum"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-dark small">Are you sure you want to cancel this online order? This will release items and record cancellation.</p>
+                <div class="mb-3">
+                    <label class="form-label text-dark fw-bold small">Cancellation Reason</label>
+                    <input type="text" name="reason" class="form-control" placeholder="e.g. Cancelled by customer on Swiggy / Out of stock" required />
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Keep Order</button>
+                <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold">
+                    <i class="fa-solid fa-ban me-1"></i> Cancel Order
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    let addedItems = {};
+
+    function filterOrders(query) {
+        const q = (query || '').toLowerCase().trim();
+        $('.order-card-item').each(function() {
+            const meta = $(this).data('search') || '';
+            $(this).toggle(!q || meta.includes(q));
+        });
+    }
+
+    function filterMenuItems(query) {
+        const q = (query || '').toLowerCase().trim();
+        $('.menu-pick-card').each(function() {
+            const name = $(this).data('name') || '';
+            $(this).toggle(!q || name.includes(q));
+        });
+    }
+
+    function addOrderItemRow(id, name, price) {
+        if (addedItems[id]) {
+            addedItems[id].qty += 1;
+        } else {
+            addedItems[id] = { id: id, name: name, price: price, qty: 1, note: '' };
+        }
+        renderSelectedItems();
+    }
+
+    function updateItemQty(id, delta) {
+        if (!addedItems[id]) return;
+        addedItems[id].qty += delta;
+        if (addedItems[id].qty <= 0) {
+            delete addedItems[id];
+        }
+        renderSelectedItems();
+    }
+
+    function removeItemRow(id) {
+        delete addedItems[id];
+        renderSelectedItems();
+    }
+
+    function renderSelectedItems() {
+        const tbody = $('#selectedItemsTableBody');
+        const keys = Object.keys(addedItems);
+
+        if (keys.length === 0) {
+            tbody.html(`
+                <tr id="emptyItemsRow">
+                    <td colspan="5" class="text-center text-muted py-3 small">
+                        No items added yet. Click "+ Add" on dishes above.
+                    </td>
+                </tr>
+            `);
+            $('#submitOrderBtn').prop('disabled', true);
+            calculateModalTotal();
+            return;
+        }
+
+        let html = '';
+        keys.forEach(k => {
+            const item = addedItems[k];
+            const itemTotal = item.qty * item.price;
+            html += `
+                <tr>
+                    <td>
+                        <input type="hidden" name="itemIds" value="${item.id}" />
+                        <span class="fw-bold text-dark small">${item.name}</span>
+                    </td>
+                    <td class="text-center">
+                        <div class="input-group input-group-sm justify-content-center">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="updateItemQty(${item.id}, -1)">-</button>
+                            <input type="number" name="quantities" value="${item.qty}" class="form-control form-control-sm text-center px-1" style="max-width: 45px;" readonly />
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="updateItemQty(${item.id}, 1)">+</button>
+                        </div>
+                    </td>
+                    <td class="text-end text-muted small">₹${item.price.toFixed(0)}</td>
+                    <td class="text-end fw-bold text-dark small">₹${itemTotal.toFixed(0)}</td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removeItemRow(${item.id})"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tbody.html(html);
+        $('#submitOrderBtn').prop('disabled', false);
+        calculateModalTotal();
+    }
+
+    function calculateModalTotal() {
+        let itemsTotal = 0;
+        Object.values(addedItems).forEach(item => {
+            itemsTotal += item.qty * item.price;
+        });
+
+        const packaging = parseFloat($('#modalPackagingInput').val()) || 0;
+        const grandTotal = itemsTotal + packaging;
+        $('#modalGrandTotalDisplay').text('₹' + grandTotal.toLocaleString('en-IN'));
+    }
+
+    function onPlatformSelect(platform) {
+        if (platform === 'Direct Online') {
+            $('#modalPackagingInput').val(0);
+        }
+        calculateModalTotal();
+    }
+
+    function openAssignRiderModal(orderId, orderNum, currentRider) {
+        $('#assignRiderOrderId').val(orderId);
+        $('#assignRiderOrderNum').text('#' + orderNum);
+        $('#assignRiderNameInput').val(currentRider || '');
+        new bootstrap.Modal(document.getElementById('assignRiderModal')).show();
+    }
+
+    function openCancelModal(orderId, orderNum) {
+        $('#cancelOrderId').val(orderId);
+        $('#cancelOrderNum').text('#' + orderNum);
+        new bootstrap.Modal(document.getElementById('cancelOrderModal')).show();
+    }
+</script>
+}

@@ -148,6 +148,7 @@
                     <tr>
                         <th>Ingredient Item</th>
                         <th>Category</th>
+                        <th>Supplier / Vendor</th>
                         <th>Current Stock</th>
                         <th>Min Reorder Level</th>
                         <th>Est. Cost Rate</th>
@@ -169,6 +170,16 @@
                                 <span class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle rounded-pill px-3 py-1">
                                     @item.Category
                                 </span>
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(item.SupplierName))
+                                {
+                                    <span class="badge bg-light text-dark border"><i class="fa-solid fa-truck text-muted me-1"></i>@item.SupplierName</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">-</span>
+                                }
                             </td>
                             <td class="fw-bold fs-6 @(item.IsLowStock ? "text-danger" : "text-success")">
                                 @item.CurrentStock @item.Unit
@@ -294,7 +305,13 @@
                 <div class="row g-2 mb-3">
                     <div class="col-6">
                         <label class="form-label fw-bold small">Supplier / Vendor</label>
-                        <input type="text" name="supplier" class="form-control" placeholder="e.g. Metro Cash & Carry" />
+                        <select name="supplier" class="form-select" id="stockInSupplierSelect">
+                            <option value="">-- Select Supplier --</option>
+                            @foreach (var s in Model.Suppliers)
+                            {
+                                <option value="@s.Name">@s.Name (@s.ContactPerson - @s.Phone)</option>
+                            }
+                        </select>
                     </div>
                     <div class="col-6">
                         <label class="form-label fw-bold small">Invoice # / Challan</label>
@@ -409,6 +426,16 @@
                         <label class="form-label fw-bold small">Minimum Alert Level</label>
                         <input type="number" step="0.01" min="0" name="MinimumStock" class="form-control" value="10" required />
                     </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Preferred Supplier / Vendor</label>
+                    <select name="SupplierId" class="form-select">
+                        <option value="">-- Select Supplier (Optional) --</option>
+                        @foreach (var s in Model.Suppliers)
+                        {
+                            <option value="@s.Id">@s.Name (@s.ContactPerson - @s.Phone)</option>
+                        }
+                    </select>
                 </div>
                 <div class="mb-2">
                     <label class="form-label fw-bold small">Unit Purchase Cost (₹)</label>

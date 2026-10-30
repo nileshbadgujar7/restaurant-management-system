@@ -39,6 +39,9 @@ public class OrderDto
     public string OrderNote { get; set; } = string.Empty;
     public string TokenNumber { get; set; } = string.Empty;
     public string DeliveryAddress { get; set; } = string.Empty;
+    public string OnlinePlatform { get; set; } = string.Empty;
+    public string OnlineOrderReference { get; set; } = string.Empty;
+    public string DeliveryPartnerName { get; set; } = string.Empty;
     public string CustomerGSTIN { get; set; } = string.Empty;
     public int Version { get; set; } = 1;
     public bool IsDraft { get; set; } = false;
@@ -110,6 +113,9 @@ public class CreateOrderDto
     public int Covers { get; set; } = 1;
     public string OrderNote { get; set; } = string.Empty;
     public string DeliveryAddress { get; set; } = string.Empty;
+    public string OnlinePlatform { get; set; } = string.Empty;
+    public string OnlineOrderReference { get; set; } = string.Empty;
+    public string DeliveryPartnerName { get; set; } = string.Empty;
     public string CustomerGSTIN { get; set; } = string.Empty;
     public decimal PackagingCharge { get; set; } = 0m;
     public List<CreateOrderItemDto> Items { get; set; } = new();

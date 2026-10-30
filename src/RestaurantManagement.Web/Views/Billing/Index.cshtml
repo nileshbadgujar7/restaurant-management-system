@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Billing & Invoices";
     var billsList = Model.OrderByDescending(b => b.BillDate).ToList();
+    var customers = ViewBag.Customers as IEnumerable<CustomerDto> ?? Enumerable.Empty<CustomerDto>();
     int totalCount = billsList.Count;
     int paidCount = billsList.Count(b => b.IsPaid);
     int pendingCount = billsList.Count(b => !b.IsPaid);
@@ -9,6 +10,48 @@
     decimal totalPaid = billsList.Where(b => b.IsPaid).Sum(b => b.GrandTotal);
     decimal totalPending = billsList.Where(b => !b.IsPaid).Sum(b => b.GrandTotal);
 }
+
+<style>
+    .payment-mode-tile {
+        background-color: #ffffff;
+        border: 1.5px solid #e2e8f0;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        color: #1e293b;
+        position: relative;
+        cursor: pointer;
+        padding: 10px 6px;
+    }
+    .payment-mode-tile:hover {
+        background-color: #f8fafc;
+        border-color: #94a3b8;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    .payment-mode-tile.active {
+        background-color: #ecfdf5 !important;
+        border-color: #059669 !important;
+        color: #065f46 !important;
+        box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.25) !important;
+    }
+    .payment-mode-tile .check-indicator {
+        display: none;
+        position: absolute;
+        top: 3px;
+        right: 5px;
+        font-size: 10px;
+        color: #059669;
+    }
+    .payment-mode-tile.active .check-indicator {
+        display: inline-block !important;
+    }
+    .customer-search-item {
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+    .customer-search-item:hover {
+        background-color: #f1f5f9;
+    }
+</style>
 
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 animated-fade-in">
     <div>
@@ -224,12 +267,14 @@
     </div>
 </div>
 
-<!-- Modal: Quick Settle Payment from Billing Index -->
+<!-- Modal: Quick Settle Payment from Billing Index (On-screen Payment Modes & Udhari Customer Search) -->
 <div class="modal fade" id="quickPayModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <form asp-action="CollectPayment" method="post" class="modal-content rounded-4 border-0 shadow-lg text-dark">
+        <form asp-action="CollectPayment" method="post" id="quickSettleForm" class="modal-content rounded-4 border-0 shadow-lg text-dark">
             <input type="hidden" name="BillId" id="quickBillId" value="" />
             <input type="hidden" name="ReturnUrl" value="/Billing" />
+            <input type="hidden" name="PaymentMethod" id="quickPaymentMethodSelect" value="1" />
+            
             <div class="modal-header border-bottom">
                 <h5 class="modal-title fw-bold text-dark">
                     <i class="fa-solid fa-credit-card text-success me-2"></i>Collect Payment - <span id="quickInvoiceNum"></span>
@@ -243,14 +288,158 @@
                     <input type="hidden" name="Amount" id="quickPayAmountInput" value="0" />
                 </div>
 
+                <!-- On-Screen Payment Mode Tiles -->
                 <div class="mb-3">
-                    <label class="form-label text-dark fw-bold small">Payment Method</label>
-                    <select name="PaymentMethod" class="form-select" id="quickPaymentMethodSelect">
-                        <option value="1">Cash</option>
-                        <option value="2">UPI / QR Code</option>
-                        <option value="3">Credit Card</option>
-                        <option value="4">Debit Card</option>
-                    </select>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label text-dark fw-bold small mb-0">Select Payment Method</label>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1 fw-bold" id="quickActivePaymentLabel">
+                            <i class="fa-solid fa-money-bill-wave me-1"></i> Cash
+                        </span>
+                    </div>
+
+                    <div class="row g-2" id="quickPaymentTilesGrid">
+                        <div class="col-4">
+                            <button type="button" class="btn w-100 rounded-3 text-center payment-mode-tile active" data-method="1" onclick="quickSelectPaymentMethod('1', 'Cash', 'fa-money-bill-wave')">
+                                <span class="check-indicator"><i class="fa-solid fa-circle-check"></i></span>
+                                <i class="fa-solid fa-money-bill-wave fs-4 text-success d-block mb-1"></i>
+                                <span class="small fw-bold d-block">Cash</span>
+                            </button>
+                        </div>
+                        <div class="col-4">
+                            <button type="button" class="btn w-100 rounded-3 text-center payment-mode-tile" data-method="2" onclick="quickSelectPaymentMethod('2', 'UPI / QR', 'fa-qrcode')">
+                                <span class="check-indicator"><i class="fa-solid fa-circle-check"></i></span>
+                                <i class="fa-solid fa-qrcode fs-4 text-primary d-block mb-1"></i>
+                                <span class="small fw-bold d-block">UPI / QR</span>
+                            </button>
+                        </div>
+                        <div class="col-4">
+                            <button type="button" class="btn w-100 rounded-3 text-center payment-mode-tile" data-method="3" onclick="quickSelectPaymentMethod('3', 'Credit Card', 'fa-credit-card')">
+                                <span class="check-indicator"><i class="fa-solid fa-circle-check"></i></span>
+                                <i class="fa-regular fa-credit-card fs-4 text-warning-emphasis d-block mb-1"></i>
+                                <span class="small fw-bold d-block">Credit Card</span>
+                            </button>
+                        </div>
+                        <div class="col-4">
+                            <button type="button" class="btn w-100 rounded-3 text-center payment-mode-tile" data-method="4" onclick="quickSelectPaymentMethod('4', 'Debit Card', 'fa-id-card')">
+                                <span class="check-indicator"><i class="fa-solid fa-circle-check"></i></span>
+                                <i class="fa-solid fa-id-card fs-4 text-info d-block mb-1"></i>
+                                <span class="small fw-bold d-block">Debit Card</span>
+                            </button>
+                        </div>
+                        <div class="col-4">
+                            <button type="button" class="btn w-100 rounded-3 text-center payment-mode-tile" data-method="5" onclick="quickSelectPaymentMethod('5', 'Wallet', 'fa-wallet')">
+                                <span class="check-indicator"><i class="fa-solid fa-circle-check"></i></span>
+                                <i class="fa-solid fa-wallet fs-4 text-secondary d-block mb-1"></i>
+                                <span class="small fw-bold d-block">Wallet</span>
+                            </button>
+                        </div>
+                        <div class="col-4">
+                            <button type="button" class="btn w-100 rounded-3 text-center payment-mode-tile" data-method="6" onclick="quickSelectPaymentMethod('6', 'Split Pay', 'fa-arrows-split-up-and-left')">
+                                <span class="check-indicator"><i class="fa-solid fa-circle-check"></i></span>
+                                <i class="fa-solid fa-arrows-split-up-and-left fs-4 d-block mb-1" style="color: #6366f1;"></i>
+                                <span class="small fw-bold d-block">Split Pay</span>
+                            </button>
+                        </div>
+                        <div class="col-12">
+                            <button type="button" class="btn w-100 rounded-3 text-center payment-mode-tile" data-method="7" onclick="quickSelectPaymentMethod('7', 'Customer Credit (Udhari)', 'fa-book-bookmark')" style="border-style: dashed !important;">
+                                <span class="check-indicator"><i class="fa-solid fa-circle-check"></i></span>
+                                <div class="d-flex align-items-center justify-content-center gap-2 py-1">
+                                    <i class="fa-solid fa-book-bookmark fs-5 text-danger"></i>
+                                    <span class="fw-bold text-danger">Customer Credit (Udhari / खातीव)</span>
+                                    <span class="badge bg-danger-subtle text-danger rounded-pill px-2">Ledger</span>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cash Tendered Box -->
+                <div id="quickCashBox" class="p-3 bg-light rounded-3 border mb-3">
+                    <div class="mb-2">
+                        <label class="form-label text-dark fw-bold small">Cash Tendered (₹)</label>
+                        <input type="number" step="1" id="quickCashReceivedInput" class="form-control form-control-lg fw-bold text-success border-success" oninput="quickCalculateChangeReturn()" placeholder="e.g. 500" />
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                        <span class="fw-bold text-dark small">Change to Return:</span>
+                        <span class="fs-5 fw-bold text-primary" id="quickChangeReturnDisplay">₹0.00</span>
+                    </div>
+                </div>
+
+                <!-- Split Payment Box -->
+                <div id="quickSplitBox" class="p-3 bg-light rounded-3 border mb-3" style="display: none;">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label text-dark fw-bold small">Cash (₹)</label>
+                            <input type="number" step="0.01" name="SplitCashAmount" id="quickSplitCashInput" class="form-control form-control-sm fw-bold" oninput="quickOnSplitChange()" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-dark fw-bold small">Online (₹)</label>
+                            <input type="number" step="0.01" name="SplitOnlineAmount" id="quickSplitOnlineInput" class="form-control form-control-sm fw-bold" oninput="quickOnSplitChange()" />
+                        </div>
+                    </div>
+                    <div class="small mt-2" id="quickSplitHelperText">Split sum verification</div>
+                </div>
+
+                <!-- Customer Credit / Udhari Box with Customer Search -->
+                <div id="quickCustomerCreditBox" class="p-3 bg-light rounded-3 border mb-3" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label text-dark fw-bold small mb-0"><i class="fa-solid fa-magnifying-glass text-danger me-1"></i>Search Customer (Udhari Account)</label>
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill">Credit Account</span>
+                    </div>
+
+                    <!-- Hidden CustomerId input sent with form -->
+                    <input type="hidden" name="CustomerId" id="quickCreditCustomerIdInput" value="" />
+
+                    <!-- Selected Customer Preview Card -->
+                    <div id="quickSelectedCustomerCard" class="p-3 mb-2 bg-white border border-success rounded-3 shadow-sm" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-success-subtle text-success rounded-circle p-2 fs-6"><i class="fa-solid fa-user-check"></i></span>
+                                <div>
+                                    <div class="fw-bold text-dark small" id="quickSelectedCustomerName">Customer Name</div>
+                                    <div class="text-muted" style="font-size: 0.78rem;" id="quickSelectedCustomerPhone">+91 00000 00000</div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-0" onclick="quickClearSelectedCustomer()" title="Change customer">
+                                <i class="fa-solid fa-xmark me-1"></i> Change
+                            </button>
+                        </div>
+                        <div class="row g-2 mt-2 pt-2 border-top small">
+                            <div class="col-6">
+                                <span class="text-muted d-block" style="font-size: 0.75rem;">Current Due:</span>
+                                <strong class="text-danger" id="quickSelectedCustomerPrevBalance">₹0</strong>
+                            </div>
+                            <div class="col-6 text-end">
+                                <span class="text-muted d-block" style="font-size: 0.75rem;">Total After Bill:</span>
+                                <strong class="text-primary" id="quickSelectedCustomerNewBalance">₹0</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Customer Search Container -->
+                    <div id="quickCustomerSearchContainer">
+                        <div class="input-group mb-2">
+                            <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                            <input type="text" id="quickCustomerSearchBox" class="form-control border-start-0" placeholder="Type customer name or mobile..." oninput="quickOnCustomerSearchInput(this.value)" autocomplete="off" />
+                            <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('quickCustomerSearchBox').value=''; quickOnCustomerSearchInput('');"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+
+                        <!-- Dropdown list of matching customers -->
+                        <div id="quickCustomerSearchResults" class="bg-white border rounded-3 mb-2 shadow-sm overflow-auto" style="max-height: 160px;">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+
+                    <div class="form-check form-switch my-2">
+                        <input class="form-check-input" type="checkbox" id="quickToggleNewCust" onchange="quickToggleNewCustomerInput(this.checked)">
+                        <label class="form-check-label small fw-semibold text-secondary" for="quickToggleNewCust">+ Register New Customer for Udhari</label>
+                    </div>
+
+                    <div id="quickNewCustomerFields" class="p-2 border rounded-3 bg-white" style="display: none;">
+                        <div class="small text-muted mb-2">Enter new customer details to register & debit ledger:</div>
+                        <input type="text" name="NewCustomerName" id="quickNewCustNameInput" class="form-control form-control-sm mb-2" placeholder="Customer Full Name (Required)" />
+                        <input type="tel" name="NewCustomerPhone" id="quickNewCustPhoneInput" class="form-control form-control-sm" placeholder="10-digit Mobile Number" />
+                    </div>
                 </div>
 
                 <div class="mb-3">
@@ -260,7 +449,7 @@
             </div>
             <div class="modal-footer border-top">
                 <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold">
+                <button type="submit" id="quickConfirmSettleBtn" class="btn btn-success rounded-pill px-4 fw-bold">
                     <i class="fa-solid fa-circle-check me-1"></i> Confirm & Settle Table
                 </button>
             </div>
@@ -271,6 +460,14 @@
 @section Scripts {
 <script>
     let currentBillFilter = 'all';
+    let currentPayAmount = 0;
+
+    const quickCustomers = [
+        @foreach (var c in customers)
+        {
+            @:{ id: @c.Id, name: "@Html.Raw(c.Name.Replace("\"", "\\\""))", phone: "@(c.Phone ?? "")", balance: @c.OutstandingCredit },
+        }
+    ];
 
     function filterBills(status, btn) {
         currentBillFilter = status;
@@ -294,11 +491,208 @@
     }
 
     function openQuickPayModal(billId, invoiceNo, amount) {
+        currentPayAmount = Number(amount);
         $('#quickBillId').val(billId);
         $('#quickInvoiceNum').text(invoiceNo);
-        $('#quickPayAmountDisplay').text('₹' + Number(amount).toLocaleString('en-IN'));
-        $('#quickPayAmountInput').val(amount);
+        $('#quickPayAmountDisplay').text('₹' + currentPayAmount.toLocaleString('en-IN'));
+        $('#quickPayAmountInput').val(currentPayAmount);
+        
+        // Reset to Cash by default
+        quickSelectPaymentMethod('1', 'Cash', 'fa-money-bill-wave');
+        $('#quickCashReceivedInput').val(currentPayAmount);
+        quickCalculateChangeReturn();
+
+        // Preset split values
+        const half = Math.round(currentPayAmount / 2);
+        $('#quickSplitCashInput').val(half);
+        $('#quickSplitOnlineInput').val(currentPayAmount - half);
+
+        // Reset Udhari customer selection
+        quickClearSelectedCustomer();
+
         new bootstrap.Modal(document.getElementById('quickPayModal')).show();
     }
+
+    function quickSelectPaymentMethod(method, name, iconClass) {
+        $('#quickPaymentMethodSelect').val(method);
+
+        // Update active tile
+        $('#quickPaymentTilesGrid .payment-mode-tile').removeClass('active');
+        $(`#quickPaymentTilesGrid .payment-mode-tile[data-method="${method}"]`).addClass('active');
+
+        // Update badge
+        $('#quickActivePaymentLabel').html(`<i class="fa-solid ${iconClass} me-1"></i> ${name}`);
+
+        // Toggle sub-boxes
+        $('#quickCashBox').toggle(method === '1');
+        $('#quickSplitBox').toggle(method === '6');
+        $('#quickCustomerCreditBox').toggle(method === '7');
+
+        if (method === '1') {
+            quickCalculateChangeReturn();
+        } else if (method === '6') {
+            quickOnSplitChange();
+        } else if (method === '7') {
+            quickValidateCreditCustomerSelection();
+            if (!$('#quickCreditCustomerIdInput').val() && !$('#quickToggleNewCust').is(':checked')) {
+                quickRenderCustomerSearchResults('');
+            }
+        } else {
+            $('#quickConfirmSettleBtn').prop('disabled', false);
+        }
+    }
+
+    function quickCalculateChangeReturn() {
+        const received = parseFloat($('#quickCashReceivedInput').val()) || 0;
+        const change = received - currentPayAmount;
+        const changeDisplay = $('#quickChangeReturnDisplay');
+        const settleBtn = $('#quickConfirmSettleBtn');
+
+        if (change >= 0) {
+            changeDisplay.text('₹' + change.toFixed(2)).removeClass('text-danger').addClass('text-success');
+            settleBtn.prop('disabled', false);
+        } else {
+            changeDisplay.text('Short ₹' + Math.abs(change).toFixed(2)).removeClass('text-success').addClass('text-danger');
+            settleBtn.prop('disabled', true);
+        }
+    }
+
+    function quickOnSplitChange() {
+        const cash = parseFloat($('#quickSplitCashInput').val()) || 0;
+        const online = parseFloat($('#quickSplitOnlineInput').val()) || 0;
+        const sum = cash + online;
+        const helper = $('#quickSplitHelperText');
+        const settleBtn = $('#quickConfirmSettleBtn');
+
+        if (Math.abs(sum - currentPayAmount) < 0.05) {
+            helper.text(`Valid Split: ₹${cash.toFixed(2)} Cash + ₹${online.toFixed(2)} Online`).removeClass('text-danger').addClass('text-success fw-bold');
+            settleBtn.prop('disabled', false);
+        } else {
+            const diff = currentPayAmount - sum;
+            helper.text(`Mismatch: ₹${sum.toFixed(2)} / ₹${currentPayAmount.toFixed(2)} (Diff: ₹${diff.toFixed(2)})`).removeClass('text-success').addClass('text-danger fw-bold');
+            settleBtn.prop('disabled', true);
+        }
+    }
+
+    function quickOnCustomerSearchInput(query) {
+        quickRenderCustomerSearchResults(query);
+    }
+
+    function quickRenderCustomerSearchResults(query) {
+        const container = $('#quickCustomerSearchResults');
+        const q = (query || '').toLowerCase().trim();
+        const matches = quickCustomers.filter(c => {
+            if (!q) return true;
+            return c.name.toLowerCase().includes(q) || (c.phone && c.phone.includes(q));
+        });
+
+        if (matches.length === 0) {
+            container.html(`
+                <div class="p-3 text-center text-muted small">
+                    No customers found matching "<strong>${query}</strong>".<br />
+                    <button type="button" class="btn btn-sm btn-link text-success p-0 mt-1" onclick="$('#quickToggleNewCust').prop('checked', true); quickToggleNewCustomerInput(true);">+ Click here to register a new customer</button>
+                </div>
+            `).show();
+            return;
+        }
+
+        let html = '';
+        matches.slice(0, 15).forEach(c => {
+            html += `
+                <div class="p-2 border-bottom customer-search-item d-flex justify-content-between align-items-center" onclick="quickSelectCustomer(${c.id}, '${c.name.replace(/'/g, "\\'")}', '${c.phone}', ${c.balance})">
+                    <div>
+                        <div class="fw-bold text-dark small">${c.name}</div>
+                        <div class="text-muted" style="font-size: 0.78rem;"><i class="fa-solid fa-phone me-1"></i>${c.phone || 'No phone'}</div>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge ${c.balance > 0 ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success'} rounded-pill" style="font-size: 0.75rem;">
+                            Due: ₹${c.balance.toLocaleString('en-IN')}
+                        </span>
+                        <div class="text-primary small fw-semibold" style="font-size: 0.75rem;">Select <i class="fa-solid fa-chevron-right ms-1"></i></div>
+                    </div>
+                </div>
+            `;
+        });
+        container.html(html).show();
+    }
+
+    function quickSelectCustomer(id, name, phone, balance) {
+        $('#quickCreditCustomerIdInput').val(id);
+        $('#quickSelectedCustomerName').text(name);
+        $('#quickSelectedCustomerPhone').text(phone || 'No phone');
+        $('#quickSelectedCustomerPrevBalance').text('₹' + balance.toLocaleString('en-IN'));
+        $('#quickSelectedCustomerNewBalance').text('₹' + (balance + currentPayAmount).toLocaleString('en-IN'));
+
+        $('#quickSelectedCustomerCard').show();
+        $('#quickCustomerSearchContainer').hide();
+        $('#quickToggleNewCust').prop('checked', false);
+        $('#quickNewCustomerFields').hide();
+
+        quickValidateCreditCustomerSelection();
+    }
+
+    function quickClearSelectedCustomer() {
+        $('#quickCreditCustomerIdInput').val('');
+        $('#quickSelectedCustomerCard').hide();
+        $('#quickCustomerSearchContainer').show();
+        $('#quickCustomerSearchBox').val('');
+        quickRenderCustomerSearchResults('');
+        quickValidateCreditCustomerSelection();
+    }
+
+    function quickToggleNewCustomerInput(show) {
+        $('#quickNewCustomerFields').toggle(show);
+        if (show) {
+            $('#quickCreditCustomerIdInput').val('');
+            $('#quickSelectedCustomerCard').hide();
+            $('#quickCustomerSearchContainer').hide();
+        } else {
+            $('#quickCustomerSearchContainer').show();
+            quickRenderCustomerSearchResults('');
+        }
+        quickValidateCreditCustomerSelection();
+    }
+
+    function quickValidateCreditCustomerSelection() {
+        const mode = $('#quickPaymentMethodSelect').val();
+        const settleBtn = $('#quickConfirmSettleBtn');
+        if (mode !== '7') return;
+
+        const hasCustomerId = !!$('#quickCreditCustomerIdInput').val();
+        const isNewCust = $('#quickToggleNewCust').is(':checked');
+        const newCustName = ($('#quickNewCustNameInput').val() || '').trim();
+
+        if (hasCustomerId || (isNewCust && newCustName.length > 0)) {
+            settleBtn.prop('disabled', false);
+        } else if (isNewCust) {
+            settleBtn.prop('disabled', newCustName.length === 0);
+        } else {
+            settleBtn.prop('disabled', true);
+        }
+    }
+
+    $(document).ready(function() {
+        $('#quickNewCustNameInput').on('input', quickValidateCreditCustomerSelection);
+
+        $('#quickSettleForm').on('submit', function(e) {
+            const mode = $('#quickPaymentMethodSelect').val();
+            if (mode === '7') {
+                const hasCustomerId = !!$('#quickCreditCustomerIdInput').val();
+                const isNewCust = $('#quickToggleNewCust').is(':checked');
+                const newCustName = ($('#quickNewCustNameInput').val() || '').trim();
+
+                if (!hasCustomerId && !isNewCust) {
+                    e.preventDefault();
+                    alert('Please search and select a customer, or check "Register New Customer" to record Udhari.');
+                    return false;
+                }
+                if (isNewCust && !newCustName) {
+                    e.preventDefault();
+                    alert('Please enter the customer name for registering the Udhari account.');
+                    return false;
+                }
+            }
+        });
+    });
 </script>
 }

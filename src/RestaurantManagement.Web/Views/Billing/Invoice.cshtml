@@ -74,6 +74,45 @@
             font-size: 9px !important;
         }
     }
+    .payment-mode-tile {
+        background-color: #ffffff;
+        border: 1.5px solid #e2e8f0;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        color: #1e293b;
+        position: relative;
+        cursor: pointer;
+        padding: 12px 8px;
+    }
+    .payment-mode-tile:hover {
+        background-color: #f8fafc;
+        border-color: #94a3b8;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    .payment-mode-tile.active {
+        background-color: #ecfdf5 !important;
+        border-color: #059669 !important;
+        color: #065f46 !important;
+        box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.25) !important;
+    }
+    .payment-mode-tile .check-indicator {
+        display: none;
+        position: absolute;
+        top: 4px;
+        right: 6px;
+        font-size: 11px;
+        color: #059669;
+    }
+    .payment-mode-tile.active .check-indicator {
+        display: inline-block !important;
+    }
+    .customer-search-item {
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+    .customer-search-item:hover {
+        background-color: #f1f5f9;
+    }
 </style>
 
 <div class="row mb-4 align-items-center no-print">
@@ -264,27 +303,80 @@
     </div>
 </div>
 
-<!-- Collect Payment Modal (BRD Section 10: Cash, UPI, Cards, Split, Udhari) -->
+<!-- Collect Payment Modal (On-screen Payment Modes & Udhari Customer Search) -->
 <div class="modal fade" id="paymentModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form asp-action="CollectPayment" method="post" class="modal-content rounded-4 border-0 shadow-lg text-dark">
+    <div class="modal-dialog modal-dialog-centered">
+        <form asp-action="CollectPayment" method="post" id="settlePaymentForm" class="modal-content rounded-4 border-0 shadow-lg text-dark">
             <input type="hidden" name="BillId" value="@Model.Id" />
+            <input type="hidden" name="PaymentMethod" id="paymentMethodSelect" value="1" />
             <div class="modal-header border-bottom">
                 <h5 class="modal-title fw-bold text-dark"><i class="fa-solid fa-credit-card text-success me-2"></i>Settle Bill - ₹@Model.GrandTotal.ToString("N0")</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                <!-- Payment Mode On-Screen Tiles -->
                 <div class="mb-3">
-                    <label class="form-label text-dark fw-bold small">Payment Method</label>
-                    <select name="PaymentMethod" class="form-select" id="paymentMethodSelect" onchange="onPaymentMethodChange()">
-                        <option value="1">Cash</option>
-                        <option value="2">UPI / QR Code</option>
-                        <option value="3">Credit Card</option>
-                        <option value="4">Debit Card</option>
-                        <option value="5">Wallet</option>
-                        <option value="6">Split Payment (Cash + Online)</option>
-                        <option value="7">Customer Credit (Udhari)</option>
-                    </select>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label text-dark fw-bold small mb-0">Select Payment Method</label>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1 fw-bold" id="activePaymentLabel">
+                            <i class="fa-solid fa-money-bill-wave me-1"></i> Cash
+                        </span>
+                    </div>
+
+                    <div class="row g-2" id="paymentTilesGrid">
+                        <div class="col-4">
+                            <button type="button" class="btn w-100 rounded-3 text-center payment-mode-tile active" data-method="1" onclick="selectPaymentMethod('1', 'Cash', 'fa-money-bill-wave', 'text-success')">
+                                <span class="check-indicator"><i class="fa-solid fa-circle-check"></i></span>
+                                <i class="fa-solid fa-money-bill-wave fs-4 text-success d-block mb-1"></i>
+                                <span class="small fw-bold d-block">Cash</span>
+                            </button>
+                        </div>
+                        <div class="col-4">
+                            <button type="button" class="btn w-100 rounded-3 text-center payment-mode-tile" data-method="2" onclick="selectPaymentMethod('2', 'UPI / QR', 'fa-qrcode', 'text-primary')">
+                                <span class="check-indicator"><i class="fa-solid fa-circle-check"></i></span>
+                                <i class="fa-solid fa-qrcode fs-4 text-primary d-block mb-1"></i>
+                                <span class="small fw-bold d-block">UPI / QR</span>
+                            </button>
+                        </div>
+                        <div class="col-4">
+                            <button type="button" class="btn w-100 rounded-3 text-center payment-mode-tile" data-method="3" onclick="selectPaymentMethod('3', 'Credit Card', 'fa-credit-card', 'text-warning-emphasis')">
+                                <span class="check-indicator"><i class="fa-solid fa-circle-check"></i></span>
+                                <i class="fa-regular fa-credit-card fs-4 text-warning-emphasis d-block mb-1"></i>
+                                <span class="small fw-bold d-block">Credit Card</span>
+                            </button>
+                        </div>
+                        <div class="col-4">
+                            <button type="button" class="btn w-100 rounded-3 text-center payment-mode-tile" data-method="4" onclick="selectPaymentMethod('4', 'Debit Card', 'fa-id-card', 'text-info')">
+                                <span class="check-indicator"><i class="fa-solid fa-circle-check"></i></span>
+                                <i class="fa-solid fa-id-card fs-4 text-info d-block mb-1"></i>
+                                <span class="small fw-bold d-block">Debit Card</span>
+                            </button>
+                        </div>
+                        <div class="col-4">
+                            <button type="button" class="btn w-100 rounded-3 text-center payment-mode-tile" data-method="5" onclick="selectPaymentMethod('5', 'Wallet', 'fa-wallet', 'text-secondary')">
+                                <span class="check-indicator"><i class="fa-solid fa-circle-check"></i></span>
+                                <i class="fa-solid fa-wallet fs-4 text-secondary d-block mb-1"></i>
+                                <span class="small fw-bold d-block">Wallet</span>
+                            </button>
+                        </div>
+                        <div class="col-4">
+                            <button type="button" class="btn w-100 rounded-3 text-center payment-mode-tile" data-method="6" onclick="selectPaymentMethod('6', 'Split Pay', 'fa-arrows-split-up-and-left', 'text-indigo')">
+                                <span class="check-indicator"><i class="fa-solid fa-circle-check"></i></span>
+                                <i class="fa-solid fa-arrows-split-up-and-left fs-4 d-block mb-1" style="color: #6366f1;"></i>
+                                <span class="small fw-bold d-block">Split Pay</span>
+                            </button>
+                        </div>
+                        <div class="col-12">
+                            <button type="button" class="btn w-100 rounded-3 text-center payment-mode-tile" data-method="7" onclick="selectPaymentMethod('7', 'Customer Credit (Udhari)', 'fa-book-bookmark', 'text-danger')" style="border-style: dashed !important;">
+                                <span class="check-indicator"><i class="fa-solid fa-circle-check"></i></span>
+                                <div class="d-flex align-items-center justify-content-center gap-2 py-1">
+                                    <i class="fa-solid fa-book-bookmark fs-5 text-danger"></i>
+                                    <span class="fw-bold text-danger">Customer Credit (Udhari / खातीव)</span>
+                                    <span class="badge bg-danger-subtle text-danger rounded-pill px-2">Ledger</span>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="mb-3">
@@ -319,31 +411,71 @@
                     <div class="small mt-2" id="splitHelperText">Sum: ₹@Model.GrandTotal.ToString("N2") / ₹@Model.GrandTotal.ToString("N2")</div>
                 </div>
 
-                <!-- Customer Credit / Udhari Box -->
+                <!-- Customer Credit / Udhari Box with Customer Search -->
                 <div id="customerCreditBox" class="p-3 bg-light rounded-3 border mb-3" style="display: none;">
-                    <label class="form-label text-dark fw-bold small">Select Customer Account (Udhari)</label>
-                    <select name="CustomerId" id="creditCustomerSelect" class="form-select mb-2" onchange="onCreditCustomerChange()">
-                        <option value="">-- Select Registered Customer --</option>
-                        @foreach (var c in customers)
-                        {
-                            <option value="@c.Id" data-balance="@c.OutstandingCredit">@c.Name (@c.Phone) - Outstanding: ₹@c.OutstandingCredit.ToString("N0")</option>
-                        }
-                    </select>
-
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" id="toggleNewCust" onchange="toggleNewCustomerInput(this.checked)">
-                        <label class="form-check-label small" for="toggleNewCust">+ Add / Register New Customer</label>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label text-dark fw-bold small mb-0"><i class="fa-solid fa-magnifying-glass text-danger me-1"></i>Search Customer (Udhari Account)</label>
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill">Credit Account</span>
                     </div>
 
-                    <div id="newCustomerFields" style="display: none;">
-                        <input type="text" name="NewCustomerName" class="form-control form-control-sm mb-2" placeholder="Customer Full Name" />
-                        <input type="text" name="NewCustomerPhone" class="form-control form-control-sm" placeholder="Customer Phone (10 digits)" />
+                    <!-- Hidden CustomerId input sent with form -->
+                    <input type="hidden" name="CustomerId" id="creditCustomerIdInput" value="" />
+
+                    <!-- Selected Customer Preview Card -->
+                    <div id="selectedCustomerCard" class="p-3 mb-2 bg-white border border-success rounded-3 shadow-sm" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-success-subtle text-success rounded-circle p-2 fs-6"><i class="fa-solid fa-user-check"></i></span>
+                                <div>
+                                    <div class="fw-bold text-dark fs-6" id="selectedCustomerName">Customer Name</div>
+                                    <div class="small text-muted" id="selectedCustomerPhone">+91 00000 00000</div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" onclick="clearSelectedCustomer()" title="Change customer">
+                                <i class="fa-solid fa-xmark me-1"></i> Change
+                            </button>
+                        </div>
+                        <div class="row g-2 mt-2 pt-2 border-top small">
+                            <div class="col-6">
+                                <span class="text-muted d-block">Current Outstanding:</span>
+                                <strong class="text-danger" id="selectedCustomerPrevBalance">₹0</strong>
+                            </div>
+                            <div class="col-6 text-end">
+                                <span class="text-muted d-block">Total Due After Bill:</span>
+                                <strong class="text-primary fs-6" id="selectedCustomerNewBalance">₹0</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Customer Search Container -->
+                    <div id="customerSearchContainer">
+                        <div class="input-group mb-2">
+                            <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                            <input type="text" id="customerSearchBox" class="form-control border-start-0" placeholder="Type customer name or mobile..." oninput="onCustomerSearchInput(this.value)" autocomplete="off" />
+                            <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('customerSearchBox').value=''; onCustomerSearchInput('');"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+
+                        <!-- Dropdown list of matching customers -->
+                        <div id="customerSearchResults" class="bg-white border rounded-3 mb-2 shadow-sm overflow-auto" style="max-height: 180px;">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+
+                    <div class="form-check form-switch my-2">
+                        <input class="form-check-input" type="checkbox" id="toggleNewCust" onchange="toggleNewCustomerInput(this.checked)">
+                        <label class="form-check-label small fw-semibold text-secondary" for="toggleNewCust">+ Register New Customer for Udhari</label>
+                    </div>
+
+                    <div id="newCustomerFields" class="p-2 border rounded-3 bg-white" style="display: none;">
+                        <div class="small text-muted mb-2">Enter new customer details to register & debit ledger:</div>
+                        <input type="text" name="NewCustomerName" id="newCustNameInput" class="form-control form-control-sm mb-2" placeholder="Customer Full Name (Required)" />
+                        <input type="tel" name="NewCustomerPhone" id="newCustPhoneInput" class="form-control form-control-sm" placeholder="10-digit Mobile Number" />
                     </div>
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label text-dark fw-bold small">Transaction / Reference ID (Optional)</label>
-                    <input type="text" name="TransactionId" class="form-control" placeholder="UPI txn id / Card auth code..." />
+                    <input type="text" name="TransactionId" class="form-control" placeholder="UPI txn id / Card slip number..." />
                 </div>
 
                 <!-- UPI Mock QR Code -->
@@ -403,6 +535,13 @@
     const tableNo = "@cleanTableNo";
     const isPaid = @(Model.IsPaid ? "true" : "false");
 
+    const allCustomers = [
+        @foreach (var c in customers)
+        {
+            @:{ id: @c.Id, name: "@Html.Raw(c.Name.Replace("\"", "\\\""))", phone: "@(c.Phone ?? "")", balance: @c.OutstandingCredit },
+        }
+    ];
+
     function setReceiptWidth(width) {
         const box = document.getElementById('receiptBox');
         const b80 = document.getElementById('btnToggle80');
@@ -419,6 +558,27 @@
             b80.classList.add('active');
             b58.classList.remove('active');
         }
+    }
+
+    function selectPaymentMethod(method, name, iconClass, colorClass) {
+        document.getElementById('paymentMethodSelect').value = method;
+        
+        // Update active class on tiles
+        document.querySelectorAll('#paymentTilesGrid .payment-mode-tile').forEach(tile => {
+            if (tile.getAttribute('data-method') === method) {
+                tile.classList.add('active');
+            } else {
+                tile.classList.remove('active');
+            }
+        });
+
+        // Update badge label
+        const badge = document.getElementById('activePaymentLabel');
+        if (badge) {
+            badge.innerHTML = `<i class="fa-solid ${iconClass} me-1"></i> ${name}`;
+        }
+
+        onPaymentMethodChange();
     }
 
     function onPaymentMethodChange() {
@@ -443,8 +603,114 @@
         } else if (mode === "6") { // Split
             splitBox.style.display = "block";
             onSplitChange();
-        } else if (mode === "7") { // Credit
+        } else if (mode === "7") { // Credit (Udhari)
             creditBox.style.display = "block";
+            validateCreditCustomerSelection();
+            if (!document.getElementById('creditCustomerIdInput').value && !document.getElementById('toggleNewCust').checked) {
+                renderCustomerSearchResults('');
+            }
+        }
+    }
+
+    function onCustomerSearchInput(query) {
+        renderCustomerSearchResults(query);
+    }
+
+    function renderCustomerSearchResults(query) {
+        const listContainer = document.getElementById('customerSearchResults');
+        if (!listContainer) return;
+        const q = (query || '').toLowerCase().trim();
+        const matches = allCustomers.filter(c => {
+            if (!q) return true;
+            return c.name.toLowerCase().includes(q) || (c.phone && c.phone.includes(q));
+        });
+
+        if (matches.length === 0) {
+            listContainer.innerHTML = `
+                <div class="p-3 text-center text-muted small">
+                    <i class="fa-solid fa-user-xmark fs-5 mb-1 d-block text-secondary"></i>
+                    No customers found matching "<strong>${query}</strong>".<br />
+                    <button type="button" class="btn btn-sm btn-link text-success p-0 mt-1" onclick="document.getElementById('toggleNewCust').checked = true; toggleNewCustomerInput(true);">+ Click here to register a new customer</button>
+                </div>
+            `;
+            listContainer.style.display = 'block';
+            return;
+        }
+
+        let html = '';
+        matches.slice(0, 15).forEach(c => {
+            html += `
+                <div class="p-2 border-bottom customer-search-item d-flex justify-content-between align-items-center" onclick="selectCustomer(${c.id}, '${c.name.replace(/'/g, "\\'")}', '${c.phone}', ${c.balance})">
+                    <div>
+                        <div class="fw-bold text-dark small">${c.name}</div>
+                        <div class="text-muted" style="font-size: 0.78rem;"><i class="fa-solid fa-phone me-1"></i>${c.phone || 'No phone'}</div>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge ${c.balance > 0 ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success'} rounded-pill" style="font-size: 0.75rem;">
+                            Due: ₹${c.balance.toLocaleString('en-IN')}
+                        </span>
+                        <div class="text-primary small fw-semibold" style="font-size: 0.75rem;">Select <i class="fa-solid fa-chevron-right ms-1"></i></div>
+                    </div>
+                </div>
+            `;
+        });
+        listContainer.innerHTML = html;
+        listContainer.style.display = 'block';
+    }
+
+    function selectCustomer(id, name, phone, balance) {
+        document.getElementById('creditCustomerIdInput').value = id;
+        document.getElementById('selectedCustomerName').textContent = name;
+        document.getElementById('selectedCustomerPhone').textContent = phone ? phone : 'No phone';
+        document.getElementById('selectedCustomerPrevBalance').textContent = '₹' + balance.toLocaleString('en-IN');
+        document.getElementById('selectedCustomerNewBalance').textContent = '₹' + (balance + grandTotal).toLocaleString('en-IN');
+
+        document.getElementById('selectedCustomerCard').style.display = 'block';
+        document.getElementById('customerSearchContainer').style.display = 'none';
+        document.getElementById('toggleNewCust').checked = false;
+        document.getElementById('newCustomerFields').style.display = 'none';
+
+        validateCreditCustomerSelection();
+    }
+
+    function clearSelectedCustomer() {
+        document.getElementById('creditCustomerIdInput').value = '';
+        document.getElementById('selectedCustomerCard').style.display = 'none';
+        document.getElementById('customerSearchContainer').style.display = 'block';
+        document.getElementById('customerSearchBox').value = '';
+        renderCustomerSearchResults('');
+        validateCreditCustomerSelection();
+    }
+
+    function toggleNewCustomerInput(show) {
+        document.getElementById('newCustomerFields').style.display = show ? 'block' : 'none';
+        if (show) {
+            document.getElementById('creditCustomerIdInput').value = '';
+            document.getElementById('selectedCustomerCard').style.display = 'none';
+            document.getElementById('customerSearchContainer').style.display = 'none';
+        } else {
+            document.getElementById('customerSearchContainer').style.display = 'block';
+            renderCustomerSearchResults('');
+        }
+        validateCreditCustomerSelection();
+    }
+
+    function validateCreditCustomerSelection() {
+        const mode = document.getElementById('paymentMethodSelect').value;
+        const settleBtn = document.getElementById('confirmSettleBtn');
+        if (mode !== "7") {
+            return;
+        }
+        const hasCustomerId = !!document.getElementById('creditCustomerIdInput').value;
+        const isNewCust = document.getElementById('toggleNewCust').checked;
+        const newCustName = (document.getElementById('newCustNameInput')?.value || '').trim();
+
+        if (hasCustomerId || (isNewCust && newCustName.length > 0)) {
+            settleBtn.disabled = false;
+        } else if (isNewCust) {
+            settleBtn.disabled = newCustName.length === 0;
+        } else {
+            settleBtn.disabled = true;
         }
     }
 
@@ -484,22 +750,6 @@
         }
     }
 
-    function toggleNewCustomerInput(show) {
-        document.getElementById('newCustomerFields').style.display = show ? 'block' : 'none';
-        if (show) {
-            document.getElementById('creditCustomerSelect').value = '';
-        }
-    }
-
-    function onCreditCustomerChange() {
-        // Uncheck new customer if an existing one was picked
-        const val = document.getElementById('creditCustomerSelect').value;
-        if (val) {
-            document.getElementById('toggleNewCust').checked = false;
-            document.getElementById('newCustomerFields').style.display = 'none';
-        }
-    }
-
     // Build WhatsApp message
     function initWhatsAppPreview() {
         let msg = `*${restaurantName}*\n`;
@@ -534,6 +784,28 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('newCustNameInput')?.addEventListener('input', validateCreditCustomerSelection);
+        
+        document.getElementById('settlePaymentForm')?.addEventListener('submit', function(e) {
+            const mode = document.getElementById('paymentMethodSelect').value;
+            if (mode === "7") {
+                const hasCustomerId = !!document.getElementById('creditCustomerIdInput').value;
+                const isNewCust = document.getElementById('toggleNewCust').checked;
+                const newCustName = (document.getElementById('newCustNameInput')?.value || '').trim();
+
+                if (!hasCustomerId && !isNewCust) {
+                    e.preventDefault();
+                    alert('Please search and select a customer, or check "Register New Customer" to record Udhari.');
+                    return false;
+                }
+                if (isNewCust && !newCustName) {
+                    e.preventDefault();
+                    alert('Please enter the customer name for registering the Udhari account.');
+                    return false;
+                }
+            }
+        });
+
         onPaymentMethodChange();
         initWhatsAppPreview();
     });

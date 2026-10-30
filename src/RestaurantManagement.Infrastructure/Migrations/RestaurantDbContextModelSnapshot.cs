@@ -619,6 +619,9 @@ namespace RestaurantManagement.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int?>("SupplierId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Unit")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -631,6 +634,8 @@ namespace RestaurantManagement.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SupplierId");
 
                     b.ToTable("InventoryItems");
                 });
@@ -1085,6 +1090,10 @@ namespace RestaurantManagement.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("DeliveryPartnerName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<decimal>("DiscountAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -1117,6 +1126,14 @@ namespace RestaurantManagement.Infrastructure.Migrations
 
                     b.Property<bool>("IsWalkout")
                         .HasColumnType("bit");
+
+                    b.Property<string>("OnlineOrderReference")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OnlinePlatform")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("OrderNote")
                         .IsRequired()
@@ -2141,6 +2158,16 @@ namespace RestaurantManagement.Infrastructure.Migrations
                     b.Navigation("Employee");
                 });
 
+            modelBuilder.Entity("RestaurantManagement.Domain.Entities.InventoryItem", b =>
+                {
+                    b.HasOne("RestaurantManagement.Domain.Entities.Supplier", "Supplier")
+                        .WithMany("InventoryItems")
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Supplier");
+                });
+
             modelBuilder.Entity("RestaurantManagement.Domain.Entities.KOT", b =>
                 {
                     b.HasOne("RestaurantManagement.Domain.Entities.Order", "Order")
@@ -2511,6 +2538,8 @@ namespace RestaurantManagement.Infrastructure.Migrations
 
             modelBuilder.Entity("RestaurantManagement.Domain.Entities.Supplier", b =>
                 {
+                    b.Navigation("InventoryItems");
+
                     b.Navigation("PurchaseOrders");
                 });
 #pragma warning restore 612, 618

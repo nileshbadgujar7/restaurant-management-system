@@ -36,6 +36,9 @@ public class Order : BaseEntity
     public string OrderNote { get; set; } = string.Empty; // FR-OM-08 (Max 250 chars)
     public string TokenNumber { get; set; } = string.Empty; // OM-A07 (T-001)
     public string DeliveryAddress { get; set; } = string.Empty; // OM-A08
+    public string OnlinePlatform { get; set; } = string.Empty; // Swiggy, Zomato, Direct, MagicPin
+    public string OnlineOrderReference { get; set; } = string.Empty; // e.g. SWIG-1234, ZOM-5678
+    public string DeliveryPartnerName { get; set; } = string.Empty; // Rider name & phone
     public string CustomerGSTIN { get; set; } = string.Empty; // OM-H04
     public int Version { get; set; } = 1; // GL-09 Optimistic locking
     public bool IsDraft { get; set; } = false; // OM-A03

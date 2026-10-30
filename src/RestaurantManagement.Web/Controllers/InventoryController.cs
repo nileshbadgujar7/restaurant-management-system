@@ -10,16 +10,19 @@ namespace RestaurantManagement.Web.Controllers;
 public class InventoryController : Controller
 {
     private readonly IInventoryService _inventoryService;
+    private readonly ISupplierService _supplierService;
 
-    public InventoryController(IInventoryService inventoryService)
+    public InventoryController(IInventoryService inventoryService, ISupplierService supplierService)
     {
         _inventoryService = inventoryService;
+        _supplierService = supplierService;
     }
 
     public async Task<IActionResult> Index(string tab = "stock")
     {
         var items = (await _inventoryService.GetInventoryItemsAsync()).ToList();
         var logs = (await _inventoryService.GetStockMovementLogsAsync()).ToList();
+        var suppliers = (await _supplierService.GetSuppliersAsync()).Where(s => s.IsActive).ToList();
 
         decimal totalValue = items.Sum(i => i.CurrentStock * i.UnitCost);
         int lowCount = items.Count(i => i.IsLowStock);
@@ -31,6 +34,7 @@ public class InventoryController : Controller
             ActiveTab = tab.ToLower(),
             Items = items,
             MovementLogs = logs,
+            Suppliers = suppliers,
             TotalInventoryValue = totalValue,
             TotalItemsCount = items.Count,
             LowStockCount = lowCount,

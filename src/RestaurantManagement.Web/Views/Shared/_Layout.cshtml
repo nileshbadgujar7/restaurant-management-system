@@ -114,6 +114,10 @@
                             <i class="fa-solid fa-receipt nav-icon" style="color: #0284c7;"></i>
                             <span class="nav-text">@(isMarathi ? "ऑर्डर्स" : "Orders")</span>
                         </a>
+                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "OnlineOrders" ? "active" : "")" href="/OnlineOrders" data-title="@(isMarathi ? "ऑनलाइन ऑर्डर्स" : "Online Orders")" data-bs-toggle="tooltip" data-bs-placement="right" title="@(isMarathi ? "ऑनलाइन ऑर्डर्स (Swiggy, Zomato, Direct)" : "Online Orders (Swiggy, Zomato, Direct)")">
+                            <i class="fa-solid fa-globe nav-icon" style="color: #06b6d4;"></i>
+                            <span class="nav-text">@(isMarathi ? "ऑनलाइन ऑर्डर्स" : "Online Orders")</span>
+                        </a>
                     }
 
                     <!-- 4. Kitchen (KDS) -->

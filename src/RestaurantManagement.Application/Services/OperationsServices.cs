@@ -17,7 +17,16 @@ public class InventoryService : IInventoryService
     public async Task<IEnumerable<InventoryItemDto>> GetInventoryItemsAsync()
     {
         var items = await _unitOfWork.InventoryItems.GetAllAsync();
-        return items.Where(i => !i.IsDeleted).Select(MapToDto);
+        var suppliers = (await _unitOfWork.Suppliers.GetAllAsync()).ToDictionary(s => s.Id, s => s.Name);
+        return items.Where(i => !i.IsDeleted).Select(i =>
+        {
+            var dto = MapToDto(i);
+            if (i.SupplierId.HasValue && suppliers.TryGetValue(i.SupplierId.Value, out var sName))
+            {
+                dto.SupplierName = sName;
+            }
+            return dto;
+        });
     }
 
     public async Task<IEnumerable<InventoryItemDto>> GetLowStockItemsAsync()
@@ -128,6 +137,7 @@ public class InventoryService : IInventoryService
             MinimumStock = Math.Max(0, dto.MinimumStock),
             UnitCost = Math.Max(0, dto.UnitCost),
             ReorderLevel = dto.ReorderLevel > 0 ? dto.ReorderLevel : dto.MinimumStock,
+            SupplierId = dto.SupplierId,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -161,7 +171,9 @@ public class InventoryService : IInventoryService
             CurrentStock = i.CurrentStock,
             MinimumStock = i.MinimumStock,
             UnitCost = i.UnitCost,
-            ReorderLevel = i.ReorderLevel
+            ReorderLevel = i.ReorderLevel,
+            SupplierId = i.SupplierId,
+            SupplierName = i.Supplier?.Name ?? string.Empty
         };
     }
 }

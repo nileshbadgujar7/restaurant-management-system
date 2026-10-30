@@ -11,4 +11,5 @@ public class Supplier : BaseEntity
     public decimal OpeningBalance { get; set; } = 0m;
     
     public ICollection<PurchaseOrder> PurchaseOrders { get; set; } = new List<PurchaseOrder>();
+    public ICollection<InventoryItem> InventoryItems { get; set; } = new List<InventoryItem>();
 }

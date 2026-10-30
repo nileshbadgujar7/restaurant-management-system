@@ -904,6 +904,7 @@
                         <tr>
                             <th>Ingredient Item</th>
                             <th>Category</th>
+                            <th>Supplier / Vendor</th>
                             <th>Current Stock</th>
                             <th>Minimum Level</th>
                             <th>Unit Cost</th>
@@ -917,6 +918,16 @@
                             <tr>
                                 <td class="fw-bold text-dark">@item.Name</td>
                                 <td><span class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle px-2 py-1 rounded-pill">@item.Category</span></td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(item.SupplierName))
+                                    {
+                                        <span class="badge bg-light text-dark border"><i class="fa-solid fa-truck text-muted me-1"></i>@item.SupplierName</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">-</span>
+                                    }
+                                </td>
                                 <td class="fw-bold fs-6 @(item.IsLowStock ? "text-danger" : "text-success")">
                                     @item.CurrentStock @item.Unit
                                 </td>

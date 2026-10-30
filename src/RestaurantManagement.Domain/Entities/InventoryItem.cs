@@ -9,6 +9,8 @@ public class InventoryItem : BaseEntity
     public decimal MinimumStock { get; set; }
     public decimal UnitCost { get; set; }
     public decimal ReorderLevel { get; set; }
+    public int? SupplierId { get; set; }
+    public Supplier? Supplier { get; set; }
     
     public ICollection<StockTransaction> StockTransactions { get; set; } = new List<StockTransaction>();
 }

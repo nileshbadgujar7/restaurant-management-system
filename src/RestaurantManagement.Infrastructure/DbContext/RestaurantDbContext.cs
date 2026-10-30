@@ -120,5 +120,11 @@ public class RestaurantDbContext : Microsoft.EntityFrameworkCore.DbContext
             .WithMany(e => e.LeaveRequests)
             .HasForeignKey(lr => lr.EmployeeId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<InventoryItem>()
+            .HasOne(i => i.Supplier)
+            .WithMany(s => s.InventoryItems)
+            .HasForeignKey(i => i.SupplierId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }
