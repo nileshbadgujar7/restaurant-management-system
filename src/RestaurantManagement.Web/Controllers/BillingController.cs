@@ -36,7 +36,7 @@ public class BillingController : Controller
     {
         if (orderId <= 0)
         {
-            var activeOrders = await _orderService.GetActiveOrdersAsync();
+            var activeOrders = (await _orderService.GetActiveOrdersAsync()).ToList();
             var firstOrder = activeOrders.FirstOrDefault();
             if (firstOrder == null)
             {
@@ -46,8 +46,16 @@ public class BillingController : Controller
             orderId = firstOrder.Id;
         }
 
-        var bill = await _billingService.GenerateBillAsync(new CreateBillDto { OrderId = orderId });
-        return RedirectToAction(nameof(Invoice), new { id = bill.Id });
+        try
+        {
+            var bill = await _billingService.GenerateBillAsync(new CreateBillDto { OrderId = orderId });
+            return RedirectToAction(nameof(Invoice), new { id = bill.Id });
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = ex.Message;
+            return RedirectToAction(nameof(Index));
+        }
     }
 
     public async Task<IActionResult> Invoice(int id)

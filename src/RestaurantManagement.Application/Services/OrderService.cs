@@ -282,7 +282,8 @@ public class OrderService : IOrderService
 
     public async Task<IEnumerable<OrderDto>> GetActiveOrdersAsync()
     {
-        return await GetOrdersAsync(status: null);
+        var allOrders = await GetOrdersAsync(status: null);
+        return allOrders.Where(o => !o.IsSettled && o.Status != OrderStatus.Completed && o.Status != OrderStatus.Cancelled);
     }
 
     public async Task<IEnumerable<OrderDto>> GetOrdersAsync(OrderStatus? status = null, OrderType? type = null)
@@ -388,9 +389,9 @@ public class OrderService : IOrderService
         // Add any new items provided in Section B
         if (newItems != null && newItems.Any())
         {
-            var existingPending = await _unitOfWork.OrderItems.FindAsync(i => i.OrderId == orderId && !i.IsDeleted && i.Status == OrderItemStatus.Pending);
-            // If this is a draft and pending items are already saved in the order, don't duplicate
-            if (!order.IsDraft || !existingPending.Any())
+            var existingPending = (await _unitOfWork.OrderItems.FindAsync(i => i.OrderId == orderId && !i.IsDeleted && i.Status == OrderItemStatus.Pending)).ToList();
+            // If pending items are already saved in the order, don't duplicate
+            if (!existingPending.Any())
             {
                 foreach (var itemDto in newItems)
                 {

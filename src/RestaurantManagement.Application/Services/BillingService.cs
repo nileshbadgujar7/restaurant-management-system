@@ -20,8 +20,13 @@ public class BillingService : IBillingService
     {
         var order = await _unitOfWork.Orders.GetByIdAsync(dto.OrderId);
         if (order == null || order.IsDeleted) throw new KeyNotFoundException($"Order {dto.OrderId} not found");
-        if (order.Status == OrderStatus.Completed || order.Status == OrderStatus.Cancelled)
+        if (order.IsSettled || order.Status == OrderStatus.Completed || order.Status == OrderStatus.Cancelled)
         {
+            var existingSettled = (await _unitOfWork.Bills.FindAsync(b => b.OrderId == dto.OrderId && !b.IsDeleted)).FirstOrDefault();
+            if (existingSettled != null)
+            {
+                return (await GetBillByIdAsync(existingSettled.Id))!;
+            }
             throw new InvalidOperationException("Cannot generate bill for completed or cancelled order.");
         }
 
@@ -38,17 +43,6 @@ public class BillingService : IBillingService
             }
         }
 
-        // Check if bill already exists
-        var existingBill = (await _unitOfWork.Bills.FindAsync(b => b.OrderId == dto.OrderId && !b.IsDeleted)).FirstOrDefault();
-        if (existingBill != null)
-        {
-            return (await GetBillByIdAsync(existingBill.Id))!;
-        }
-
-        int billCount = await _unitOfWork.Bills.CountAsync();
-        string prefix = string.IsNullOrWhiteSpace(setting.InvoicePrefix) ? "INV" : setting.InvoicePrefix;
-        string invoiceNo = $"{prefix}-{(billCount + 10001)}";
-
         decimal subtotal = order.SubTotal;
         decimal discount = dto.DiscountAmount;
         decimal serviceCharge = dto.ServiceCharge;
@@ -62,6 +56,45 @@ public class BillingService : IBillingService
             sgst = Math.Round(taxableSubtotal * (setting.SGSTPercentage / 100m), 2);
         }
         decimal grandTotal = Math.Round(taxableSubtotal + cgst + sgst, 0); // Rounded grand total
+
+        // Check if bill already exists
+        var existingBill = (await _unitOfWork.Bills.FindAsync(b => b.OrderId == dto.OrderId && !b.IsDeleted)).FirstOrDefault();
+        if (existingBill != null)
+        {
+            // Sync existing bill with current order totals in case new items were added
+            existingBill.SubTotal = subtotal;
+            if (dto.DiscountAmount > 0) existingBill.DiscountAmount = discount;
+            if (dto.ServiceCharge > 0) existingBill.ServiceCharge = serviceCharge;
+            existingBill.CGST = cgst;
+            existingBill.SGST = sgst;
+            existingBill.GrandTotal = grandTotal;
+            existingBill.UpdatedAt = DateTime.UtcNow;
+
+            var payments = await _unitOfWork.Payments.FindAsync(p => p.BillId == existingBill.Id && !p.IsDeleted && p.PaymentStatus == PaymentStatus.Paid);
+            decimal totalPaid = payments.Sum(p => p.Amount);
+            if (totalPaid < grandTotal - 0.01m)
+            {
+                existingBill.IsPaid = false;
+            }
+
+            if (order.TableId.HasValue)
+            {
+                var table = await _unitOfWork.Tables.GetByIdAsync(order.TableId.Value);
+                if (table != null)
+                {
+                    table.Status = TableStatus.Billing;
+                    await _unitOfWork.Tables.UpdateAsync(table);
+                }
+            }
+
+            await _unitOfWork.Bills.UpdateAsync(existingBill);
+            await _unitOfWork.SaveChangesAsync();
+            return (await GetBillByIdAsync(existingBill.Id))!;
+        }
+
+        int billCount = await _unitOfWork.Bills.CountAsync();
+        string prefix = string.IsNullOrWhiteSpace(setting.InvoicePrefix) ? "INV" : setting.InvoicePrefix;
+        string invoiceNo = $"{prefix}-{(billCount + 10001)}";
 
         var bill = new Bill
         {
@@ -296,6 +329,8 @@ public class BillingService : IBillingService
             if (order != null)
             {
                 order.Status = OrderStatus.Completed;
+                order.IsSettled = true;
+                order.SettledAt = DateTime.UtcNow;
                 await _unitOfWork.Orders.UpdateAsync(order);
 
                 if (order.TableId.HasValue)
@@ -305,6 +340,9 @@ public class BillingService : IBillingService
                     {
                         table.Status = TableStatus.Available;
                         table.CurrentOrderId = null;
+                        table.HasActiveDraft = false;
+                        table.ActiveDraftUserId = null;
+                        table.ActiveDraftUserName = string.Empty;
                         await _unitOfWork.Tables.UpdateAsync(table);
                     }
                 }

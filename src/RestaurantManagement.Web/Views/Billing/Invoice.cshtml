@@ -10,6 +10,10 @@
 
     var custPhone = Model.Order?.CustomerPhone ?? "";
     var custName = Model.Order?.CustomerName ?? "Guest";
+
+    var totalPaid = Model.Payments?.Where(p => p.PaymentStatus == PaymentStatus.Paid).Sum(p => p.Amount) ?? 0m;
+    var balanceDue = Math.Max(0m, Model.GrandTotal - totalPaid);
+    bool isFullyPaid = Model.IsPaid && balanceDue <= 0.01m;
 }
 
 <style>
@@ -139,10 +143,10 @@
             <i class="fa-brands fa-whatsapp me-1"></i> WhatsApp
         </button>
 
-        @if (!Model.IsPaid)
+        @if (!isFullyPaid)
         {
             <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#paymentModal">
-                <i class="fa-solid fa-credit-card me-1"></i> Settle Bill
+                <i class="fa-solid fa-credit-card me-1"></i> Settle Bill @(balanceDue < Model.GrandTotal && balanceDue > 0 ? $"(Due ₹{balanceDue:N0})" : "")
             </button>
         }
         else
@@ -270,7 +274,7 @@
                     <span>Grand Total:</span>
                     <span class="text-success">₹@Model.GrandTotal.ToString("N0")</span>
                 </div>
-                @if (Model.IsPaid && Model.Payments.Any())
+                @if (Model.IsPaid && Model.Payments != null && Model.Payments.Any())
                 {
                     <div class="border-top pt-2 mt-2 small text-muted">
                         @foreach (var p in Model.Payments)
@@ -310,7 +314,7 @@
             <input type="hidden" name="BillId" value="@Model.Id" />
             <input type="hidden" name="PaymentMethod" id="paymentMethodSelect" value="1" />
             <div class="modal-header border-bottom">
-                <h5 class="modal-title fw-bold text-dark"><i class="fa-solid fa-credit-card text-success me-2"></i>Settle Bill - ₹@Model.GrandTotal.ToString("N0")</h5>
+                <h5 class="modal-title fw-bold text-dark"><i class="fa-solid fa-credit-card text-success me-2"></i>Settle Bill - ₹@((balanceDue > 0 ? balanceDue : Model.GrandTotal).ToString("N0"))</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -381,14 +385,14 @@
 
                 <div class="mb-3">
                     <label class="form-label text-dark fw-bold small">Total Payable Amount (₹)</label>
-                    <input type="number" step="0.01" name="Amount" id="payableAmountInput" class="form-control fw-bold fs-5 text-dark bg-light" value="@Model.GrandTotal" readonly />
+                    <input type="number" step="0.01" name="Amount" id="payableAmountInput" class="form-control fw-bold fs-5 text-dark bg-light" value="@(balanceDue > 0 ? balanceDue : Model.GrandTotal)" readonly />
                 </div>
 
                 <!-- Cash Tendered & Change Return Box -->
                 <div id="cashCalculationBox" class="p-3 bg-light rounded-3 border mb-3">
                     <div class="mb-2">
                         <label class="form-label text-dark fw-bold small">Cash Tendered by Customer (₹)</label>
-                        <input type="number" step="1" id="cashReceivedInput" class="form-control form-control-lg fw-bold text-success border-success" value="@Model.GrandTotal" oninput="calculateChangeReturn()" placeholder="e.g. 1000" />
+                        <input type="number" step="1" id="cashReceivedInput" class="form-control form-control-lg fw-bold text-success border-success" value="@(balanceDue > 0 ? balanceDue : Model.GrandTotal)" oninput="calculateChangeReturn()" placeholder="e.g. 1000" />
                     </div>
                     <div class="d-flex justify-content-between align-items-center pt-2 border-top">
                         <span class="fw-bold text-dark">Change to Return:</span>
@@ -401,14 +405,14 @@
                     <div class="row g-2">
                         <div class="col-6">
                             <label class="form-label text-dark fw-bold small">Cash Portion (₹)</label>
-                            <input type="number" step="0.01" name="SplitCashAmount" id="splitCashInput" class="form-control fw-bold" value="@(Math.Round(Model.GrandTotal / 2, 2))" oninput="onSplitChange()" />
+                            <input type="number" step="0.01" name="SplitCashAmount" id="splitCashInput" class="form-control fw-bold" value="@(Math.Round((balanceDue > 0 ? balanceDue : Model.GrandTotal) / 2, 2))" oninput="onSplitChange()" />
                         </div>
                         <div class="col-6">
                             <label class="form-label text-dark fw-bold small">Online / UPI Portion (₹)</label>
-                            <input type="number" step="0.01" name="SplitOnlineAmount" id="splitOnlineInput" class="form-control fw-bold" value="@(Model.GrandTotal - Math.Round(Model.GrandTotal / 2, 2))" oninput="onSplitChange()" />
+                            <input type="number" step="0.01" name="SplitOnlineAmount" id="splitOnlineInput" class="form-control fw-bold" value="@((balanceDue > 0 ? balanceDue : Model.GrandTotal) - Math.Round((balanceDue > 0 ? balanceDue : Model.GrandTotal) / 2, 2))" oninput="onSplitChange()" />
                         </div>
                     </div>
-                    <div class="small mt-2" id="splitHelperText">Sum: ₹@Model.GrandTotal.ToString("N2") / ₹@Model.GrandTotal.ToString("N2")</div>
+                    <div class="small mt-2" id="splitHelperText">Sum: ₹@((balanceDue > 0 ? balanceDue : Model.GrandTotal).ToString("N2")) / ₹@((balanceDue > 0 ? balanceDue : Model.GrandTotal).ToString("N2"))</div>
                 </div>
 
                 <!-- Customer Credit / Udhari Box with Customer Search -->
@@ -715,8 +719,9 @@
     }
 
     function calculateChangeReturn() {
+        const payable = parseFloat(document.getElementById('payableAmountInput').value) || grandTotal;
         const received = parseFloat(document.getElementById('cashReceivedInput').value) || 0;
-        const change = received - grandTotal;
+        const change = received - payable;
         const changeDisplay = document.getElementById('changeReturnDisplay');
         const settleBtn = document.getElementById('confirmSettleBtn');
 
@@ -732,19 +737,20 @@
     }
 
     function onSplitChange() {
+        const payable = parseFloat(document.getElementById('payableAmountInput').value) || grandTotal;
         const cash = parseFloat(document.getElementById('splitCashInput').value) || 0;
         const online = parseFloat(document.getElementById('splitOnlineInput').value) || 0;
         const sum = cash + online;
         const helper = document.getElementById('splitHelperText');
         const settleBtn = document.getElementById('confirmSettleBtn');
 
-        if (Math.abs(sum - grandTotal) < 0.05) {
+        if (Math.abs(sum - payable) < 0.05) {
             helper.textContent = `Valid Split: ₹${cash.toFixed(2)} Cash + ₹${online.toFixed(2)} Online = ₹${sum.toFixed(2)}`;
             helper.className = 'small mt-2 text-success fw-bold';
             settleBtn.disabled = false;
         } else {
-            const diff = grandTotal - sum;
-            helper.textContent = `Sum mismatch: ₹${sum.toFixed(2)} / ₹${grandTotal.toFixed(2)} (Diff: ₹${diff.toFixed(2)})`;
+            const diff = payable - sum;
+            helper.textContent = `Sum mismatch: ₹${sum.toFixed(2)} / ₹${payable.toFixed(2)} (Diff: ₹${diff.toFixed(2)})`;
             helper.className = 'small mt-2 text-danger fw-bold';
             settleBtn.disabled = true;
         }

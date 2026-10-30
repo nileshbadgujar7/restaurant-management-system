@@ -109,9 +109,9 @@ public class KOTService : IKOTService
 
         await _unitOfWork.KOTs.UpdateAsync(kot);
 
-        // Update corresponding Order Status
+        // Update corresponding Order Status (only for active, un-settled orders)
         var order = await _unitOfWork.Orders.GetByIdAsync(kot.OrderId);
-        if (order != null)
+        if (order != null && !order.IsSettled && order.Status != OrderStatus.Completed && order.Status != OrderStatus.Cancelled)
         {
             if (status == KOTStatus.Preparing) order.Status = OrderStatus.Preparing;
             else if (status == KOTStatus.Ready) order.Status = OrderStatus.Ready;

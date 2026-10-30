@@ -64,14 +64,22 @@ public class OrdersController : Controller
         if (orderId.HasValue)
         {
             activeOrder = await _orderService.GetOrderByIdAsync(orderId.Value);
+            if (activeOrder != null && (activeOrder.IsSettled || activeOrder.Status == OrderStatus.Completed || activeOrder.Status == OrderStatus.Cancelled))
+            {
+                activeOrder = null;
+            }
         }
         else if (tableId.HasValue)
         {
             if (selectedTable?.CurrentOrderId.HasValue == true)
             {
                 activeOrder = await _orderService.GetOrderByIdAsync(selectedTable.CurrentOrderId.Value);
+                if (activeOrder != null && (activeOrder.IsSettled || activeOrder.Status == OrderStatus.Completed || activeOrder.Status == OrderStatus.Cancelled))
+                {
+                    activeOrder = null;
+                }
             }
-            if (activeOrder == null || activeOrder.IsSettled || activeOrder.Status == OrderStatus.Completed || activeOrder.Status == OrderStatus.Cancelled)
+            if (activeOrder == null)
             {
                 var allOrders = await _orderService.GetOrdersAsync();
                 activeOrder = allOrders.FirstOrDefault(o => o.TableId == tableId.Value && !o.IsSettled && o.Status != OrderStatus.Completed && o.Status != OrderStatus.Cancelled);

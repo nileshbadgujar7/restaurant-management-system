@@ -75,6 +75,9 @@
         <a href="/Dashboard" class="btn btn-outline-secondary rounded-pill px-3 shadow-sm" data-bs-toggle="tooltip" title="Back to Dashboard">
             <i class="fa-solid fa-arrow-left me-1"></i> Dashboard
         </a>
+        <a href="/Billing/Generate?orderId=0" class="btn btn-warning rounded-pill px-3 shadow-sm fw-bold text-dark" title="Generate Bill for Active Order">
+            <i class="fa-solid fa-file-invoice me-1"></i> Bill Active Order
+        </a>
         <a href="/Orders/POS" class="btn btn-success rounded-pill px-4 shadow-sm fw-bold">
             <i class="fa-solid fa-cash-register me-1"></i> New POS Order
         </a>
@@ -196,7 +199,10 @@
                 {
                     @foreach (var bill in billsList)
                     {
-                        string filterCategory = bill.IsPaid ? "paid" : "pending";
+                        var billPayments = bill.Payments?.Where(p => p.PaymentStatus == PaymentStatus.Paid).Sum(p => p.Amount) ?? (bill.IsPaid ? bill.GrandTotal : 0m);
+                        var remainingBalance = Math.Max(0m, bill.GrandTotal - billPayments);
+                        bool isBillPaid = bill.IsPaid && remainingBalance <= 0.01m;
+                        string filterCategory = isBillPaid ? "paid" : "pending";
                         string cleanTableNo = string.IsNullOrEmpty(bill.TableNumber) ? "Dine-in" : (bill.TableNumber.Contains("Table") ? bill.TableNumber : "Table " + bill.TableNumber);
 
                         <tr class="bill-row" data-status="@filterCategory" data-search="@bill.InvoiceNumber.ToLower() @bill.OrderNumber.ToLower() @cleanTableNo.ToLower()">
@@ -230,7 +236,7 @@
                                 <div class="fw-bold text-dark fs-5">₹@bill.GrandTotal.ToString("N0")</div>
                             </td>
                             <td>
-                                @if (bill.IsPaid)
+                                @if (isBillPaid)
                                 {
                                     <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1 fw-bold">
                                         <i class="fa-solid fa-circle-check me-1"></i> Paid
@@ -239,7 +245,7 @@
                                 else
                                 {
                                     <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-3 py-1 fw-bold">
-                                        <i class="fa-solid fa-clock me-1"></i> Pending Payment
+                                        <i class="fa-solid fa-clock me-1"></i> Pending Payment @(remainingBalance < bill.GrandTotal && remainingBalance > 0 ? $"(Due ₹{remainingBalance:N0})" : "")
                                     </span>
                                 }
                             </td>
@@ -248,9 +254,9 @@
                                     <a href="/Billing/Invoice/@bill.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold" title="View Full Tax Invoice">
                                         <i class="fa-solid fa-eye me-1"></i> View
                                     </a>
-                                    @if (!bill.IsPaid)
+                                    @if (!isBillPaid || remainingBalance > 0.01m)
                                     {
-                                        <button type="button" class="btn btn-sm btn-success rounded-pill px-3 fw-bold shadow-sm" onclick="openQuickPayModal(@bill.Id, '@bill.InvoiceNumber', @bill.GrandTotal)" title="Collect Payment Now">
+                                        <button type="button" class="btn btn-sm btn-success rounded-pill px-3 fw-bold shadow-sm" onclick="openQuickPayModal(@bill.Id, '@bill.InvoiceNumber', @(remainingBalance > 0 ? remainingBalance : bill.GrandTotal))" title="Collect Payment Now">
                                             <i class="fa-solid fa-credit-card me-1"></i> Pay
                                         </button>
                                     }

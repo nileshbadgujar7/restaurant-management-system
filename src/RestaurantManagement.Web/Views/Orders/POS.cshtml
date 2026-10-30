@@ -291,9 +291,9 @@
                                 <span class="fw-bold text-success fs-6">₹@item.Price.ToString("N0")</span>
                                 @if (item.IsAvailable)
                                 {
-                                    <button class="btn btn-sm btn-outline-primary rounded-pill px-2 py-0 ms-2" title="Add to Section B">
+                                    <span class="btn btn-sm btn-outline-primary rounded-pill px-2 py-0 ms-2" style="pointer-events: none;" title="Add to Section B">
                                         <i class="fa-solid fa-plus"></i>
-                                    </button>
+                                    </span>
                                 }
                             </div>
                         </div>
@@ -875,7 +875,16 @@
     // -------------------------------------------------------------
     // INLINE MENU CLICK HANDLER (FR-OM-02)
     // -------------------------------------------------------------
+    let lastMenuClickTime = 0;
+    let lastMenuClickId = 0;
     function onMenuItemClicked(id, name, price, hasChoices, isAvailable) {
+        let now = Date.now();
+        if (lastMenuClickId === id && (now - lastMenuClickTime) < 300) {
+            return; // Prevent duplicate click events within 300ms
+        }
+        lastMenuClickTime = now;
+        lastMenuClickId = id;
+
         if (!isAvailable) {
             alert(`"${name}" is currently sold out (OM-A12).`);
             return;
@@ -1341,8 +1350,8 @@
             });
 
             let target = exactMatch || (visibleRows.length === 1 ? visibleRows[0] : (visibleRows.length > 1 ? visibleRows[0] : null));
-            if (target) {
-                target.trigger('click');
+            if (target && target.length > 0) {
+                target[0].click();
                 $('#catalogSearch').val('');
                 filterMenuCatalog();
             }
