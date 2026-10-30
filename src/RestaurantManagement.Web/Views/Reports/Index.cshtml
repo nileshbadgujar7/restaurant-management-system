@@ -7,29 +7,23 @@
     var restaurantName = !string.IsNullOrWhiteSpace(setting?.RestaurantName) ? setting.RestaurantName : "Girana Garden";
     var restaurantNameMr = !string.IsNullOrWhiteSpace(setting?.RestaurantNameMarathi) ? setting.RestaurantNameMarathi : (!string.IsNullOrWhiteSpace(setting?.RestaurantName) ? setting.RestaurantName : "गिराणा गार्डन");
     var effectiveBrandName = isMarathi ? restaurantNameMr : restaurantName;
-    ViewData["Title"] = isMarathi ? $"{effectiveBrandName} अहवाल व विश्लेषण" : $"{effectiveBrandName} Reports & Analytics";
+    ViewData["Title"] = isMarathi ? $"{effectiveBrandName} अहवाल सूची व विश्लेषण" : $"{effectiveBrandName} Reports Directory & Analytics";
     
     string currentPeriod = Model.PeriodType;
     int curYear = Model.SelectedYear;
     int curMonth = Model.SelectedMonth;
+    var exportBaseUrl = $"/Reports/ExportExcel?period={currentPeriod}&year={curYear}&month={curMonth}&startDate={Model.StartDate:yyyy-MM-dd}&endDate={Model.EndDate:yyyy-MM-dd}";
 }
 
 <style>
     @@media print {
-        #appSidebar, .sidebar, header, .app-footer, .no-print, .btn, .nav-tabs, form, .btn-group {
+        #appSidebar, .sidebar, header, .app-footer, .no-print, .btn, .nav-tabs, form, .btn-group, .dropdown, #reportCatalogList {
             display: none !important;
         }
         .main-content {
             padding: 0 !important;
             margin: 0 !important;
             width: 100% !important;
-        }
-        .tab-pane {
-            display: block !important;
-            opacity: 1 !important;
-            visibility: visible !important;
-            margin-bottom: 2rem;
-            page-break-after: auto;
         }
         .print-header {
             display: block !important;
@@ -49,10 +43,37 @@
         th, td {
             border: 1px solid #cbd5e1 !important;
             padding: 6px 10px !important;
+            color: #000 !important;
+        }
+        .tab-pane {
+            display: none !important;
+        }
+        .tab-pane.active {
+            display: block !important;
+            opacity: 1 !important;
+            visibility: visible !important;
         }
     }
     .print-header {
         display: none;
+    }
+    .report-card-row {
+        transition: all 0.2s ease-in-out;
+        border: 1px solid #e2e8f0;
+    }
+    .report-card-row:hover {
+        border-color: #059669;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(5, 150, 105, 0.08);
+    }
+    .report-badge-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
     }
 </style>
 
@@ -62,7 +83,7 @@
         <div>
             <h2 class="fw-bold mb-1" style="color: #059669;">@effectiveBrandName</h2>
             <div class="text-secondary small">@(setting?.Address ?? "Pure Veg Family Restaurant") &bull; Phone: @(setting?.Phone ?? "-") &bull; GSTIN: @(setting?.GSTIN ?? "-")</div>
-            <h4 class="fw-bold mt-2 text-dark">@(isMarathi ? "व्यावसायिक अहवाल व विश्लेषण" : "Official Business & Revenue Report")</h4>
+            <h4 class="fw-bold mt-2 text-dark" id="printReportDocTitle">@(isMarathi ? "व्यावसायिक अहवाल व विश्लेषण" : "Official Business & Revenue Report")</h4>
             <div class="small text-muted">Period: @currentPeriod &bull; Generated: @DateTime.Now.ToString("dd-MMM-yyyy hh:mm tt")</div>
         </div>
         <div class="text-end">
@@ -83,12 +104,12 @@
                     </a>
                 </li>
                 <li class="breadcrumb-item active fw-bold text-dark" aria-current="page">
-                    <i class="fa-solid fa-chart-line text-success me-1"></i> @(isMarathi ? "अहवाल व विश्लेषण" : "Reports & Analytics")
+                    <i class="fa-solid fa-folder-open text-success me-1"></i> @(isMarathi ? "अहवाल सूची व डाउनलोड" : "Reports Directory")
                 </li>
             </ol>
         </nav>
         <h2 class="fw-bold mb-0 text-dark">
-            <i class="fa-solid fa-chart-line text-success me-2"></i>@(isMarathi ? "विक्री, टेबल व मेनू अहवाल" : "Sales, Table & Menu Reports")
+            <i class="fa-solid fa-folder-open text-success me-2"></i>@(isMarathi ? "अहवाल सूची व डाउनलोड केंद्र" : "Reports Directory & Downloads")
         </h2>
         <div class="text-muted small mt-1">
             @(isMarathi ? "निवडलेला कालावधी: " : "Displaying period: ") 
@@ -111,36 +132,9 @@
         </div>
     </div>
     <div class="d-flex flex-wrap gap-2">
-        <!-- Excel Download Dropdown -->
-        <div class="dropdown">
-            <button class="btn btn-outline-success rounded-pill px-3 shadow-sm dropdown-toggle fw-semibold" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="fa-solid fa-file-excel me-1 text-success"></i> @(isMarathi ? "एक्सेल डाउनलोड" : "Download Excel")
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4">
-                <li><h6 class="dropdown-header text-uppercase small">@(isMarathi ? "अहवाल प्रकार निवडा" : "Select Report Sheet")</h6></li>
-                <li>
-                    <a class="dropdown-item py-2" href="/Reports/ExportExcel?reportType=Sales&period=@currentPeriod&year=@curYear&month=@curMonth&startDate=@Model.StartDate.ToString("yyyy-MM-dd")&endDate=@Model.EndDate.ToString("yyyy-MM-dd")">
-                        <i class="fa-solid fa-chart-line text-success me-2"></i> @(isMarathi ? "विक्री अहवाल (Sales Overview)" : "Sales & Revenue (.csv)")
-                    </a>
-                </li>
-                <li>
-                    <a class="dropdown-item py-2" href="/Reports/ExportExcel?reportType=Table&period=@currentPeriod&year=@curYear&month=@curMonth&startDate=@Model.StartDate.ToString("yyyy-MM-dd")&endDate=@Model.EndDate.ToString("yyyy-MM-dd")">
-                        <i class="fa-solid fa-chair text-primary me-2"></i> @(isMarathi ? "टेबलनुसार वसुली (Table Collection)" : "Table-wise Collection (.csv)")
-                    </a>
-                </li>
-                <li>
-                    <a class="dropdown-item py-2" href="/Reports/ExportExcel?reportType=MenuItem&period=@currentPeriod&year=@curYear&month=@curMonth&startDate=@Model.StartDate.ToString("yyyy-MM-dd")&endDate=@Model.EndDate.ToString("yyyy-MM-dd")">
-                        <i class="fa-solid fa-utensils text-warning me-2"></i> @(isMarathi ? "मेनू पदार्थ विक्री (Menu Item Sales)" : "Menu Item-wise Sales (.csv)")
-                    </a>
-                </li>
-            </ul>
-        </div>
-
-        <!-- PDF / Print Report -->
         <button onclick="window.print()" class="btn btn-outline-dark rounded-pill px-3 shadow-sm fw-semibold">
-            <i class="fa-solid fa-file-pdf text-danger me-1"></i> @(isMarathi ? "PDF / प्रिंट करा" : "Download PDF / Print")
+            <i class="fa-solid fa-print text-danger me-1"></i> @(isMarathi ? "प्रिंट / सर्व PDF" : "Print / PDF All")
         </button>
-
         <a href="/Dashboard" class="btn btn-outline-secondary rounded-pill px-3 shadow-sm fw-semibold">
             <i class="fa-solid fa-arrow-left me-1"></i> @(isMarathi ? "डॅशबोर्डवर परत" : "Back to Dashboard")
         </a>
@@ -217,7 +211,7 @@
 </div>
 
 <!-- KPI Summary Cards -->
-<div class="row g-3 mb-4 animated-fade-in">
+<div class="row g-3 mb-4 animated-fade-in no-print">
     <div class="col-xl-3 col-md-6 col-12">
         <div class="glass-card p-3 p-xl-4 h-100 border-start border-4 border-success">
             <div class="d-flex justify-content-between align-items-start">
@@ -239,7 +233,7 @@
                     <div class="text-secondary small fw-bold text-uppercase">@(isMarathi ? "एकूण ऑर्डर्स संख्या" : "Total Orders")</div>
                     <div class="fs-3 fw-bold text-info mt-1">@Model.TotalOrders</div>
                     <div class="small text-muted mt-1">
-                        <span class="text-dark fw-semibold">₹@Model.AverageOrderValue.ToString("N0")</span> @(isMarathi ? "सरासरी बिल" : "Avg Ticket Value")
+                        <span class="text-dark fw-semibold">₹@Model.AverageOrderValue.ToString("N0")</span> @(isMarathi ? "सरासरी बिल" : "Avg Ticket")
                     </div>
                 </div>
                 <div class="p-3 bg-info-subtle text-info rounded-circle">
@@ -282,27 +276,338 @@
     </div>
 </div>
 
+<!-- ==================== USER-FRIENDLY LIST OF REPORTS (REPORT CATALOG) ==================== -->
+<div class="glass-card p-4 mb-4 shadow-sm animated-fade-in no-print" id="reportCatalogList">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-3 border-bottom">
+        <div>
+            <h4 class="fw-bold text-dark mb-0">
+                <i class="fa-solid fa-list-check text-success me-2"></i>@(isMarathi ? "उपलब्ध अहवाल सूची (सर्व अहवाल एक्सेल व PDF मध्ये डाउनलोड करा)" : "Available Reports Catalog (View & Download in Excel & PDF)")
+            </h4>
+            <div class="text-muted small">
+                @(isMarathi ? "खालील कोणत्याही अहवालावर क्लिक करून तक्ता पहा किंवा थेट एक्सेल आणि पीडीएफ डाउनलोड करा" : "Click 'View Report' to inspect detailed records or click Excel/PDF to download directly")
+            </div>
+        </div>
+        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2 fw-semibold">
+            8 Ready Reports
+        </span>
+    </div>
+
+    <div class="row g-3">
+        <!-- Report 1: Sales & Revenue Report -->
+        <div class="col-12">
+            <div class="p-3 bg-white rounded-4 report-card-row d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="report-badge-icon bg-success-subtle text-success">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold text-dark fs-6">
+                            1. @(isMarathi ? "दैनिक / मासिक विक्री व महसूल अहवाल" : "Sales & Revenue Summary Statement")
+                        </div>
+                        <div class="text-muted small">
+                            @(isMarathi ? "कालावधीनुसार एकूण विक्री, कर, सूट व निव्वळ उत्पन्नाचा सर्वंकष अहवाल" : "Date-wise gross sales, GST tax collected, discount deductions, and net revenue breakdown")
+                        </div>
+                        <div class="small fw-semibold text-success mt-1">
+                            <i class="fa-solid fa-circle-check me-1"></i>₹@Model.TotalRevenue.ToString("N0") Net Sales &bull; @Model.TotalOrders Orders &bull; ₹@Model.TotalTax.ToString("N0") GST
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" onclick="showReportPane('sales-pane', 'Sales & Revenue Statement')">
+                        <i class="fa-solid fa-eye me-1"></i> @(isMarathi ? "अहवाल पहा" : "View Report")
+                    </button>
+                    <a href="@($"{exportBaseUrl}&reportType=Sales")" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm">
+                        <i class="fa-solid fa-file-excel text-success me-1"></i> Excel (.csv)
+                    </a>
+                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 shadow-sm" onclick="printSpecificReport('sales-pane', 'Sales & Revenue Statement')">
+                        <i class="fa-solid fa-file-pdf me-1"></i> PDF / Print
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report 2: Table-Wise Collection Report -->
+        <div class="col-12">
+            <div class="p-3 bg-white rounded-4 report-card-row d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="report-badge-icon bg-info-subtle text-info">
+                        <i class="fa-solid fa-chair"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold text-dark fs-6">
+                            2. @(isMarathi ? "टेबलनिहाय वसुली व विक्री अहवाल" : "Table-Wise Collection & Occupancy Report")
+                        </div>
+                        <div class="text-muted small">
+                            @(isMarathi ? "प्रत्येक टेबलद्वारे पूर्ण केलेल्या ऑर्डर्स, सरासरी बिल आणि एकूण महसूल वाटा" : "Orders served, floor zones, average ticket value, and total collection share per table")
+                        </div>
+                        <div class="small fw-semibold text-info mt-1">
+                            <i class="fa-solid fa-chair me-1"></i>@Model.TableBreakdown.Count Tables Active &bull; ₹@Model.TableBreakdown.Sum(t => t.TotalAmount).ToString("N0") Collected
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" onclick="showReportPane('table-pane', 'Table-Wise Collection Report')">
+                        <i class="fa-solid fa-eye me-1"></i> @(isMarathi ? "अहवाल पहा" : "View Report")
+                    </button>
+                    <a href="@($"{exportBaseUrl}&reportType=Table")" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm">
+                        <i class="fa-solid fa-file-excel text-success me-1"></i> Excel (.csv)
+                    </a>
+                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 shadow-sm" onclick="printSpecificReport('table-pane', 'Table-Wise Collection Report')">
+                        <i class="fa-solid fa-file-pdf me-1"></i> PDF / Print
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report 3: Menu Item-Wise Sales Report -->
+        <div class="col-12">
+            <div class="p-3 bg-white rounded-4 report-card-row d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="report-badge-icon bg-warning-subtle text-warning">
+                        <i class="fa-solid fa-utensils"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold text-dark fs-6">
+                            3. @(isMarathi ? "पदार्थनिहाय (मेनू आयटम) विक्री व संकलन अहवाल" : "Menu Item-Wise Sales & Dish Performance Report")
+                        </div>
+                        <div class="text-muted small">
+                            @(isMarathi ? "प्रत्येक पदार्थाचा शॉर्ट कोड, विक्री नग, दर, एकूण महसूल आणि टक्केवारी" : "Dish short codes, English/Marathi names, quantity sold, unit price, and revenue contribution")
+                        </div>
+                        <div class="small fw-semibold text-warning-emphasis mt-1">
+                            <i class="fa-solid fa-bowl-food me-1"></i>@Model.MenuItemBreakdown.Count Menu Items &bull; @Model.MenuItemBreakdown.Sum(m => m.QuantitySold) Dishes Sold &bull; ₹@Model.MenuItemBreakdown.Sum(m => m.TotalRevenue).ToString("N0")
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" onclick="showReportPane('menu-pane', 'Menu Item-Wise Sales Report')">
+                        <i class="fa-solid fa-eye me-1"></i> @(isMarathi ? "अहवाल पहा" : "View Report")
+                    </button>
+                    <a href="@($"{exportBaseUrl}&reportType=MenuItem")" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm">
+                        <i class="fa-solid fa-file-excel text-success me-1"></i> Excel (.csv)
+                    </a>
+                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 shadow-sm" onclick="printSpecificReport('menu-pane', 'Menu Item-Wise Sales Report')">
+                        <i class="fa-solid fa-file-pdf me-1"></i> PDF / Print
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report 4: Category-Wise Sales Report -->
+        <div class="col-12">
+            <div class="p-3 bg-white rounded-4 report-card-row d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="report-badge-icon bg-primary-subtle text-primary">
+                        <i class="fa-solid fa-tags"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold text-dark fs-6">
+                            4. @(isMarathi ? "मेनू श्रेणीनुसार विक्री अहवाल" : "Category-Wise Revenue Breakdown Report")
+                        </div>
+                        <div class="text-muted small">
+                            @(isMarathi ? "स्टार्टर्स, मेन कोर्स, रोटी, शीतपेये इत्यादी श्रेणीनुसार विक्री संख्या व उत्पन्न" : "Sales breakdown across menu food categories, item quantities and % share")
+                        </div>
+                        <div class="small fw-semibold text-primary mt-1">
+                            <i class="fa-solid fa-tag me-1"></i>@Model.CategoryBreakdown.Count Categories &bull; ₹@Model.CategoryBreakdown.Sum(c => c.TotalSales).ToString("N0") Category Revenue
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" onclick="showReportPane('category-pane', 'Category-Wise Revenue Report')">
+                        <i class="fa-solid fa-eye me-1"></i> @(isMarathi ? "अहवाल पहा" : "View Report")
+                    </button>
+                    <a href="@($"{exportBaseUrl}&reportType=Category")" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm">
+                        <i class="fa-solid fa-file-excel text-success me-1"></i> Excel (.csv)
+                    </a>
+                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 shadow-sm" onclick="printSpecificReport('category-pane', 'Category-Wise Revenue Report')">
+                        <i class="fa-solid fa-file-pdf me-1"></i> PDF / Print
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report 5: Payment Modes Reconciliations -->
+        <div class="col-12">
+            <div class="p-3 bg-white rounded-4 report-card-row d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="report-badge-icon bg-secondary-subtle text-dark">
+                        <i class="fa-solid fa-wallet"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold text-dark fs-6">
+                            5. @(isMarathi ? "पेमेंट पद्धती व संकलन मेळ अहवाल" : "Payment Modes & Settlements Reconciliation Report")
+                        </div>
+                        <div class="text-muted small">
+                            @(isMarathi ? "कॅश, युपीआय/क्यूआर, कार्ड व बँक ट्रान्सफर द्वारे जमा झालेली बिले आणि व्यवहार" : "Cash in counter, UPI/QR code settlements, Cards and reconciliation shares")
+                        </div>
+                        <div class="small fw-semibold text-dark mt-1">
+                            <i class="fa-solid fa-money-bill-wave me-1"></i>@Model.PaymentBreakdown.Count Payment Modes &bull; ₹@Model.PaymentBreakdown.Sum(p => p.TotalAmount).ToString("N0") Total Settled
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" onclick="showReportPane('payment-pane', 'Payment Modes Reconciliation')">
+                        <i class="fa-solid fa-eye me-1"></i> @(isMarathi ? "अहवाल पहा" : "View Report")
+                    </button>
+                    <a href="@($"{exportBaseUrl}&reportType=Payment")" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm">
+                        <i class="fa-solid fa-file-excel text-success me-1"></i> Excel (.csv)
+                    </a>
+                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 shadow-sm" onclick="printSpecificReport('payment-pane', 'Payment Modes Reconciliation')">
+                        <i class="fa-solid fa-file-pdf me-1"></i> PDF / Print
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report 6: GST & Tax Compliance Report -->
+        <div class="col-12">
+            <div class="p-3 bg-white rounded-4 report-card-row d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="report-badge-icon bg-warning-subtle text-danger">
+                        <i class="fa-solid fa-file-invoice-dollar"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold text-dark fs-6">
+                            6. @(isMarathi ? "जीएसटी कर विवरण व अनुपालन अहवाल" : "GST & Tax Compliance Statement Report")
+                        </div>
+                        <div class="text-muted small">
+                            @(isMarathi ? "करपात्र महसूल, सीजीएसटी (2.5%), एसजीएसटी (2.5%) आणि एकूण जीएसटी कर संकलन" : "Taxable gross turnover, CGST, SGST, and statutory total tax collected for tax filing")
+                        </div>
+                        <div class="small fw-semibold text-danger mt-1">
+                            <i class="fa-solid fa-receipt me-1"></i>₹@Model.TotalTax.ToString("N0") GST Collected (CGST: ₹@Model.TotalCGST:N0 &bull; SGST: ₹@Model.TotalSGST:N0)
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" onclick="showReportPane('gst-pane', 'GST & Tax Compliance Statement')">
+                        <i class="fa-solid fa-eye me-1"></i> @(isMarathi ? "अहवाल पहा" : "View Report")
+                    </button>
+                    <a href="@($"{exportBaseUrl}&reportType=GST")" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm">
+                        <i class="fa-solid fa-file-excel text-success me-1"></i> Excel (.csv)
+                    </a>
+                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 shadow-sm" onclick="printSpecificReport('gst-pane', 'GST & Tax Compliance Statement')">
+                        <i class="fa-solid fa-file-pdf me-1"></i> PDF / Print
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report 7: Takeaway & Parcel Sales Report -->
+        <div class="col-12">
+            <div class="p-3 bg-white rounded-4 report-card-row d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="report-badge-icon bg-teal-subtle" style="background:#ccfbf1; color:#0f766e;">
+                        <i class="fa-solid fa-box-open"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold text-dark fs-6">
+                            7. @(isMarathi ? "पार्सल व टेकअवे विक्री अहवाल" : "Takeaway & Parcel Orders Report")
+                        </div>
+                        <div class="text-muted small">
+                            @(isMarathi ? "काउंटर पार्सल ऑर्डर्स, पॅकिंग ऑर्डर्स आणि टेकअवेद्वारे झालेली निव्वळ विक्री" : "Counter takeaway pickups, parcel orders count and total takeaway sales revenue")
+                        </div>
+                        <div class="small fw-semibold mt-1" style="color:#0f766e;">
+                            <i class="fa-solid fa-bag-shopping me-1"></i>₹@Model.TakeawaySales.ToString("N0") Takeaway Sales &bull; @Model.BreakdownList.Sum(b => b.TakeawayCount) Parcel Orders
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" onclick="showReportPane('takeaway-pane', 'Takeaway & Parcel Sales Report')">
+                        <i class="fa-solid fa-eye me-1"></i> @(isMarathi ? "अहवाल पहा" : "View Report")
+                    </button>
+                    <a href="@($"{exportBaseUrl}&reportType=Takeaway")" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm">
+                        <i class="fa-solid fa-file-excel text-success me-1"></i> Excel (.csv)
+                    </a>
+                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 shadow-sm" onclick="printSpecificReport('takeaway-pane', 'Takeaway & Parcel Sales Report')">
+                        <i class="fa-solid fa-file-pdf me-1"></i> PDF / Print
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report 8: Income & Expenses Report -->
+        <div class="col-12">
+            <div class="p-3 bg-white rounded-4 report-card-row d-flex flex-wrap align-items-center justify-content-between gap-3 border-start border-4 border-success">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="report-badge-icon bg-success-subtle text-success">
+                        <i class="fa-solid fa-scale-balanced"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold text-dark fs-6">
+                            8. @(isMarathi ? "उत्पन्न व खर्च (नफा-तोटा P&L) अहवाल" : "Income & Expenses (P&L) Financial Report")
+                        </div>
+                        <div class="text-muted small">
+                            @(isMarathi ? "हॉटेलचे एकूण उत्पन्न, कामगारांचे पगार, किराणा व साहित्य खरेदी आणि निव्वळ नफा/तोटा" : "Monthly operating revenues, attendance-based staff salaries, raw stock expenses & net margin")
+                        </div>
+                        <div class="small fw-semibold text-success mt-1">
+                            <i class="fa-solid fa-book-open me-1"></i>Official Accounts Module P&L Statement
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <a href="/Accounts?tab=income-expenses&month=@curMonth&year=@curYear" class="btn btn-sm btn-success rounded-pill px-3 shadow-sm">
+                        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> @(isMarathi ? "खाते विभागात उघडा" : "Open in Accounts")
+                    </a>
+                    <a href="/Accounts/ExportIncomeExpenseExcel?month=@curMonth&year=@curYear" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm">
+                        <i class="fa-solid fa-file-excel text-success me-1"></i> Excel (.csv)
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== DETAILED REPORT VIEWER TABS ==================== -->
+<div class="d-flex justify-content-between align-items-center mb-3 no-print">
+    <h5 class="fw-bold text-dark mb-0">
+        <i class="fa-solid fa-table-list text-primary me-2"></i>@(isMarathi ? "तपशीलवार अहवाल डेटा टेबल" : "Detailed Report Data View")
+    </h5>
+    <div class="text-muted small">
+        @(isMarathi ? "खालील टॅब निवडून कोणताही अहवाल सविस्तर पहा किंवा सर्च करा" : "Switch tabs below to view detailed breakdown table or search records")
+    </div>
+</div>
+
 <!-- Module Navigation Tabs -->
 <ul class="nav nav-pills mb-4 p-1 bg-white border rounded-pill shadow-sm no-print" id="reportTabs" role="tablist" style="width: fit-content;">
     <li class="nav-item" role="presentation">
-        <button class="nav-link active rounded-pill px-4 fw-bold" id="sales-tab" data-bs-toggle="pill" data-bs-target="#sales-pane" type="button" role="tab">
-            <i class="fa-solid fa-chart-line me-2"></i>@(isMarathi ? "विक्री व महसूल आढावा" : "Sales & Revenue")
+        <button class="nav-link active rounded-pill px-3 fw-bold" id="sales-tab" data-bs-toggle="pill" data-bs-target="#sales-pane" type="button" role="tab">
+            <i class="fa-solid fa-chart-line me-1"></i>@(isMarathi ? "विक्री अहवाल" : "Sales Summary")
         </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link rounded-pill px-4 fw-bold" id="table-tab" data-bs-toggle="pill" data-bs-target="#table-pane" type="button" role="tab">
-            <i class="fa-solid fa-chair me-2"></i>@(isMarathi ? "टेबलनुसार वसुली" : "Table-wise Collection")
+        <button class="nav-link rounded-pill px-3 fw-bold" id="table-tab" data-bs-toggle="pill" data-bs-target="#table-pane" type="button" role="tab">
+            <i class="fa-solid fa-chair me-1"></i>@(isMarathi ? "टेबल वसुली" : "Table Collection")
         </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link rounded-pill px-4 fw-bold" id="menu-tab" data-bs-toggle="pill" data-bs-target="#menu-pane" type="button" role="tab">
-            <i class="fa-solid fa-utensils me-2"></i>@(isMarathi ? "मेनू पदार्थ विक्री" : "Menu Item-wise Sales")
+        <button class="nav-link rounded-pill px-3 fw-bold" id="menu-tab" data-bs-toggle="pill" data-bs-target="#menu-pane" type="button" role="tab">
+            <i class="fa-solid fa-utensils me-1"></i>@(isMarathi ? "मेनू पदार्थ विक्री" : "Menu Item Sales")
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link rounded-pill px-3 fw-bold" id="category-tab" data-bs-toggle="pill" data-bs-target="#category-pane" type="button" role="tab">
+            <i class="fa-solid fa-tags me-1"></i>@(isMarathi ? "श्रेणी महसूल" : "Category Breakdown")
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link rounded-pill px-3 fw-bold" id="payment-tab" data-bs-toggle="pill" data-bs-target="#payment-pane" type="button" role="tab">
+            <i class="fa-solid fa-wallet me-1"></i>@(isMarathi ? "पेमेंट पद्धती" : "Payment Modes")
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link rounded-pill px-3 fw-bold" id="gst-tab" data-bs-toggle="pill" data-bs-target="#gst-pane" type="button" role="tab">
+            <i class="fa-solid fa-file-invoice-dollar me-1"></i>@(isMarathi ? "जीएसटी विवरण" : "GST Statement")
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link rounded-pill px-3 fw-bold" id="takeaway-tab" data-bs-toggle="pill" data-bs-target="#takeaway-pane" type="button" role="tab">
+            <i class="fa-solid fa-box-open me-1"></i>@(isMarathi ? "पार्सल विक्री" : "Takeaway Sales")
         </button>
     </li>
 </ul>
 
 <!-- Tab Contents -->
 <div class="tab-content" id="reportTabContent">
+
     <!-- TAB 1: SALES & REVENUE -->
     <div class="tab-pane fade show active" id="sales-pane" role="tabpanel">
         <!-- Visual Charts Section -->
@@ -347,9 +652,14 @@
         <div class="glass-card p-4 mb-4 animated-fade-in shadow-sm">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-table-list text-success me-2"></i>@(isMarathi ? "तपशीलवार विक्री विवरण" : "Detailed Sales Statement")</h5>
-                <a href="/Reports/ExportExcel?reportType=Sales&period=@currentPeriod&year=@curYear&month=@curMonth&startDate=@Model.StartDate.ToString("yyyy-MM-dd")&endDate=@Model.EndDate.ToString("yyyy-MM-dd")" class="btn btn-sm btn-outline-success rounded-pill px-3 no-print">
-                    <i class="fa-solid fa-file-csv me-1"></i> @(isMarathi ? "एक्सेल डाउनलोड (.csv)" : "Export to Excel")
-                </a>
+                <div class="d-flex gap-2 no-print">
+                    <a href="@($"{exportBaseUrl}&reportType=Sales")" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                        <i class="fa-solid fa-file-excel text-success me-1"></i> Excel (.csv)
+                    </a>
+                    <button onclick="printSpecificReport('sales-pane', 'Sales Statement')" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                        <i class="fa-solid fa-print me-1"></i> Print / PDF
+                    </button>
+                </div>
             </div>
 
             <div class="table-responsive">
@@ -426,34 +736,6 @@
                 </table>
             </div>
         </div>
-
-        <!-- Category Sales Breakdown -->
-        @if (Model.CategoryBreakdown.Any())
-        {
-            <div class="glass-card p-4 animated-fade-in shadow-sm">
-                <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-utensils text-success me-2"></i>@(isMarathi ? "मेनू श्रेणीनुसार विक्री" : "Sales by Menu Category")</h5>
-                <div class="row g-3">
-                    @foreach (var c in Model.CategoryBreakdown)
-                    {
-                        <div class="col-md-4 col-sm-6 col-12">
-                            <div class="p-3 bg-light rounded-4 border">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="fw-bold text-dark">@c.CategoryName</span>
-                                    <span class="badge bg-success-subtle text-success">@c.Percentage%</span>
-                                </div>
-                                <div class="d-flex justify-content-between align-items-center small text-muted">
-                                    <span>@c.ItemsSold @(isMarathi ? "आयटम विकले" : "items sold")</span>
-                                    <span class="fw-bold text-dark fs-6">₹@c.TotalSales.ToString("N0")</span>
-                                </div>
-                                <div class="progress mt-2" style="height: 6px;">
-                                    <div class="progress-bar bg-success" style="width: @c.Percentage%;"></div>
-                                </div>
-                            </div>
-                        </div>
-                    }
-                </div>
-            </div>
-        }
     </div>
 
     <!-- TAB 2: TABLE-WISE COLLECTION -->
@@ -464,9 +746,14 @@
                     <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-chair text-primary me-2"></i>@(isMarathi ? "टेबलनिहाय महसूल व वसुली अहवाल" : "Table-wise Revenue & Collection Report")</h5>
                     <div class="text-muted small">@(isMarathi ? "प्रत्येक टेबलद्वारे व्युत्पन्न झालेली एकूण बिले, ऑर्डर्स आणि महसूल वाटा" : "Orders served, total bill amount, average ticket and % share per table")</div>
                 </div>
-                <a href="/Reports/ExportExcel?reportType=Table&period=@currentPeriod&year=@curYear&month=@curMonth&startDate=@Model.StartDate.ToString("yyyy-MM-dd")&endDate=@Model.EndDate.ToString("yyyy-MM-dd")" class="btn btn-sm btn-outline-success rounded-pill px-3 no-print">
-                    <i class="fa-solid fa-file-csv me-1"></i> @(isMarathi ? "टेबल अहवाल डाउनलोड (.csv)" : "Export Table Report")
-                </a>
+                <div class="d-flex gap-2 no-print">
+                    <a href="@($"{exportBaseUrl}&reportType=Table")" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                        <i class="fa-solid fa-file-excel text-success me-1"></i> Excel (.csv)
+                    </a>
+                    <button onclick="printSpecificReport('table-pane', 'Table-Wise Collection Report')" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                        <i class="fa-solid fa-print me-1"></i> Print / PDF
+                    </button>
+                </div>
             </div>
 
             <div class="table-responsive">
@@ -544,13 +831,16 @@
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                 <div>
                     <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-utensils text-success me-2"></i>@(isMarathi ? "पदार्थनिहाय विक्री व महसूल अहवाल" : "Menu Item-wise Sales & Revenue Report")</h5>
-                    <div class="text-muted small">@(isMarathi ? "प्रत्येक पदार्थाची विक्री संख्या, युनिट किंमत, एकूण उत्पन्न आणि टक्केवारी वाटा" : "Item codes, quantity sold, unit price, total revenue and contribution share")</div>
+                    <div class="text-muted small">@(isMarathi ? "प्रत्येक पदार्थाची विक्री संख्या, युनिट किंमत, एकूण उत्पन्न आणि टक्केवारी वाटा" : "Item short codes, quantity sold, unit price, total revenue and contribution share")</div>
                 </div>
                 <div class="d-flex align-items-center gap-2 no-print">
-                    <input type="text" id="menuReportSearch" class="form-control form-control-sm rounded-pill" placeholder="@(isMarathi ? "पदार्थ शोधा..." : "Filter dish name...")" style="width: 200px;" onkeyup="filterMenuReportTable()" />
-                    <a href="/Reports/ExportExcel?reportType=MenuItem&period=@currentPeriod&year=@curYear&month=@curMonth&startDate=@Model.StartDate.ToString("yyyy-MM-dd")&endDate=@Model.EndDate.ToString("yyyy-MM-dd")" class="btn btn-sm btn-outline-success rounded-pill px-3">
-                        <i class="fa-solid fa-file-csv me-1"></i> @(isMarathi ? "मेनू अहवाल डाउनलोड (.csv)" : "Export Menu Report")
+                    <input type="text" id="menuReportSearch" class="form-control form-control-sm rounded-pill" placeholder="@(isMarathi ? "कोड किंवा पदार्थ शोधा..." : "Filter code or dish...")" style="width: 200px;" onkeyup="filterMenuReportTable()" />
+                    <a href="@($"{exportBaseUrl}&reportType=MenuItem")" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                        <i class="fa-solid fa-file-excel text-success me-1"></i> Excel (.csv)
                     </a>
+                    <button onclick="printSpecificReport('menu-pane', 'Menu Item-Wise Sales Report')" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                        <i class="fa-solid fa-print me-1"></i> Print / PDF
+                    </button>
                 </div>
             </div>
 
@@ -558,7 +848,7 @@
                 <table class="table table-hover align-middle mb-0" id="menuReportTable">
                     <thead class="table-light text-muted small text-uppercase">
                         <tr>
-                            <th>@(isMarathi ? "कोड" : "Code")</th>
+                            <th>@(isMarathi ? "कोड / शॉर्ट कोड" : "Code / Short Code")</th>
                             <th>@(isMarathi ? "पदार्थाचे नाव" : "Dish Name")</th>
                             <th>@(isMarathi ? "श्रेणी" : "Category")</th>
                             <th class="text-end">@(isMarathi ? "किंमत" : "Unit Price")</th>
@@ -582,7 +872,20 @@
                             @foreach (var mi in Model.MenuItemBreakdown)
                             {
                                 <tr>
-                                    <td><span class="badge bg-light text-secondary border">@(string.IsNullOrWhiteSpace(mi.ItemCode) ? "-" : mi.ItemCode)</span></td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(mi.ShortCode))
+                                        {
+                                            <span class="badge bg-dark text-white fw-bold px-2 py-1 fs-6">#@mi.ShortCode</span>
+                                            @if (!string.IsNullOrEmpty(mi.ItemCode) && mi.ItemCode != mi.ShortCode)
+                                            {
+                                                <span class="text-muted small ms-1">(@mi.ItemCode)</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-light text-secondary border">@(string.IsNullOrWhiteSpace(mi.ItemCode) ? "-" : mi.ItemCode)</span>
+                                        }
+                                    </td>
                                     <td>
                                         <div class="fw-bold text-dark">@mi.ItemName</div>
                                         @if (!string.IsNullOrWhiteSpace(mi.ItemNameMarathi))
@@ -599,7 +902,7 @@
                                     <td>
                                         <div class="d-flex align-items-center gap-2">
                                             <div class="progress flex-grow-1" style="height: 7px; background:#e2e8f0; border-radius:4px;">
-                                                <div class="progress-bar bg-teal" style="width: @mi.Percentage%; background-color:#0f766e; border-radius:4px;"></div>
+                                                <div class="progress-bar" style="width: @mi.Percentage%; background-color:#0f766e; border-radius:4px;"></div>
                                             </div>
                                             <span class="small fw-bold text-dark" style="min-width: 45px;">@mi.Percentage%</span>
                                         </div>
@@ -620,11 +923,319 @@
             </div>
         </div>
     </div>
+
+    <!-- TAB 4: CATEGORY BREAKDOWN -->
+    <div class="tab-pane fade" id="category-pane" role="tabpanel">
+        <div class="glass-card p-4 mb-4 animated-fade-in shadow-sm">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div>
+                    <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-tags text-primary me-2"></i>@(isMarathi ? "मेनू श्रेणीनुसार विक्री विवरण" : "Category-Wise Sales Statement")</h5>
+                    <div class="text-muted small">@(isMarathi ? "श्रेणीनिहाय विक्री संख्या, एकूण महसूल आणि वाटा" : "Contribution of food and beverage categories to total revenue")</div>
+                </div>
+                <div class="d-flex gap-2 no-print">
+                    <a href="@($"{exportBaseUrl}&reportType=Category")" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                        <i class="fa-solid fa-file-excel text-success me-1"></i> Excel (.csv)
+                    </a>
+                    <button onclick="printSpecificReport('category-pane', 'Category-Wise Sales Statement')" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                        <i class="fa-solid fa-print me-1"></i> Print / PDF
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light text-muted small text-uppercase">
+                        <tr>
+                            <th>@(isMarathi ? "श्रेणीचे नाव" : "Category Name")</th>
+                            <th class="text-center">@(isMarathi ? "विक्री नग संख्या" : "Items Sold (Qty)")</th>
+                            <th class="text-end">@(isMarathi ? "एकूण विक्री (₹)" : "Total Sales (₹)")</th>
+                            <th style="min-width: 160px;">@(isMarathi ? "महसूल वाटा (%)" : "Revenue Share (%)")</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.CategoryBreakdown.Any())
+                        {
+                            <tr>
+                                <td colspan="4" class="text-center py-5 text-muted">
+                                    <i class="fa-solid fa-tags fs-2 d-block mb-2 text-secondary opacity-50"></i>
+                                    No category sales recorded for this period.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var c in Model.CategoryBreakdown)
+                            {
+                                <tr>
+                                    <td class="fw-bold text-dark fs-6"><i class="fa-solid fa-tag text-primary me-2 small"></i>@c.CategoryName</td>
+                                    <td class="text-center fw-semibold text-secondary">@c.ItemsSold</td>
+                                    <td class="text-end fw-bold text-success fs-6">₹@c.TotalSales.ToString("N0")</td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="progress flex-grow-1" style="height: 7px;">
+                                                <div class="progress-bar bg-primary" style="width: @c.Percentage%;"></div>
+                                            </div>
+                                            <span class="small fw-bold text-dark">@c.Percentage%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td>@(isMarathi ? "एकूण (TOTAL)" : "TOTAL")</td>
+                            <td class="text-center text-primary">@Model.CategoryBreakdown.Sum(c => c.ItemsSold)</td>
+                            <td class="text-end text-success fs-5">₹@Model.CategoryBreakdown.Sum(c => c.TotalSales).ToString("N0")</td>
+                            <td>100.0%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 5: PAYMENT MODES -->
+    <div class="tab-pane fade" id="payment-pane" role="tabpanel">
+        <div class="glass-card p-4 mb-4 animated-fade-in shadow-sm">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div>
+                    <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-wallet text-secondary me-2"></i>@(isMarathi ? "पेमेंट पद्धतीनुसार संकलन व सेटलमेंट" : "Payment Modes & Settlements Audit")</h5>
+                    <div class="text-muted small">@(isMarathi ? "प्रत्येक पेमेंट पद्धतीचे व्यवहार, एकूण रक्कम आणि टक्केवारी" : "Cash, QR/UPI, Cards, and online payment settlement reconciliation")</div>
+                </div>
+                <div class="d-flex gap-2 no-print">
+                    <a href="@($"{exportBaseUrl}&reportType=Payment")" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                        <i class="fa-solid fa-file-excel text-success me-1"></i> Excel (.csv)
+                    </a>
+                    <button onclick="printSpecificReport('payment-pane', 'Payment Modes Reconciliation')" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                        <i class="fa-solid fa-print me-1"></i> Print / PDF
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light text-muted small text-uppercase">
+                        <tr>
+                            <th>@(isMarathi ? "पेमेंट पद्धत" : "Payment Method")</th>
+                            <th class="text-center">@(isMarathi ? "व्यवहार संख्या" : "Transaction Count")</th>
+                            <th class="text-end">@(isMarathi ? "संकलित रक्कम (₹)" : "Settled Amount (₹)")</th>
+                            <th style="min-width: 160px;">@(isMarathi ? "वाटा (%)" : "Share (%)")</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.PaymentBreakdown.Any())
+                        {
+                            <tr>
+                                <td colspan="4" class="text-center py-5 text-muted">
+                                    <i class="fa-solid fa-wallet fs-2 d-block mb-2 text-secondary opacity-50"></i>
+                                    No payment settlements found for this period.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var p in Model.PaymentBreakdown)
+                            {
+                                <tr>
+                                    <td class="fw-bold text-dark fs-6"><i class="fa-solid fa-circle-check text-success me-2 small"></i>@p.Method</td>
+                                    <td class="text-center fw-semibold text-secondary">@p.TransactionCount</td>
+                                    <td class="text-end fw-bold text-success fs-6">₹@p.TotalAmount.ToString("N0")</td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="progress flex-grow-1" style="height: 7px;">
+                                                <div class="progress-bar bg-success" style="width: @p.Percentage%;"></div>
+                                            </div>
+                                            <span class="small fw-bold text-dark">@p.Percentage%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td>@(isMarathi ? "एकूण (TOTAL)" : "TOTAL")</td>
+                            <td class="text-center text-primary">@Model.PaymentBreakdown.Sum(p => p.TransactionCount)</td>
+                            <td class="text-end text-success fs-5">₹@Model.PaymentBreakdown.Sum(p => p.TotalAmount).ToString("N0")</td>
+                            <td>100.0%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 6: GST STATEMENT -->
+    <div class="tab-pane fade" id="gst-pane" role="tabpanel">
+        <div class="glass-card p-4 mb-4 animated-fade-in shadow-sm">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div>
+                    <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-file-invoice-dollar text-danger me-2"></i>@(isMarathi ? "जीएसटी कर विवरण व अनुपालन अहवाल" : "GST & Tax Compliance Statement")</h5>
+                    <div class="text-muted small">@(isMarathi ? "करपात्र मूल्य, सीजीएसटी, एसजीएसटी आणि एकूण कर संकलन" : "Taxable turnover, CGST 2.5%, SGST 2.5%, and total tax audit trail")</div>
+                </div>
+                <div class="d-flex gap-2 no-print">
+                    <a href="@($"{exportBaseUrl}&reportType=GST")" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                        <i class="fa-solid fa-file-excel text-success me-1"></i> Excel (.csv)
+                    </a>
+                    <button onclick="printSpecificReport('gst-pane', 'GST Statement')" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                        <i class="fa-solid fa-print me-1"></i> Print / PDF
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light text-muted small text-uppercase">
+                        <tr>
+                            <th>@(isMarathi ? "कालावधी / तारीख" : "Period Date")</th>
+                            <th class="text-center">@(isMarathi ? "ऑर्डर्स" : "Orders")</th>
+                            <th class="text-end">@(isMarathi ? "एकूण विक्री (Gross)" : "Gross Sales (₹)")</th>
+                            <th class="text-end">CGST (2.5%)</th>
+                            <th class="text-end">SGST (2.5%)</th>
+                            <th class="text-end">@(isMarathi ? "एकूण जीएसटी" : "Total GST (₹)")</th>
+                            <th class="text-end">@(isMarathi ? "निव्वळ महसूल" : "Net Sales (₹)")</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.BreakdownList.Any())
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted">No tax data available for this period.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var row in Model.BreakdownList)
+                            {
+                                decimal halfTax = Math.Round(row.TaxCollected / 2m, 2);
+                                <tr>
+                                    <td class="fw-bold text-dark">@row.PeriodLabel</td>
+                                    <td class="text-center">@row.OrdersCount</td>
+                                    <td class="text-end">₹@row.GrossSales.ToString("N0")</td>
+                                    <td class="text-end text-warning-emphasis">₹@halfTax.ToString("N0")</td>
+                                    <td class="text-end text-warning-emphasis">₹@halfTax.ToString("N0")</td>
+                                    <td class="text-end fw-bold text-danger">₹@row.TaxCollected.ToString("N0")</td>
+                                    <td class="text-end fw-bold text-success">₹@row.NetRevenue.ToString("N0")</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td>@(isMarathi ? "एकूण (TOTALS)" : "TOTALS")</td>
+                            <td class="text-center">@Model.TotalOrders</td>
+                            <td class="text-end">₹@Model.BreakdownList.Sum(b => b.GrossSales).ToString("N0")</td>
+                            <td class="text-end text-warning-emphasis">₹@Model.TotalCGST.ToString("N0")</td>
+                            <td class="text-end text-warning-emphasis">₹@Model.TotalSGST.ToString("N0")</td>
+                            <td class="text-end text-danger fs-6">₹@Model.TotalTax.ToString("N0")</td>
+                            <td class="text-end text-success fs-5">₹@Model.TotalRevenue.ToString("N0")</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 7: TAKEAWAY SALES -->
+    <div class="tab-pane fade" id="takeaway-pane" role="tabpanel">
+        <div class="glass-card p-4 mb-4 animated-fade-in shadow-sm">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div>
+                    <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-box-open text-primary me-2"></i>@(isMarathi ? "पार्सल व टेकअवे ऑर्डर्स अहवाल" : "Takeaway & Parcel Orders Report")</h5>
+                    <div class="text-muted small">@(isMarathi ? "काउंटर पार्सल ऑर्डर्स संख्या आणि निव्वळ पार्सल महसूल" : "Detailed summary of takeaway packaging and counter pickup sales")</div>
+                </div>
+                <div class="d-flex gap-2 no-print">
+                    <a href="@($"{exportBaseUrl}&reportType=Takeaway")" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                        <i class="fa-solid fa-file-excel text-success me-1"></i> Excel (.csv)
+                    </a>
+                    <button onclick="printSpecificReport('takeaway-pane', 'Takeaway & Parcel Report')" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                        <i class="fa-solid fa-print me-1"></i> Print / PDF
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light text-muted small text-uppercase">
+                        <tr>
+                            <th>@(isMarathi ? "कालावधी / तारीख" : "Period Date")</th>
+                            <th class="text-center">@(isMarathi ? "पार्सल ऑर्डर्स संख्या" : "Takeaway Orders")</th>
+                            <th class="text-center">@(isMarathi ? "डायन-इन ऑर्डर्स" : "Dine-In Orders")</th>
+                            <th class="text-end">@(isMarathi ? "कालावधी निव्वळ विक्री" : "Period Net Revenue (₹)")</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.BreakdownList.Any())
+                        {
+                            <tr>
+                                <td colspan="4" class="text-center py-5 text-muted">No takeaway records found for this period.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var row in Model.BreakdownList)
+                            {
+                                <tr>
+                                    <td class="fw-bold text-dark">@row.PeriodLabel</td>
+                                    <td class="text-center">
+                                        @if (row.TakeawayCount > 0)
+                                        {
+                                            <span class="badge rounded-pill" style="background:#ccfbf1; color:#0f766e; font-size:0.85rem;">@row.TakeawayCount</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td class="text-center small text-secondary">@row.DineInCount</td>
+                                    <td class="text-end fw-bold text-success">₹@row.NetRevenue.ToString("N0")</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td>@(isMarathi ? "एकूण पार्सल महसूल (TOTAL)" : "TOTAL TAKEAWAY REVENUE")</td>
+                            <td class="text-center fs-6" style="color:#0f766e;">@Model.BreakdownList.Sum(b => b.TakeawayCount) Orders</td>
+                            <td class="text-center text-muted">@Model.BreakdownList.Sum(b => b.DineInCount) Dine-in</td>
+                            <td class="text-end text-success fs-5">₹@Model.TakeawaySales.ToString("N0")</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 @section Scripts {
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
+    // Show and scroll to specific report pane
+    function showReportPane(paneId, title) {
+        var triggerEl = document.querySelector('#reportTabs button[data-bs-target="#' + paneId + '"]');
+        if (triggerEl) {
+            bootstrap.Tab.getInstance(triggerEl)?.show() || new bootstrap.Tab(triggerEl).show();
+            triggerEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    // Print specific report tab
+    function printSpecificReport(paneId, title) {
+        var triggerEl = document.querySelector('#reportTabs button[data-bs-target="#' + paneId + '"]');
+        if (triggerEl) {
+            bootstrap.Tab.getInstance(triggerEl)?.show() || new bootstrap.Tab(triggerEl).show();
+        }
+        var docTitle = document.getElementById('printReportDocTitle');
+        if (docTitle && title) {
+            docTitle.innerText = title;
+        }
+        setTimeout(function() {
+            window.print();
+        }, 200);
+    }
+
     // 1. Sales Trend Bar/Line Chart
     const trendElem = document.getElementById('salesTrendChart');
     if (trendElem) {
@@ -711,7 +1322,7 @@
         });
     }
 
-    // Filter Menu Item Report Table Real-time
+    // Filter Menu Item Report Table Real-time (by code or name)
     function filterMenuReportTable() {
         var query = document.getElementById('menuReportSearch').value.toLowerCase().trim();
         var rows = document.querySelectorAll('#menuReportTable tbody tr');

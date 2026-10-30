@@ -15,6 +15,7 @@ public class MastersController : Controller
     private readonly IStaffService _staffService;
     private readonly IInventoryService _inventoryService;
     private readonly ISupplierService _supplierService;
+    private readonly ICustomerService _customerService;
     private readonly IUnitOfWork _unitOfWork;
 
     public MastersController(
@@ -23,6 +24,7 @@ public class MastersController : Controller
         IStaffService staffService,
         IInventoryService inventoryService,
         ISupplierService supplierService,
+        ICustomerService customerService,
         IUnitOfWork unitOfWork)
     {
         _tableService = tableService;
@@ -30,6 +32,7 @@ public class MastersController : Controller
         _staffService = staffService;
         _inventoryService = inventoryService;
         _supplierService = supplierService;
+        _customerService = customerService;
         _unitOfWork = unitOfWork;
     }
 
@@ -48,6 +51,7 @@ public class MastersController : Controller
             Categories = await _menuService.GetCategoriesAsync(),
             MenuItems = await _menuService.GetMenuItemsAsync(),
             Suppliers = await _supplierService.GetSuppliersAsync(),
+            Customers = await _customerService.GetAllCustomersAsync(),
             Employees = await _staffService.GetEmployeesAsync(),
             InventoryItems = await _inventoryService.GetInventoryItemsAsync(),
             Setting = setting
@@ -381,6 +385,75 @@ public class MastersController : Controller
         return RedirectToAction(nameof(Index), new { tab = "supplier" });
     }
 
+    // ================= Customer Operations =================
+    [HttpPost]
+    public async Task<IActionResult> CreateCustomer(CustomerCreateUpdateDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.Phone))
+        {
+            TempData["Error"] = "Customer Name and Mobile Number are required.";
+            return RedirectToAction(nameof(Index), new { tab = "customer" });
+        }
+
+        try
+        {
+            await _customerService.CreateOrUpdateCustomerAsync(dto);
+            TempData["Success"] = $"Customer '{dto.Name}' registered successfully.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+
+        return RedirectToAction(nameof(Index), new { tab = "customer" });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> UpdateCustomer(int id, CustomerCreateUpdateDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.Phone))
+        {
+            TempData["Error"] = "Customer Name and Mobile Number are required.";
+            return RedirectToAction(nameof(Index), new { tab = "customer" });
+        }
+
+        try
+        {
+            await _customerService.UpdateCustomerAsync(id, dto);
+            TempData["Success"] = $"Customer '{dto.Name}' updated successfully.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+
+        return RedirectToAction(nameof(Index), new { tab = "customer" });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> DeleteCustomer(int id)
+    {
+        bool success = await _customerService.DeleteCustomerAsync(id);
+        if (success)
+            TempData["Success"] = "Customer deleted successfully.";
+        else
+            TempData["Error"] = "Customer not found or could not be deleted.";
+
+        return RedirectToAction(nameof(Index), new { tab = "customer" });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> ToggleCustomerStatus(int id)
+    {
+        bool success = await _customerService.ToggleCustomerStatusAsync(id);
+        if (success)
+            TempData["Success"] = "Customer status updated successfully.";
+        else
+            TempData["Error"] = "Customer not found.";
+
+        return RedirectToAction(nameof(Index), new { tab = "customer" });
+    }
+
     // ================= Employee Operations =================
     [HttpPost]
     public async Task<IActionResult> CreateEmployee(EmployeeDto dto)
@@ -532,6 +605,9 @@ public class MastersController : Controller
         var result = items.Select(i => new {
             id = i.Id,
             name = i.Name,
+            nameMarathi = i.NameMarathi,
+            itemCode = i.ItemCode,
+            shortCode = !string.IsNullOrWhiteSpace(i.ShortCode) ? i.ShortCode : (!string.IsNullOrWhiteSpace(i.ItemCode) ? i.ItemCode : i.Id.ToString()),
             price = i.Price,
             categoryName = i.CategoryName,
             isAvailable = i.IsAvailable,

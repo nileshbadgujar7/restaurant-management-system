@@ -298,6 +298,77 @@ public static class DbInitializer
                 }
                 context.SaveChanges();
             }
+
+            // Ensure Menu Items have ShortCode populated
+            var menuItemsList = context.MenuItems.ToList();
+            int shortCodeSeq = 101;
+            bool updatedMenu = false;
+            foreach (var mi in menuItemsList)
+            {
+                if (string.IsNullOrWhiteSpace(mi.ShortCode))
+                {
+                    mi.ShortCode = !string.IsNullOrWhiteSpace(mi.ItemCode) ? mi.ItemCode : shortCodeSeq.ToString();
+                    updatedMenu = true;
+                }
+                shortCodeSeq++;
+            }
+            if (updatedMenu)
+            {
+                context.SaveChanges();
+            }
+
+            // Seed Customers Master data if empty
+            if (!context.Customers.Any())
+            {
+                context.Customers.AddRange(
+                    new Customer
+                    {
+                        Name = "Anand Patil",
+                        Phone = "9823456781",
+                        Email = "anand.patil@example.com",
+                        Address = "Flat 402, Shivneri Heights, Pune",
+                        GSTIN = "27AAACP1234A1Z5",
+                        Notes = "Regular diner, prefers outdoor seating",
+                        Tier = LoyaltyTier.Gold,
+                        TotalVisits = 14,
+                        TotalSpent = 18500m,
+                        LoyaltyPoints = 185,
+                        OutstandingCredit = 0m,
+                        IsActive = true
+                    },
+                    new Customer
+                    {
+                        Name = "Pooja Kulkarni",
+                        Phone = "9823456782",
+                        Email = "pooja.k@example.com",
+                        Address = "B-12, Green Acres, Pune",
+                        GSTIN = "",
+                        Notes = "Likes spicy food",
+                        Tier = LoyaltyTier.Silver,
+                        TotalVisits = 6,
+                        TotalSpent = 7200m,
+                        LoyaltyPoints = 72,
+                        OutstandingCredit = 1250m,
+                        IsActive = true
+                    },
+                    new Customer
+                    {
+                        Name = "Vikram Deshmukh (Infosys)",
+                        Phone = "9823456783",
+                        Email = "vikram.d@infosys.com",
+                        Address = "Phase 2, Hinjawadi IT Park, Pune",
+                        GSTIN = "27AAACI4567B1Z8",
+                        Notes = "Corporate client, requires GST invoice",
+                        Tier = LoyaltyTier.Platinum,
+                        TotalVisits = 28,
+                        TotalSpent = 54000m,
+                        LoyaltyPoints = 540,
+                        OutstandingCredit = 3500m,
+                        IsActive = true
+                    }
+                );
+                context.SaveChanges();
+            }
         }
         catch
         {

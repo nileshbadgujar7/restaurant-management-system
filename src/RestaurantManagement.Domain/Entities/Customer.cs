@@ -9,6 +9,8 @@ public class Customer : BaseEntity
     public string Email { get; set; } = string.Empty;
     public DateTime? DateOfBirth { get; set; }
     public string Address { get; set; } = string.Empty;
+    public string GSTIN { get; set; } = string.Empty;
+    public string Notes { get; set; } = string.Empty;
     public int TotalVisits { get; set; } = 0;
     public decimal TotalSpent { get; set; } = 0m;
     public int LoyaltyPoints { get; set; } = 0;

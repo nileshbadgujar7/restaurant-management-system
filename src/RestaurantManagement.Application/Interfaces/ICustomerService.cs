@@ -9,6 +9,9 @@ public interface ICustomerService
     Task<CustomerDto?> GetCustomerByIdAsync(int id);
     Task<CustomerDto?> GetCustomerByPhoneAsync(string phone);
     Task<CustomerDto> CreateOrUpdateCustomerAsync(CustomerCreateUpdateDto dto);
+    Task<CustomerDto> UpdateCustomerAsync(int id, CustomerCreateUpdateDto dto);
+    Task<bool> DeleteCustomerAsync(int id);
+    Task<bool> ToggleCustomerStatusAsync(int id);
     Task<int> AwardLoyaltyPointsAsync(int customerId, decimal orderAmount, string orderNo);
 }
 

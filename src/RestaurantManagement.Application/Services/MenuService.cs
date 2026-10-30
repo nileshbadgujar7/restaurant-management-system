@@ -143,6 +143,7 @@ public class MenuService : IMenuService
             Name = dto.Name.Trim(),
             NameMarathi = dto.NameMarathi?.Trim() ?? string.Empty,
             ItemCode = dto.ItemCode?.Trim() ?? string.Empty,
+            ShortCode = dto.ShortCode?.Trim() ?? string.Empty,
             Description = dto.Description ?? string.Empty,
             Price = dto.Price,
             TaxPercentage = dto.TaxPercentage,
@@ -170,6 +171,7 @@ public class MenuService : IMenuService
         item.Name = dto.Name.Trim();
         item.NameMarathi = dto.NameMarathi?.Trim() ?? string.Empty;
         item.ItemCode = dto.ItemCode?.Trim() ?? string.Empty;
+        item.ShortCode = dto.ShortCode?.Trim() ?? string.Empty;
         item.Description = dto.Description ?? string.Empty;
         item.Price = dto.Price;
         item.TaxPercentage = dto.TaxPercentage;
@@ -221,6 +223,7 @@ public class MenuService : IMenuService
             Name = m.Name,
             NameMarathi = m.NameMarathi,
             ItemCode = m.ItemCode,
+            ShortCode = m.ShortCode,
             Description = m.Description,
             Price = m.Price,
             TaxPercentage = m.TaxPercentage,

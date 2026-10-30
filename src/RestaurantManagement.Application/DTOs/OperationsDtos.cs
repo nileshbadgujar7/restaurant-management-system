@@ -302,6 +302,7 @@ public class MenuItemSalesSummaryDto
     public string ItemName { get; set; } = string.Empty;
     public string ItemNameMarathi { get; set; } = string.Empty;
     public string ItemCode { get; set; } = string.Empty;
+    public string ShortCode { get; set; } = string.Empty;
     public string CategoryName { get; set; } = string.Empty;
     public decimal UnitPrice { get; set; }
     public int QuantitySold { get; set; }

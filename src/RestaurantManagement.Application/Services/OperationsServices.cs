@@ -1554,6 +1554,7 @@ public class ReportService : IReportService
                 string itemName = mi?.Name ?? ig.FirstOrDefault()?.ItemName ?? "Unknown Item";
                 string itemNameMr = mi?.NameMarathi ?? string.Empty;
                 string itemCode = mi?.ItemCode ?? string.Empty;
+                string shortCode = mi?.ShortCode ?? string.Empty;
                 string categoryName = mi != null && categories.TryGetValue(mi.CategoryId, out var cat) ? cat.Name : "General";
                 decimal unitPrice = mi?.Price ?? (ig.FirstOrDefault()?.UnitPrice ?? 0m);
                 int qtySold = ig.Sum(i => i.Quantity);
@@ -1565,6 +1566,7 @@ public class ReportService : IReportService
                     ItemName = itemName,
                     ItemNameMarathi = itemNameMr,
                     ItemCode = itemCode,
+                    ShortCode = shortCode,
                     CategoryName = categoryName,
                     UnitPrice = unitPrice,
                     QuantitySold = qtySold,

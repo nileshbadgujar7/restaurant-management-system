@@ -54,15 +54,84 @@ public class ReportsController : Controller
             sb.AppendLine($"Period: {report.PeriodType}, Date Range: {report.StartDate:dd-MMM-yyyy} to {report.EndDate:dd-MMM-yyyy}");
             sb.AppendLine($"Total Menu Revenue: INR {report.MenuItemBreakdown.Sum(m => m.TotalRevenue):N2}, Total Quantity Sold: {report.MenuItemBreakdown.Sum(m => m.QuantitySold)}");
             sb.AppendLine();
-            sb.AppendLine("Item Code,Dish Name,Dish Name (Marathi),Category,Unit Price (INR),Qty Sold,Total Revenue (INR),Share (%)");
+            sb.AppendLine("Item Code,Short Code,Dish Name,Dish Name (Marathi),Category,Unit Price (INR),Qty Sold,Total Revenue (INR),Share (%)");
 
             foreach (var m in report.MenuItemBreakdown)
             {
-                sb.AppendLine($"\"{EscapeCsv(m.ItemCode)}\",\"{EscapeCsv(m.ItemName)}\",\"{EscapeCsv(m.ItemNameMarathi)}\",\"{EscapeCsv(m.CategoryName)}\",{m.UnitPrice:F2},{m.QuantitySold},{m.TotalRevenue:F2},{m.Percentage:F1}%");
+                sb.AppendLine($"\"{EscapeCsv(m.ItemCode)}\",\"{EscapeCsv(m.ShortCode)}\",\"{EscapeCsv(m.ItemName)}\",\"{EscapeCsv(m.ItemNameMarathi)}\",\"{EscapeCsv(m.CategoryName)}\",{m.UnitPrice:F2},{m.QuantitySold},{m.TotalRevenue:F2},{m.Percentage:F1}%");
             }
 
             sb.AppendLine();
-            sb.AppendLine($"\"TOTAL\",,,,{report.MenuItemBreakdown.Sum(m => m.QuantitySold)},{report.MenuItemBreakdown.Sum(m => m.TotalRevenue):F2},100.0%");
+            sb.AppendLine($"\"TOTAL\",,,,,{report.MenuItemBreakdown.Sum(m => m.QuantitySold)},{report.MenuItemBreakdown.Sum(m => m.TotalRevenue):F2},100.0%");
+        }
+        else if (string.Equals(reportType, "Category", StringComparison.OrdinalIgnoreCase))
+        {
+            fileName = $"Category_Sales_Report_{timestamp}.csv";
+            sb.AppendLine("CATEGORY-WISE REVENUE BREAKDOWN REPORT");
+            sb.AppendLine($"Period: {report.PeriodType}, Date Range: {report.StartDate:dd-MMM-yyyy} to {report.EndDate:dd-MMM-yyyy}");
+            sb.AppendLine($"Total Sales: INR {report.CategoryBreakdown.Sum(c => c.TotalSales):N2}, Total Items Sold: {report.CategoryBreakdown.Sum(c => c.ItemsSold)}");
+            sb.AppendLine();
+            sb.AppendLine("Category Name,Items Sold (Qty),Total Sales Revenue (INR),Contribution (%)");
+
+            foreach (var c in report.CategoryBreakdown)
+            {
+                sb.AppendLine($"\"{EscapeCsv(c.CategoryName)}\",{c.ItemsSold},{c.TotalSales:F2},{c.Percentage:F1}%");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine($"\"TOTAL\",{report.CategoryBreakdown.Sum(c => c.ItemsSold)},{report.CategoryBreakdown.Sum(c => c.TotalSales):F2},100.0%");
+        }
+        else if (string.Equals(reportType, "Payment", StringComparison.OrdinalIgnoreCase))
+        {
+            fileName = $"Payment_Modes_Report_{timestamp}.csv";
+            sb.AppendLine("PAYMENT MODES & SETTLEMENTS AUDIT REPORT");
+            sb.AppendLine($"Period: {report.PeriodType}, Date Range: {report.StartDate:dd-MMM-yyyy} to {report.EndDate:dd-MMM-yyyy}");
+            sb.AppendLine($"Total Settled: INR {report.PaymentBreakdown.Sum(p => p.TotalAmount):N2}, Total Transactions: {report.PaymentBreakdown.Sum(p => p.TransactionCount)}");
+            sb.AppendLine();
+            sb.AppendLine("Payment Method,Transaction Count,Settled Amount (INR),Share (%)");
+
+            foreach (var p in report.PaymentBreakdown)
+            {
+                sb.AppendLine($"\"{EscapeCsv(p.Method)}\",{p.TransactionCount},{p.TotalAmount:F2},{p.Percentage:F1}%");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine($"\"TOTAL\",{report.PaymentBreakdown.Sum(p => p.TransactionCount)},{report.PaymentBreakdown.Sum(p => p.TotalAmount):F2},100.0%");
+        }
+        else if (string.Equals(reportType, "GST", StringComparison.OrdinalIgnoreCase))
+        {
+            fileName = $"GST_Tax_Statement_{timestamp}.csv";
+            sb.AppendLine("GST & TAX COMPLIANCE STATEMENT REPORT");
+            sb.AppendLine($"Period: {report.PeriodType}, Date Range: {report.StartDate:dd-MMM-yyyy} to {report.EndDate:dd-MMM-yyyy}");
+            sb.AppendLine($"Total Revenue: INR {report.TotalRevenue:N2}, Total GST: INR {report.TotalTax:N2} (CGST: {report.TotalCGST:N2}, SGST: {report.TotalSGST:N2})");
+            sb.AppendLine();
+            sb.AppendLine("Period Date / Description,Total Orders,Gross Sales (INR),CGST 2.5% (INR),SGST 2.5% (INR),Total GST (INR),Net Taxable Revenue (INR)");
+
+            foreach (var row in report.BreakdownList)
+            {
+                decimal halfTax = Math.Round(row.TaxCollected / 2m, 2);
+                sb.AppendLine($"\"{EscapeCsv(row.PeriodLabel)}\",{row.OrdersCount},{row.GrossSales:F2},{halfTax:F2},{halfTax:F2},{row.TaxCollected:F2},{row.NetRevenue:F2}");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine($"\"TOTALS\",{report.TotalOrders},{report.BreakdownList.Sum(b => b.GrossSales):F2},{report.TotalCGST:F2},{report.TotalSGST:F2},{report.TotalTax:F2},{report.TotalRevenue:F2}");
+        }
+        else if (string.Equals(reportType, "Takeaway", StringComparison.OrdinalIgnoreCase) || string.Equals(reportType, "Parcel", StringComparison.OrdinalIgnoreCase))
+        {
+            fileName = $"Parcel_Takeaway_Report_{timestamp}.csv";
+            sb.AppendLine("PARCEL & TAKEAWAY SALES REPORT");
+            sb.AppendLine($"Period: {report.PeriodType}, Date Range: {report.StartDate:dd-MMM-yyyy} to {report.EndDate:dd-MMM-yyyy}");
+            sb.AppendLine($"Total Takeaway Revenue: INR {report.TakeawaySales:N2}, Total Takeaway Orders: {report.BreakdownList.Sum(b => b.TakeawayCount)}");
+            sb.AppendLine();
+            sb.AppendLine("Period Date / Batch,Takeaway Orders,Dine-in Orders,Period Net Revenue (INR)");
+
+            foreach (var row in report.BreakdownList)
+            {
+                sb.AppendLine($"\"{EscapeCsv(row.PeriodLabel)}\",{row.TakeawayCount},{row.DineInCount},{row.NetRevenue:F2}");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine($"\"TOTAL TAKEAWAY ORDERS\",{report.BreakdownList.Sum(b => b.TakeawayCount)},,INR {report.TakeawaySales:F2}");
         }
         else
         {

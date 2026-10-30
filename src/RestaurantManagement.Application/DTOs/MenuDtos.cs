@@ -21,6 +21,7 @@ public class MenuItemDto
     public string Name { get; set; } = string.Empty;
     public string NameMarathi { get; set; } = string.Empty;
     public string ItemCode { get; set; } = string.Empty;
+    public string ShortCode { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public decimal Price { get; set; }
     public decimal TaxPercentage { get; set; }
@@ -56,6 +57,7 @@ public class MenuItemCreateUpdateDto
     public string Name { get; set; } = string.Empty;
     public string NameMarathi { get; set; } = string.Empty;
     public string ItemCode { get; set; } = string.Empty;
+    public string ShortCode { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public decimal Price { get; set; }
     public decimal TaxPercentage { get; set; } = 5.0m;

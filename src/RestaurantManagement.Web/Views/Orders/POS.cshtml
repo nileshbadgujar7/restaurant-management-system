@@ -210,10 +210,10 @@
         <div class="col-lg-7">
             <div class="menu-panel p-3">
                 <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-2 pb-2 border-bottom">
-                    <!-- Search Box -->
-                    <div class="input-group input-group-sm" style="max-width: 260px;">
-                        <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
-                        <input type="text" id="catalogSearch" class="form-control border-start-0" placeholder="Search dish..." onkeyup="filterMenuCatalog()" />
+                    <!-- Search Box by Dish or Short Code -->
+                    <div class="input-group input-group-sm" style="max-width: 320px;">
+                        <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-barcode text-success"></i></span>
+                        <input type="text" id="catalogSearch" class="form-control border-start-0" placeholder="Search dish or code (e.g. 101, Dal)..." onkeyup="filterMenuCatalog(event)" onkeydown="handleCatalogSearchKeyDown(event)" autocomplete="off" />
                     </div>
 
                     <!-- Veg / Non-Veg Filters -->
@@ -248,9 +248,12 @@
                         var hasVariants = item.Variants != null && item.Variants.Any();
                         var hasAddOns = item.AddOns != null && item.AddOns.Any();
                         var hasChoices = hasVariants || hasAddOns;
+                        var displayCode = !string.IsNullOrWhiteSpace(item.ShortCode) ? item.ShortCode : (!string.IsNullOrWhiteSpace(item.ItemCode) ? item.ItemCode : item.Id.ToString());
 
                         <div class="list-group-item list-group-item-action menu-item-row p-2 d-flex align-items-center justify-content-between border-bottom"
-                             data-cat="@item.CategoryId" data-veg="@(item.IsVeg ? "veg" : "nonveg")" data-name="@item.Name.ToLower()"
+                             data-cat="@item.CategoryId" data-veg="@(item.IsVeg ? "veg" : "nonveg")"
+                             data-name="@item.Name.ToLower()" data-namemr="@(item.NameMarathi?.ToLower() ?? "")"
+                             data-code="@displayCode.ToLower()" data-id="@item.Id"
                              onclick="onMenuItemClicked(@item.Id, '@item.Name', @item.Price, @(hasChoices.ToString().ToLower()), @(item.IsAvailable.ToString().ToLower()))">
                             
                             <div class="d-flex align-items-center" style="min-width: 0; flex: 1;">
@@ -263,8 +266,13 @@
                                     <span class="nonveg-indicator"><span class="nonveg-dot"></span></span>
                                 }
                                 <div class="ms-1" style="min-width: 0;">
-                                    <div class="d-flex align-items-center gap-2">
+                                    <div class="d-flex align-items-center gap-1 flex-wrap">
+                                        <span class="badge bg-secondary-subtle text-dark border px-2 py-0 fw-bold" style="font-size:0.75rem;" title="Item Short Code (Type to search & add)">#@displayCode</span>
                                         <span class="fw-bold text-dark text-truncate">@item.Name</span>
+                                        @if (!string.IsNullOrWhiteSpace(item.NameMarathi))
+                                        {
+                                            <span class="text-muted small" style="font-size: 0.78rem;">(@item.NameMarathi)</span>
+                                        }
                                         <span class="badge bg-light text-secondary border small">@item.CategoryName</span>
                                         @if (!item.IsAvailable)
                                         {
@@ -1296,12 +1304,49 @@
         alert(text);
     }
 
-    function filterMenuCatalog() {
-        let q = $('#catalogSearch').val().toLowerCase();
+    function filterMenuCatalog(e) {
+        let q = ($('#catalogSearch').val() || '').toLowerCase().trim();
         $('.menu-item-row').each(function() {
-            let name = $(this).data('name') || '';
-            $(this).toggle(name.includes(q));
+            let name = ($(this).data('name') || '').toString().toLowerCase();
+            let namemr = ($(this).data('namemr') || '').toString().toLowerCase();
+            let code = ($(this).data('code') || '').toString().toLowerCase();
+            
+            // Match dish name, Marathi name, or short code (#101 or 101)
+            let matches = (q === '') || 
+                          name.includes(q) || 
+                          namemr.includes(q) || 
+                          code.includes(q) || 
+                          ('#' + code).includes(q);
+            $(this).toggle(matches);
         });
+    }
+
+    function handleCatalogSearchKeyDown(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            let q = ($('#catalogSearch').val() || '').toLowerCase().trim();
+            if (!q) return;
+
+            // Search for exact short code match first
+            let exactMatch = null;
+            let visibleRows = [];
+
+            $('.menu-item-row:visible').each(function() {
+                let code = ($(this).data('code') || '').toString().toLowerCase();
+                if (code === q || ('#' + code) === q) {
+                    exactMatch = $(this);
+                    return false;
+                }
+                visibleRows.push($(this));
+            });
+
+            let target = exactMatch || (visibleRows.length === 1 ? visibleRows[0] : (visibleRows.length > 1 ? visibleRows[0] : null));
+            if (target) {
+                target.trigger('click');
+                $('#catalogSearch').val('');
+                filterMenuCatalog();
+            }
+        }
     }
 
     function filterVeg(type, btn) {

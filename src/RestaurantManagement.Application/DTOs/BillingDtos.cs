@@ -64,6 +64,8 @@ public class CustomerDto
     public string Email { get; set; } = string.Empty;
     public DateTime? DateOfBirth { get; set; }
     public string Address { get; set; } = string.Empty;
+    public string GSTIN { get; set; } = string.Empty;
+    public string Notes { get; set; } = string.Empty;
     public int TotalVisits { get; set; }
     public decimal TotalSpent { get; set; }
     public int LoyaltyPoints { get; set; }
@@ -71,6 +73,8 @@ public class CustomerDto
     public string TierName => Tier.ToString();
     public DateTime? LastVisitDate { get; set; }
     public decimal OutstandingCredit { get; set; }
+    public bool IsActive { get; set; } = true;
+    public DateTime CreatedAt { get; set; }
 }
 
 public class CustomerCreateUpdateDto
@@ -80,6 +84,9 @@ public class CustomerCreateUpdateDto
     public string Email { get; set; } = string.Empty;
     public DateTime? DateOfBirth { get; set; }
     public string Address { get; set; } = string.Empty;
+    public string GSTIN { get; set; } = string.Empty;
+    public string Notes { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
 }
 
 public class ReservationDto

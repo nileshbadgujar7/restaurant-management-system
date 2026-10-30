@@ -41,11 +41,14 @@ public class CustomerService : ICustomerService
         {
             var customer = new Customer
             {
-                Name = dto.Name,
-                Phone = dto.Phone,
-                Email = dto.Email,
+                Name = dto.Name.Trim(),
+                Phone = dto.Phone.Trim(),
+                Email = dto.Email?.Trim() ?? string.Empty,
                 DateOfBirth = dto.DateOfBirth,
-                Address = dto.Address,
+                Address = dto.Address?.Trim() ?? string.Empty,
+                GSTIN = dto.GSTIN?.Trim().ToUpperInvariant() ?? string.Empty,
+                Notes = dto.Notes?.Trim() ?? string.Empty,
+                IsActive = dto.IsActive,
                 Tier = LoyaltyTier.Silver,
                 CreatedAt = DateTime.UtcNow
             };
@@ -67,10 +70,13 @@ public class CustomerService : ICustomerService
         }
         else
         {
-            existing.Name = dto.Name;
-            existing.Email = dto.Email;
+            existing.Name = dto.Name.Trim();
+            existing.Email = dto.Email?.Trim() ?? string.Empty;
             existing.DateOfBirth = dto.DateOfBirth;
-            existing.Address = dto.Address;
+            existing.Address = dto.Address?.Trim() ?? string.Empty;
+            existing.GSTIN = dto.GSTIN?.Trim().ToUpperInvariant() ?? string.Empty;
+            existing.Notes = dto.Notes?.Trim() ?? string.Empty;
+            existing.IsActive = dto.IsActive;
             existing.UpdatedAt = DateTime.UtcNow;
 
             await _unitOfWork.Customers.UpdateAsync(existing);
@@ -78,6 +84,51 @@ public class CustomerService : ICustomerService
 
             return MapToCustomerDto(existing);
         }
+    }
+
+    public async Task<CustomerDto> UpdateCustomerAsync(int id, CustomerCreateUpdateDto dto)
+    {
+        var customer = await _unitOfWork.Customers.GetByIdAsync(id);
+        if (customer == null || customer.IsDeleted) throw new KeyNotFoundException($"Customer {id} not found.");
+
+        customer.Name = dto.Name.Trim();
+        customer.Phone = dto.Phone.Trim();
+        customer.Email = dto.Email?.Trim() ?? string.Empty;
+        customer.DateOfBirth = dto.DateOfBirth;
+        customer.Address = dto.Address?.Trim() ?? string.Empty;
+        customer.GSTIN = dto.GSTIN?.Trim().ToUpperInvariant() ?? string.Empty;
+        customer.Notes = dto.Notes?.Trim() ?? string.Empty;
+        customer.IsActive = dto.IsActive;
+        customer.UpdatedAt = DateTime.UtcNow;
+
+        await _unitOfWork.Customers.UpdateAsync(customer);
+        await _unitOfWork.SaveChangesAsync();
+
+        return MapToCustomerDto(customer);
+    }
+
+    public async Task<bool> DeleteCustomerAsync(int id)
+    {
+        var customer = await _unitOfWork.Customers.GetByIdAsync(id);
+        if (customer == null || customer.IsDeleted) return false;
+
+        customer.IsDeleted = true;
+        customer.UpdatedAt = DateTime.UtcNow;
+        await _unitOfWork.Customers.UpdateAsync(customer);
+        await _unitOfWork.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> ToggleCustomerStatusAsync(int id)
+    {
+        var customer = await _unitOfWork.Customers.GetByIdAsync(id);
+        if (customer == null || customer.IsDeleted) return false;
+
+        customer.IsActive = !customer.IsActive;
+        customer.UpdatedAt = DateTime.UtcNow;
+        await _unitOfWork.Customers.UpdateAsync(customer);
+        await _unitOfWork.SaveChangesAsync();
+        return true;
     }
 
     public async Task<int> AwardLoyaltyPointsAsync(int customerId, decimal orderAmount, string orderNo)
@@ -134,12 +185,16 @@ public class CustomerService : ICustomerService
             Email = c.Email,
             DateOfBirth = c.DateOfBirth,
             Address = c.Address,
+            GSTIN = c.GSTIN,
+            Notes = c.Notes,
             TotalVisits = c.TotalVisits,
             TotalSpent = c.TotalSpent,
             LoyaltyPoints = c.LoyaltyPoints,
             Tier = c.Tier,
             LastVisitDate = c.LastVisitDate,
-            OutstandingCredit = c.OutstandingCredit
+            OutstandingCredit = c.OutstandingCredit,
+            IsActive = c.IsActive,
+            CreatedAt = c.CreatedAt
         };
     }
 }

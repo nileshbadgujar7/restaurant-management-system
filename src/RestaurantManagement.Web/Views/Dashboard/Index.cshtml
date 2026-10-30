@@ -643,9 +643,9 @@
                     <span class="fw-bold small text-secondary text-uppercase" style="letter-spacing:0.5px;"><i class="fa-solid fa-utensils text-success me-1"></i>@(isMarathi ? "आयटम जोडा" : "Add Items")</span>
                     <span class="badge bg-primary-subtle text-primary rounded-pill small" id="parcelItemCount">0 @(isMarathi ? "आयटम" : "Items")</span>
                 </div>
-                <div class="input-group input-group-sm mb-2" style="max-width:300px;">
-                    <span class="input-group-text bg-light"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
-                    <input type="text" id="parcelMenuSearch" class="form-control" placeholder="@(isMarathi ? "पदार्थ शोधा..." : "Search dish...")" onkeyup="filterParcelMenu()" />
+                <div class="input-group input-group-sm mb-2" style="max-width:320px;">
+                    <span class="input-group-text bg-light"><i class="fa-solid fa-barcode text-teal" style="color:#0f766e;"></i></span>
+                    <input type="text" id="parcelMenuSearch" class="form-control" placeholder="@(isMarathi ? "पदार्थ किंवा कोड शोधा (उदा. 101)..." : "Search dish or code (e.g. 101)...")" onkeyup="filterParcelMenu()" onkeydown="handleParcelMenuSearchKeyDown(event)" autocomplete="off" />
                 </div>
                 <div class="border rounded-3 mb-3" style="max-height:220px; overflow-y:auto;" id="parcelMenuList">
                     <div class="text-center py-3 text-muted small"><i class="fa-solid fa-spinner fa-spin"></i> @(isMarathi ? "मेनू लोड होत आहे..." : "Loading menu...")</div>
@@ -878,11 +878,41 @@
     }
 
     function filterParcelMenu() {
-        let q = $('#parcelMenuSearch').val().toLowerCase();
+        let q = ($('#parcelMenuSearch').val() || '').toLowerCase().trim();
         $('#parcelMenuList .parcel-menu-item').each(function() {
-            let name = $(this).data('name') || '';
-            $(this).toggle(name.includes(q));
+            let name = ($(this).data('name') || '').toString().toLowerCase();
+            let namemr = ($(this).data('namemr') || '').toString().toLowerCase();
+            let code = ($(this).data('code') || '').toString().toLowerCase();
+            let matches = (q === '') || name.includes(q) || namemr.includes(q) || code.includes(q) || ('#' + code).includes(q);
+            $(this).toggle(matches);
         });
+    }
+
+    function handleParcelMenuSearchKeyDown(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            let q = ($('#parcelMenuSearch').val() || '').toLowerCase().trim();
+            if (!q) return;
+
+            let exactMatch = null;
+            let visibleRows = [];
+
+            $('#parcelMenuList .parcel-menu-item:visible').each(function() {
+                let code = ($(this).data('code') || '').toString().toLowerCase();
+                if (code === q || ('#' + code) === q) {
+                    exactMatch = $(this);
+                    return false;
+                }
+                visibleRows.push($(this));
+            });
+
+            let target = exactMatch || (visibleRows.length === 1 ? visibleRows[0] : (visibleRows.length > 0 ? visibleRows[0] : null));
+            if (target) {
+                target.trigger('click');
+                $('#parcelMenuSearch').val('');
+                filterParcelMenu();
+            }
+        }
     }
 
     function renderParcelMenuList() {
@@ -892,11 +922,15 @@
         }
         let html = '<div class="list-group list-group-flush">';
         parcelMenuItems.forEach(item => {
+            let code = item.shortCode || item.itemCode || item.id;
             html += `
                 <div class="list-group-item list-group-item-action parcel-menu-item d-flex justify-content-between align-items-center py-2 px-3"
-                     data-name="${(item.name||'').toLowerCase()}" style="cursor:pointer;" onclick="addToParcelCart(${item.id},'${(item.name||'').replace(/'/g,"\\'")}}',${item.price})">
+                     data-name="${(item.name||'').toLowerCase()}" data-namemr="${(item.nameMarathi||'').toLowerCase()}" data-code="${(code||'').toString().toLowerCase()}"
+                     style="cursor:pointer;" onclick="addToParcelCart(${item.id},'${(item.name||'').replace(/'/g,"\\'")}}',${item.price})">
                     <div>
+                        <span class="badge bg-secondary-subtle text-dark border px-2 py-0 fw-bold me-1" style="font-size:0.75rem;">#${code}</span>
                         <span class="fw-bold text-dark small">${item.name}</span>
+                        ${item.nameMarathi ? `<span class="text-muted small">(${item.nameMarathi})</span>` : ''}
                         <span class="badge bg-light text-secondary border ms-1 small">${item.categoryName||''}</span>
                     </div>
                     <div class="d-flex align-items-center gap-2">
