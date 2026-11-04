@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" width="320" height="240">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fdf4ff" />
+      <stop offset="100%" stop-color="#fae8ff" />
+    </linearGradient>
+    <linearGradient id="bowl" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#475569" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="dal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#581c1c" />
+      <stop offset="50%" stop-color="#3b1111" />
+      <stop offset="100%" stop-color="#240707" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="2" dy="5" stdDeviation="4" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect width="320" height="240" fill="url(#bg)" rx="16"/>
+  <!-- Base Plate -->
+  <ellipse cx="160" cy="155" rx="120" ry="60" fill="#e2e8f0" filter="url(#shadow)"/>
+  <ellipse cx="160" cy="153" rx="105" ry="50" fill="#f8fafc"/>
+  <!-- Bowl Base -->
+  <path d="M 80 130 C 80 190, 240 190, 240 130 Z" fill="url(#bowl)" filter="url(#shadow)"/>
+  <!-- Dal Rim -->
+  <ellipse cx="160" cy="130" rx="80" ry="38" fill="url(#dal)"/>
+  <!-- Cream Swirl -->
+  <path d="M 120 130 C 130 115, 190 115, 200 130 C 195 145, 140 148, 145 132 C 148 124, 175 125, 170 132" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" opacity="0.9"/>
+  <!-- Butter Dollop -->
+  <rect x="150" y="122" width="20" height="15" rx="3" fill="#fef08a" stroke="#facc15" stroke-width="1.5"/>
+  <!-- Coriander Leaves -->
+  <circle cx="140" cy="120" r="3.5" fill="#15803d"/>
+  <circle cx="144" cy="116" r="3" fill="#22c55e"/>
+  <circle cx="136" cy="117" r="3" fill="#16a34a"/>
+  <!-- Spoon -->
+  <ellipse cx="235" cy="120" rx="16" ry="10" fill="#94a3b8" transform="rotate(-30 235 120)"/>
+  <path d="M 245 115 L 275 85" stroke="#64748b" stroke-width="5" stroke-linecap="round"/>
+  <!-- Title Badge -->
+  <rect x="80" y="15" width="160" height="28" rx="14" fill="#701a75" opacity="0.95"/>
+  <text x="160" y="34" font-family="system-ui, sans-serif" font-weight="700" font-size="13" fill="#ffffff" text-anchor="middle">DAL MAKHANI</text>
+</svg>

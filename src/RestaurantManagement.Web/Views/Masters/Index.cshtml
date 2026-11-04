@@ -374,16 +374,31 @@
                                     }
                                 </td>
                                 <td>
-                                    <div>
-                                        <span class="fw-bold text-dark fs-6">@item.Name</span>
-                                        @if (!string.IsNullOrEmpty(item.NameMarathi))
+                                    <div class="d-flex align-items-center gap-2">
+                                        @if (!string.IsNullOrEmpty(item.ImageUrl))
                                         {
-                                            <span class="text-success small fw-semibold ms-1">(@item.NameMarathi)</span>
+                                            <img src="@item.ImageUrl" alt="@item.Name" class="rounded-3 border object-fit-cover flex-shrink-0" style="width: 44px; height: 44px;" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('d-none');" />
+                                            <div class="rounded-3 bg-light d-none align-items-center justify-content-center text-muted border flex-shrink-0" style="width: 44px; height: 44px;">
+                                                <i class="fa-solid fa-utensils"></i>
+                                            </div>
                                         }
-                                        @if (!string.IsNullOrWhiteSpace(item.Description))
+                                        else
                                         {
-                                            <div class="small text-muted text-truncate" style="max-width: 250px;">@item.Description</div>
+                                            <div class="rounded-3 bg-light d-flex align-items-center justify-content-center text-muted border flex-shrink-0" style="width: 44px; height: 44px;">
+                                                <i class="fa-solid fa-utensils"></i>
+                                            </div>
                                         }
+                                        <div>
+                                            <span class="fw-bold text-dark fs-6">@item.Name</span>
+                                            @if (!string.IsNullOrEmpty(item.NameMarathi))
+                                            {
+                                                <span class="text-success small fw-semibold ms-1">(@item.NameMarathi)</span>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(item.Description))
+                                            {
+                                                <div class="small text-muted text-truncate" style="max-width: 250px;">@item.Description</div>
+                                            }
+                                        </div>
                                     </div>
                                 </td>
                                 <td>
@@ -441,7 +456,7 @@
                                 </td>
                                 <td class="text-end">
                                     <button class="btn btn-outline-primary btn-sm rounded-pill px-3 me-1" 
-                                            onclick="editMenuItem(@item.Id, @item.CategoryId, '@item.Name', '@item.NameMarathi', '@item.ItemCode', '@item.ShortCode', '@item.Description', @item.Price, @item.TaxPercentage, @(item.IsVeg ? "true" : "false"), @item.PreparationTimeMinutes, '@item.KitchenCategory', @(item.IsActive ? "true" : "false"))" 
+                                            onclick="editMenuItem(@item.Id, @item.CategoryId, '@item.Name', '@item.NameMarathi', '@item.ItemCode', '@item.ShortCode', '@item.Description', @item.Price, @item.TaxPercentage, @(item.IsVeg ? "true" : "false"), @item.PreparationTimeMinutes, '@item.KitchenCategory', @(item.IsActive ? "true" : "false"), '@item.ImageUrl')" 
                                             data-bs-toggle="tooltip" title="Edit menu item">
                                         <i class="fa-solid fa-pen-to-square"></i> Edit
                                     </button>
@@ -1528,7 +1543,7 @@
 <!-- 7. Add Menu Item Modal (Section 5.4) -->
 <div class="modal fade" id="addMenuItemModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <form asp-action="CreateMenuItem" method="post" class="modal-content rounded-4 border-0 shadow-lg">
+        <form asp-action="CreateMenuItem" method="post" enctype="multipart/form-data" class="modal-content rounded-4 border-0 shadow-lg">
             @if (!string.IsNullOrEmpty(Model.ReturnUrl))
             {
                 <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
@@ -1584,6 +1599,20 @@
                         <label class="form-label fw-bold small">Description / Ingredients</label>
                         <textarea name="Description" class="form-control" rows="2" placeholder="Ingredients, taste notes..."></textarea>
                     </div>
+                    <!-- Dish Image Upload (FR-IMAGE-01) -->
+                    <div class="col-12">
+                        <label class="form-label fw-bold small"><i class="fa-solid fa-image text-success me-1"></i>Dish Image (Photo / Illustration)</label>
+                        <div class="d-flex align-items-center gap-3 p-2 border rounded-3 bg-light">
+                            <div id="addMenuItemImagePreviewContainer" class="rounded-3 border bg-white d-flex align-items-center justify-content-center text-muted overflow-hidden flex-shrink-0" style="width: 72px; height: 72px;">
+                                <i class="fa-solid fa-utensils fs-4 text-secondary opacity-50" id="addMenuItemPlaceholderIcon"></i>
+                                <img id="addMenuItemImagePreview" src="#" alt="Preview" class="d-none w-100 h-100 object-fit-cover" />
+                            </div>
+                            <div class="flex-grow-1">
+                                <input type="file" name="imageFile" id="addMenuItemFileInput" class="form-control form-control-sm" accept="image/png, image/jpeg, image/webp, image/gif" onchange="previewMenuItemImage(this, 'addMenuItemImagePreview', 'addMenuItemPlaceholderIcon')" />
+                                <div class="form-text small mt-1 text-muted">Upload an appetizing photo for the matrix POS menu (JPG, PNG, WebP).</div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small">Price (₹)</label>
                         <input type="number" name="Price" class="form-control" step="1" min="1" placeholder="250" required />
@@ -1622,8 +1651,10 @@
 <!-- 8. Edit Menu Item Modal -->
 <div class="modal fade" id="editMenuItemModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <form asp-action="UpdateMenuItem" method="post" class="modal-content rounded-4 border-0 shadow-lg">
+        <form asp-action="UpdateMenuItem" method="post" enctype="multipart/form-data" class="modal-content rounded-4 border-0 shadow-lg">
             <input type="hidden" name="id" id="editMenuItemId" />
+            <input type="hidden" name="ImageUrl" id="editMenuItemImageUrl" />
+            <input type="hidden" name="removeImage" id="editMenuItemRemoveImage" value="false" />
             <div class="modal-header border-bottom">
                 <h5 class="modal-title fw-bold text-dark"><i class="fa-solid fa-pen-to-square text-success me-2"></i>Edit Menu Item</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -1668,6 +1699,25 @@
                     <div class="col-12">
                         <label class="form-label fw-bold small">Description</label>
                         <textarea name="Description" id="editMenuItemDesc" class="form-control" rows="2"></textarea>
+                    </div>
+                    <!-- Dish Image Edit & Upload (FR-IMAGE-01) -->
+                    <div class="col-12">
+                        <label class="form-label fw-bold small"><i class="fa-solid fa-image text-success me-1"></i>Dish Image</label>
+                        <div class="d-flex align-items-center gap-3 p-2 border rounded-3 bg-light">
+                            <div id="editMenuItemImagePreviewContainer" class="rounded-3 border bg-white d-flex align-items-center justify-content-center text-muted overflow-hidden flex-shrink-0" style="width: 72px; height: 72px;">
+                                <i class="fa-solid fa-utensils fs-4 text-secondary opacity-50" id="editMenuItemPlaceholderIcon"></i>
+                                <img id="editMenuItemImagePreview" src="#" alt="Preview" class="d-none w-100 h-100 object-fit-cover" />
+                            </div>
+                            <div class="flex-grow-1">
+                                <input type="file" name="imageFile" id="editMenuItemFileInput" class="form-control form-control-sm" accept="image/png, image/jpeg, image/webp, image/gif" onchange="previewMenuItemImage(this, 'editMenuItemImagePreview', 'editMenuItemPlaceholderIcon')" />
+                                <div class="d-flex align-items-center justify-content-between mt-1">
+                                    <div class="form-text small text-muted">Upload a new photo to replace, or remove image.</div>
+                                    <button type="button" class="btn btn-outline-danger btn-sm py-0 px-2 rounded-pill small d-none" id="editMenuItemRemoveBtn" onclick="removeEditItemImage()">
+                                        <i class="fa-solid fa-trash me-1"></i> Remove Image
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small">Price (₹)</label>
@@ -2109,7 +2159,7 @@
         new bootstrap.Modal('#editCategoryModal').show();
     }
 
-    function editMenuItem(id, catId, name, nameMarathi, code, shortCode, desc, price, tax, isVeg, prepTime, kitchenCat, isActive) {
+    function editMenuItem(id, catId, name, nameMarathi, code, shortCode, desc, price, tax, isVeg, prepTime, kitchenCat, isActive, imageUrl) {
         $('#editMenuItemId').val(id);
         $('#editMenuItemCatId').val(catId);
         $('#editMenuItemName').val(name);
@@ -2123,7 +2173,57 @@
         $('#editMenuItemPrepTime').val(prepTime);
         $('#editMenuItemKitchenCat').val(kitchenCat || 'Main Kitchen');
         $('#editMenuItemActive').prop('checked', isActive);
+        $('#editMenuItemImageUrl').val(imageUrl || '');
+        $('#editMenuItemRemoveImage').val('false');
+        $('#editMenuItemFileInput').val('');
+
+        let preview = document.getElementById('editMenuItemImagePreview');
+        let icon = document.getElementById('editMenuItemPlaceholderIcon');
+        let removeBtn = $('#editMenuItemRemoveBtn');
+
+        if (imageUrl && imageUrl.trim() !== '') {
+            preview.src = imageUrl;
+            preview.classList.remove('d-none');
+            icon.classList.add('d-none');
+            removeBtn.removeClass('d-none');
+        } else {
+            preview.src = '#';
+            preview.classList.add('d-none');
+            icon.classList.remove('d-none');
+            removeBtn.addClass('d-none');
+        }
+
         new bootstrap.Modal('#editMenuItemModal').show();
+    }
+
+    function removeEditItemImage() {
+        $('#editMenuItemImageUrl').val('');
+        $('#editMenuItemRemoveImage').val('true');
+        $('#editMenuItemFileInput').val('');
+        let preview = document.getElementById('editMenuItemImagePreview');
+        let icon = document.getElementById('editMenuItemPlaceholderIcon');
+        preview.src = '#';
+        preview.classList.add('d-none');
+        icon.classList.remove('d-none');
+        $('#editMenuItemRemoveBtn').addClass('d-none');
+    }
+
+    function previewMenuItemImage(input, previewId, iconId) {
+        let preview = document.getElementById(previewId);
+        let icon = document.getElementById(iconId);
+        if (input.files && input.files[0]) {
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                preview.classList.remove('d-none');
+                if (icon) icon.classList.add('d-none');
+            };
+            reader.readAsDataURL(input.files[0]);
+            if (previewId === 'editMenuItemImagePreview') {
+                $('#editMenuItemRemoveImage').val('false');
+                $('#editMenuItemRemoveBtn').removeClass('d-none');
+            }
+        }
     }
 
     function editCustomer(id, name, phone, email, address, gstin, notes, points, isActive) {

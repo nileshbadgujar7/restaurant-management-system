@@ -17,6 +17,7 @@ public class MastersController : Controller
     private readonly ISupplierService _supplierService;
     private readonly ICustomerService _customerService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IWebHostEnvironment _webHostEnvironment;
 
     public MastersController(
         ITableService tableService, 
@@ -25,7 +26,8 @@ public class MastersController : Controller
         IInventoryService inventoryService,
         ISupplierService supplierService,
         ICustomerService customerService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IWebHostEnvironment webHostEnvironment)
     {
         _tableService = tableService;
         _menuService = menuService;
@@ -34,6 +36,7 @@ public class MastersController : Controller
         _supplierService = supplierService;
         _customerService = customerService;
         _unitOfWork = unitOfWork;
+        _webHostEnvironment = webHostEnvironment;
     }
 
     public async Task<IActionResult> Index(string tab = "floor", string? returnUrl = null, bool openAdd = false)
@@ -189,7 +192,7 @@ public class MastersController : Controller
 
     // ================= Menu Item Operations =================
     [HttpPost]
-    public async Task<IActionResult> CreateMenuItem(MenuItemCreateUpdateDto dto, string? returnUrl = null)
+    public async Task<IActionResult> CreateMenuItem(MenuItemCreateUpdateDto dto, IFormFile? imageFile = null, string? returnUrl = null)
     {
         if (string.IsNullOrWhiteSpace(dto.Name) || dto.Price <= 0)
         {
@@ -197,6 +200,15 @@ public class MastersController : Controller
             return string.IsNullOrEmpty(returnUrl) 
                 ? RedirectToAction(nameof(Index), new { tab = "menu" }) 
                 : Redirect(returnUrl);
+        }
+
+        if (imageFile != null && imageFile.Length > 0)
+        {
+            var uploadedUrl = await SaveUploadedImageAsync(imageFile, "menu");
+            if (!string.IsNullOrEmpty(uploadedUrl))
+            {
+                dto.ImageUrl = uploadedUrl;
+            }
         }
 
         await _menuService.CreateMenuItemAsync(dto);
@@ -211,7 +223,7 @@ public class MastersController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> UpdateMenuItem(int id, MenuItemCreateUpdateDto dto)
+    public async Task<IActionResult> UpdateMenuItem(int id, MenuItemCreateUpdateDto dto, IFormFile? imageFile = null, bool removeImage = false)
     {
         if (string.IsNullOrWhiteSpace(dto.Name) || dto.Price <= 0)
         {
@@ -219,9 +231,60 @@ public class MastersController : Controller
             return RedirectToAction(nameof(Index), new { tab = "menu" });
         }
 
+        if (removeImage)
+        {
+            dto.ImageUrl = string.Empty;
+        }
+        else if (imageFile != null && imageFile.Length > 0)
+        {
+            var uploadedUrl = await SaveUploadedImageAsync(imageFile, "menu");
+            if (!string.IsNullOrEmpty(uploadedUrl))
+            {
+                dto.ImageUrl = uploadedUrl;
+            }
+        }
+        else if (string.IsNullOrEmpty(dto.ImageUrl))
+        {
+            var existing = await _menuService.GetMenuItemByIdAsync(id);
+            if (existing != null && !string.IsNullOrEmpty(existing.ImageUrl))
+            {
+                dto.ImageUrl = existing.ImageUrl;
+            }
+        }
+
         await _menuService.UpdateMenuItemAsync(id, dto);
         TempData["Success"] = $"Menu item '{dto.Name}' updated successfully.";
         return RedirectToAction(nameof(Index), new { tab = "menu" });
+    }
+
+    private async Task<string?> SaveUploadedImageAsync(IFormFile? file, string subFolder)
+    {
+        if (file == null || file.Length == 0) return null;
+
+        try
+        {
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            var allowedExts = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
+            if (!allowedExts.Contains(ext)) return null;
+
+            var webRoot = _webHostEnvironment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var folder = Path.Combine(webRoot, "images", subFolder);
+            if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+
+            var fileName = $"{subFolder}_{DateTime.UtcNow.Ticks}_{Guid.NewGuid().ToString("N")[..6]}{ext}";
+            var filePath = Path.Combine(folder, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            return $"/images/{subFolder}/{fileName}";
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     [HttpPost]

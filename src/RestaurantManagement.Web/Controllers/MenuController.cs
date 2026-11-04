@@ -10,11 +10,13 @@ public class MenuController : Controller
 {
     private readonly IMenuService _menuService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IWebHostEnvironment _webHostEnvironment;
 
-    public MenuController(IMenuService menuService, IUnitOfWork unitOfWork)
+    public MenuController(IMenuService menuService, IUnitOfWork unitOfWork, IWebHostEnvironment webHostEnvironment)
     {
         _menuService = menuService;
         _unitOfWork = unitOfWork;
+        _webHostEnvironment = webHostEnvironment;
     }
 
     public async Task<IActionResult> Index()
@@ -43,8 +45,34 @@ public class MenuController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create(MenuItemCreateUpdateDto dto, string? returnUrl = null)
+    public async Task<IActionResult> Create(MenuItemCreateUpdateDto dto, IFormFile? imageFile = null, string? returnUrl = null)
     {
+        if (imageFile != null && imageFile.Length > 0)
+        {
+            try
+            {
+                var ext = Path.GetExtension(imageFile.FileName).ToLowerInvariant();
+                var allowedExts = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
+                if (allowedExts.Contains(ext))
+                {
+                    var webRoot = _webHostEnvironment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                    var folder = Path.Combine(webRoot, "images", "menu");
+                    if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+
+                    var fileName = $"menu_{DateTime.UtcNow.Ticks}_{Guid.NewGuid().ToString("N")[..6]}{ext}";
+                    var filePath = Path.Combine(folder, fileName);
+
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await imageFile.CopyToAsync(stream);
+                    }
+
+                    dto.ImageUrl = $"/images/menu/{fileName}";
+                }
+            }
+            catch { }
+        }
+
         await _menuService.CreateMenuItemAsync(dto);
         TempData["Success"] = "New menu item added successfully!";
         if (!string.IsNullOrEmpty(returnUrl))

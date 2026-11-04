@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" width="320" height="240">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f0fdfa" />
+      <stop offset="100%" stop-color="#ccfbf1" />
+    </linearGradient>
+    <linearGradient id="soda" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f87171" />
+      <stop offset="50%" stop-color="#dc2626" />
+      <stop offset="100%" stop-color="#991b1b" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="2" dy="5" stdDeviation="4" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect width="320" height="240" fill="url(#bg)" rx="16"/>
+  <!-- Coaster -->
+  <ellipse cx="160" cy="195" rx="65" ry="20" fill="#99f6e4" filter="url(#shadow)"/>
+  <!-- Glass Contour -->
+  <path d="M 120 70 L 130 190 C 130 195, 190 195, 190 190 L 200 70 Z" fill="#ffffff" fill-opacity="0.25" stroke="#cbd5e1" stroke-width="2" filter="url(#shadow)"/>
+  <!-- Soda Liquid -->
+  <path d="M 122 95 L 131 188 C 131 192, 189 192, 189 188 L 198 95 Z" fill="url(#soda)"/>
+  <ellipse cx="160" cy="95" rx="38" ry="8" fill="#fca5a5"/>
+  <!-- Ice Cubes -->
+  <rect x="135" y="105" width="22" height="22" rx="4" fill="#ffffff" fill-opacity="0.6" stroke="#ffffff" stroke-width="1.5" transform="rotate(15 146 116)"/>
+  <rect x="160" y="125" width="20" height="20" rx="4" fill="#ffffff" fill-opacity="0.6" stroke="#ffffff" stroke-width="1.5" transform="rotate(-12 170 135)"/>
+  <!-- Fizz Bubbles -->
+  <circle cx="140" cy="155" r="3" fill="#ffffff" opacity="0.8"/>
+  <circle cx="175" cy="165" r="2.5" fill="#ffffff" opacity="0.8"/>
+  <circle cx="150" cy="175" r="2" fill="#ffffff" opacity="0.8"/>
+  <circle cx="165" cy="100" r="3" fill="#ffffff" opacity="0.9"/>
+  <!-- Lemon Slice on Rim -->
+  <circle cx="198" cy="80" r="18" fill="#facc15" stroke="#eab308" stroke-width="2"/>
+  <circle cx="198" cy="80" r="14" fill="#fef08a"/>
+  <!-- Straw -->
+  <line x1="145" y1="180" x2="185" y2="50" stroke="#f43f5e" stroke-width="6" stroke-linecap="round"/>
+  <line x1="185" y1="50" x2="205" y2="40" stroke="#f43f5e" stroke-width="6" stroke-linecap="round"/>
+  <!-- Title Badge -->
+  <rect x="75" y="15" width="170" height="28" rx="14" fill="#0d9488" opacity="0.95"/>
+  <text x="160" y="34" font-family="system-ui, sans-serif" font-weight="700" font-size="13" fill="#ffffff" text-anchor="middle">COLD DRINK / SODA</text>
+</svg>

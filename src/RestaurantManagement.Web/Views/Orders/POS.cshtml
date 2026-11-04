@@ -66,14 +66,57 @@
         border-bottom-right-radius: 1rem;
         padding: 0.75rem 1rem;
     }
+    .menu-matrix-grid {
+        max-height: calc(100% - 95px);
+        overflow-y: auto;
+        padding: 4px;
+    }
+    .menu-matrix-card {
+        cursor: pointer;
+        transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+        border-radius: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+    }
+    .menu-matrix-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 18px rgba(16, 185, 129, 0.15) !important;
+        border-color: #10b981 !important;
+    }
+    .menu-matrix-img-box {
+        width: 100%;
+        height: 96px;
+        position: relative;
+        background: #f8fafc;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .menu-matrix-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.25s ease;
+    }
+    .menu-matrix-card:hover .menu-matrix-img {
+        transform: scale(1.06);
+    }
+    .menu-matrix-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    }
     .menu-item-row {
         cursor: pointer;
-        transition: all 0.15s ease;
-        border-radius: 0.5rem;
-    }
-    .menu-item-row:hover {
-        background-color: #f1f5f9;
-        transform: translateY(-1px);
     }
     .status-chip {
         font-size: 0.75rem;
@@ -241,60 +284,91 @@
                     }
                 </div>
 
-                <!-- Menu Items List -->
-                <div class="list-group list-group-flush" id="menuCatalogList" style="max-height: calc(100% - 95px); overflow-y: auto;">
+                <!-- Menu Items Matrix Grid (FR-MATRIX-01) -->
+                <div class="row row-cols-2 row-cols-md-3 g-2 menu-matrix-grid" id="menuCatalogGrid">
                     @foreach (var item in menuItems)
                     {
                         var hasVariants = item.Variants != null && item.Variants.Any();
                         var hasAddOns = item.AddOns != null && item.AddOns.Any();
                         var hasChoices = hasVariants || hasAddOns;
                         var displayCode = !string.IsNullOrWhiteSpace(item.ShortCode) ? item.ShortCode : (!string.IsNullOrWhiteSpace(item.ItemCode) ? item.ItemCode : item.Id.ToString());
+                        var safeName = item.Name.Replace("'", "\\'");
 
-                        <div class="list-group-item list-group-item-action menu-item-row p-2 d-flex align-items-center justify-content-between border-bottom"
+                        <div class="col menu-item-row"
                              data-cat="@item.CategoryId" data-veg="@(item.IsVeg ? "veg" : "nonveg")"
                              data-name="@item.Name.ToLower()" data-namemr="@(item.NameMarathi?.ToLower() ?? "")"
                              data-code="@displayCode.ToLower()" data-id="@item.Id"
-                             onclick="onMenuItemClicked(@item.Id, '@item.Name', @item.Price, @(hasChoices.ToString().ToLower()), @(item.IsAvailable.ToString().ToLower()))">
+                             onclick="onMenuItemClicked(@item.Id, '@safeName', @item.Price, @(hasChoices.ToString().ToLower()), @(item.IsAvailable.ToString().ToLower()), '@(item.ImageUrl ?? "")')">
                             
-                            <div class="d-flex align-items-center" style="min-width: 0; flex: 1;">
-                                @if (item.IsVeg)
-                                {
-                                    <span class="veg-indicator"><span class="veg-dot"></span></span>
-                                }
-                                else
-                                {
-                                    <span class="nonveg-indicator"><span class="nonveg-dot"></span></span>
-                                }
-                                <div class="ms-1" style="min-width: 0;">
-                                    <div class="d-flex align-items-center gap-1 flex-wrap">
-                                        <span class="badge bg-secondary-subtle text-dark border px-2 py-0 fw-bold" style="font-size:0.75rem;" title="Item Short Code (Type to search & add)">#@displayCode</span>
-                                        <span class="fw-bold text-dark text-truncate">@item.Name</span>
-                                        @if (!string.IsNullOrWhiteSpace(item.NameMarathi))
+                            <div class="card h-100 menu-matrix-card shadow-xs @(!item.IsAvailable ? "opacity-75" : "")">
+                                <!-- Image Header Box -->
+                                <div class="menu-matrix-img-box">
+                                    @if (!string.IsNullOrEmpty(item.ImageUrl))
+                                    {
+                                        <img src="@item.ImageUrl" alt="@item.Name" class="menu-matrix-img" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('d-none');" />
+                                        <div class="menu-matrix-placeholder d-none">
+                                            <i class="fa-solid fa-utensils fs-4 text-secondary opacity-40"></i>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="menu-matrix-placeholder">
+                                            <i class="fa-solid fa-utensils fs-4 text-secondary opacity-40"></i>
+                                        </div>
+                                    }
+
+                                    <!-- Dietary Dot Indicator -->
+                                    <div class="position-absolute top-0 start-0 m-1 bg-white bg-opacity-90 rounded-1 px-1 py-0 shadow-xs" style="z-index: 2;">
+                                        @if (item.IsVeg)
                                         {
-                                            <span class="text-muted small" style="font-size: 0.78rem;">(@item.NameMarathi)</span>
+                                            <span class="veg-indicator m-0" style="width:12px;height:12px;"><span class="veg-dot" style="width:5px;height:5px;"></span></span>
                                         }
-                                        <span class="badge bg-light text-secondary border small">@item.CategoryName</span>
-                                        @if (!item.IsAvailable)
+                                        else
                                         {
-                                            <span class="badge bg-danger rounded-pill small">Sold Out</span>
-                                        }
-                                        @if (hasChoices)
-                                        {
-                                            <span class="badge bg-info-subtle text-info border small"><i class="fa-solid fa-sliders me-1"></i>Options</span>
+                                            <span class="nonveg-indicator m-0" style="width:12px;height:12px;"><span class="nonveg-dot" style="width:5px;height:5px;"></span></span>
                                         }
                                     </div>
-                                    <div class="small text-muted text-truncate" style="font-size: 0.75rem;">@item.Description</div>
-                                </div>
-                            </div>
 
-                            <div class="text-end ms-2">
-                                <span class="fw-bold text-success fs-6">₹@item.Price.ToString("N0")</span>
-                                @if (item.IsAvailable)
-                                {
-                                    <span class="btn btn-sm btn-outline-primary rounded-pill px-2 py-0 ms-2" style="pointer-events: none;" title="Add to Section B">
-                                        <i class="fa-solid fa-plus"></i>
+                                    <!-- Short Code Badge -->
+                                    <span class="position-absolute top-0 end-0 m-1 badge bg-dark bg-opacity-80 text-white rounded-pill px-2 py-0 fw-bold" style="font-size: 0.68rem; z-index: 2;" title="Short Code: @displayCode">
+                                        #@displayCode
                                     </span>
-                                }
+
+                                    @if (!item.IsAvailable)
+                                    {
+                                        <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-50 text-white fw-bold small" style="z-index: 3;">
+                                            <span class="badge bg-danger rounded-pill px-2 py-1">Sold Out</span>
+                                        </div>
+                                    }
+                                    @if (hasChoices)
+                                    {
+                                        <span class="position-absolute bottom-0 end-0 m-1 badge bg-primary text-white rounded-pill px-2 py-0" style="font-size: 0.65rem; z-index: 2;">
+                                            <i class="fa-solid fa-sliders me-1"></i>Custom
+                                        </span>
+                                    }
+                                </div>
+
+                                <!-- Card Body with Name & Price -->
+                                <div class="card-body p-2 d-flex flex-column justify-content-between">
+                                    <div>
+                                        <div class="fw-bold text-dark text-truncate small" title="@item.Name">@item.Name</div>
+                                        @if (!string.IsNullOrWhiteSpace(item.NameMarathi))
+                                        {
+                                            <div class="text-muted text-truncate" style="font-size: 0.72rem;">@item.NameMarathi</div>
+                                        }
+                                        <span class="badge bg-light text-secondary border mt-1" style="font-size: 0.65rem;">@item.CategoryName</span>
+                                    </div>
+
+                                    <div class="d-flex align-items-center justify-content-between mt-2 pt-1 border-top">
+                                        <span class="fw-bold text-success fs-6">₹@item.Price.ToString("N0")</span>
+                                        @if (item.IsAvailable)
+                                        {
+                                            <span class="btn btn-xs btn-outline-success rounded-pill px-2 py-0" style="font-size: 0.72rem;">
+                                                <i class="fa-solid fa-plus"></i> Add
+                                            </span>
+                                        }
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     }
@@ -412,6 +486,21 @@
             <div class="modal-body">
                 <input type="hidden" id="custMenuItemId" />
                 <input type="hidden" id="custBasePrice" />
+                <input type="hidden" id="custMenuItemImage" />
+
+                <!-- Dish Image & Title Header (FR-IMAGE-02) -->
+                <div class="d-flex align-items-center gap-3 p-2 bg-light rounded-3 mb-3 border">
+                    <div class="rounded-3 border bg-white d-flex align-items-center justify-content-center text-muted overflow-hidden flex-shrink-0" style="width: 58px; height: 58px;">
+                        <img id="custModalImg" src="#" alt="Dish" class="w-100 h-100 object-fit-cover d-none" onerror="this.classList.add('d-none'); document.getElementById('custModalPlaceholder').classList.remove('d-none');" />
+                        <div id="custModalPlaceholder" class="d-flex align-items-center justify-content-center w-100 h-100">
+                            <i class="fa-solid fa-utensils fs-4 text-secondary opacity-50"></i>
+                        </div>
+                    </div>
+                    <div style="min-width: 0;">
+                        <h6 class="fw-bold mb-0 text-dark text-truncate" id="customiseModalDishName">Dish Name</h6>
+                        <span class="text-success fw-bold small" id="custComputedPrice">₹0.00</span>
+                    </div>
+                </div>
 
                 <!-- Variant Selection -->
                 <div id="variantSection" class="mb-3" style="display: none;">
@@ -604,6 +693,12 @@
             }
             let sentAt = item.sentAt ?? item.SentAt;
 
+            let itemImg = item.imageUrl || item.ImageUrl || '';
+            if (!itemImg && menuItemId) {
+                let cardImg = $(`.menu-item-row[data-id="${menuItemId}"]`).find('.menu-matrix-img').attr('src');
+                if (cardImg) itemImg = cardImg;
+            }
+
             // OrderItemStatus: 1=Pending (Section B), 2=Sent, 3=Preparing, 4=Ready, 5=Served (Section A), 6=Cancelled
             if (status === 1 || status === 'Pending') {
                 sectionBItems.push({
@@ -611,6 +706,7 @@
                     menuItemId: menuItemId,
                     name: name,
                     price: price,
+                    imageUrl: itemImg,
                     quantity: qty,
                     variantName: variantName,
                     note: note,
@@ -623,6 +719,7 @@
                     menuItemId: menuItemId,
                     itemName: name,
                     unitPrice: price,
+                    imageUrl: itemImg,
                     quantity: qty,
                     totalPrice: item.totalPrice ?? item.TotalPrice ?? (price * qty),
                     selectedVariantName: variantName,
@@ -679,16 +776,19 @@
 
             html += `
                 <div class="p-2 mb-1 bg-white rounded-2 border d-flex justify-content-between align-items-center shadow-xs">
-                    <div style="flex: 1; min-width: 0;">
-                        <div class="d-flex align-items-center gap-1 flex-wrap">
-                            <span class="badge bg-secondary-subtle text-dark border small fw-bold">${item.quantity}x</span>
-                            <span class="fw-bold text-dark small text-truncate">${item.itemName} ${item.selectedVariantName ? '(' + item.selectedVariantName + ')' : ''}</span>
-                            ${item.kotNumber ? `<span class="badge bg-light text-secondary border py-0" style="font-size:0.65rem;"><i class="fa-solid fa-receipt me-1"></i>${item.kotNumber}</span>` : ''}
-                        </div>
-                        <div class="small text-muted" style="font-size: 0.7rem;">
-                            <span class="badge ${statusColor} status-chip py-0">${statusText}</span>
-                            ${timeStr ? `&bull; ${timeStr}` : ''}
-                            ${item.specialInstructions ? `&bull; <span class="text-info">${item.specialInstructions}</span>` : ''}
+                    <div class="d-flex align-items-center gap-2" style="flex: 1; min-width: 0;">
+                        ${item.imageUrl ? `<img src="${item.imageUrl}" class="rounded-2 border object-fit-cover flex-shrink-0" style="width: 34px; height: 34px;" onerror="this.style.display='none';" />` : ''}
+                        <div style="min-width: 0;">
+                            <div class="d-flex align-items-center gap-1 flex-wrap">
+                                <span class="badge bg-secondary-subtle text-dark border small fw-bold">${item.quantity}x</span>
+                                <span class="fw-bold text-dark small text-truncate">${item.itemName} ${item.selectedVariantName ? '(' + item.selectedVariantName + ')' : ''}</span>
+                                ${item.kotNumber ? `<span class="badge bg-light text-secondary border py-0" style="font-size:0.65rem;"><i class="fa-solid fa-receipt me-1"></i>${item.kotNumber}</span>` : ''}
+                            </div>
+                            <div class="small text-muted" style="font-size: 0.7rem;">
+                                <span class="badge ${statusColor} status-chip py-0">${statusText}</span>
+                                ${timeStr ? `&bull; ${timeStr}` : ''}
+                                ${item.specialInstructions ? `&bull; <span class="text-info">${item.specialInstructions}</span>` : ''}
+                            </div>
                         </div>
                     </div>
                     <div class="d-flex align-items-center gap-2 ms-2">
@@ -773,12 +873,18 @@
             html += `
                 <div class="p-2 mb-2 bg-white rounded-3 border shadow-xs">
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                        <div style="flex: 1; min-width: 0;">
-                            <span class="fw-bold text-dark small">${item.name}</span>
-                            ${item.variantName ? `<span class="badge bg-light text-secondary border small ms-1">${item.variantName}</span>` : ''}
-                            <span class="badge bg-secondary-subtle text-secondary small ms-1">${item.course}</span>
+                        <div class="d-flex align-items-center gap-2" style="flex: 1; min-width: 0;">
+                            ${item.imageUrl ? `<img src="${item.imageUrl}" class="rounded-2 border object-fit-cover flex-shrink-0" style="width: 36px; height: 36px;" onerror="this.style.display='none';" />` : ''}
+                            <div style="min-width: 0;">
+                                <span class="fw-bold text-dark small text-truncate d-block">${item.name}</span>
+                                <div class="d-flex align-items-center gap-1 flex-wrap">
+                                    ${item.variantName ? `<span class="badge bg-light text-secondary border small">${item.variantName}</span>` : ''}
+                                    <span class="badge bg-secondary-subtle text-secondary small">${item.course}</span>
+                                    <span class="fw-bold text-success small">₹${item.price}</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="d-flex align-items-center gap-1">
+                        <div class="d-flex align-items-center gap-1 flex-shrink-0 ms-2">
                             <!-- Stepper (FR-OM-03) -->
                             <button class="btn btn-outline-secondary btn-sm px-2 py-0 rounded-circle" onclick="updateSectionBQty(${index}, -1)">-</button>
                             <span class="fw-bold px-1 small">${item.quantity}</span>
@@ -877,7 +983,7 @@
     // -------------------------------------------------------------
     let lastMenuClickTime = 0;
     let lastMenuClickId = 0;
-    function onMenuItemClicked(id, name, price, hasChoices, isAvailable) {
+    function onMenuItemClicked(id, name, price, hasChoices, isAvailable, imageUrl) {
         let now = Date.now();
         if (lastMenuClickId === id && (now - lastMenuClickTime) < 300) {
             return; // Prevent duplicate click events within 300ms
@@ -894,9 +1000,21 @@
             // Open inline customization modal sheet
             $('#custMenuItemId').val(id);
             $('#custBasePrice').val(price);
+            $('#custMenuItemImage').val(imageUrl || '');
             $('#customiseModalTitle').text(`Customise: ${name}`);
+            $('#customiseModalDishName').text(name);
             $('#custSpecialNote').val('');
             $('#custComputedPrice').text(`₹${price}`);
+
+            let custImg = $('#custModalImg');
+            let custPlaceholder = $('#custModalPlaceholder');
+            if (imageUrl && imageUrl.trim() !== '') {
+                custImg.attr('src', imageUrl).removeClass('d-none');
+                custPlaceholder.addClass('d-none');
+            } else {
+                custImg.attr('src', '#').addClass('d-none');
+                custPlaceholder.removeClass('d-none');
+            }
             
             // Fetch item details for variants & add-ons
             $.get(`/Masters/GetMenuItemDetails?id=${id}`, function(res) {
@@ -918,24 +1036,26 @@
                 $('#customiseItemModal').modal('show');
             }).fail(function() {
                 // Direct fallback if extra details endpoint not present
-                addDirectToSectionB(id, name, price);
+                addDirectToSectionB(id, name, price, imageUrl);
             });
         } else {
             // Immediate add to Section B (FR-OM-02)
-            addDirectToSectionB(id, name, price);
+            addDirectToSectionB(id, name, price, imageUrl);
         }
     }
 
-    function addDirectToSectionB(id, name, price) {
+    function addDirectToSectionB(id, name, price, imageUrl) {
         let existing = sectionBItems.find(i => i.menuItemId === id && !i.variantName);
         if (existing) {
             existing.quantity += 1;
+            if (!existing.imageUrl && imageUrl) existing.imageUrl = imageUrl;
         } else {
             sectionBItems.push({
                 id: 0,
                 menuItemId: id,
                 name: name,
                 price: price,
+                imageUrl: imageUrl || '',
                 quantity: 1,
                 variantName: '',
                 note: '',
@@ -951,6 +1071,7 @@
     function confirmCustomisedItem() {
         let id = parseInt($('#custMenuItemId').val());
         let basePrice = parseFloat($('#custBasePrice').val());
+        let itemImage = $('#custMenuItemImage').val() || '';
         let variantRadio = $('input[name="custVariantRadio"]:checked');
         let variantName = variantRadio.length ? variantRadio.val() : '';
         let price = variantRadio.length ? parseFloat(variantRadio.data('price')) : basePrice;
@@ -963,12 +1084,19 @@
             menuItemId: id,
             name: itemName,
             price: price,
+            imageUrl: itemImage,
             quantity: 1,
             variantName: variantName,
             note: note,
             course: course,
             addOns: []
         });
+
+        $('#customiseItemModal').modal('hide');
+        renderSectionB();
+        updateFooterTotals();
+        autoSaveDraft();
+    }
 
         $('#customiseItemModal').modal('hide');
         renderSectionB();

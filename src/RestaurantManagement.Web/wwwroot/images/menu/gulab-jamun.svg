@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" width="320" height="240">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fffbeb" />
+      <stop offset="100%" stop-color="#fef3c7" />
+    </linearGradient>
+    <linearGradient id="jamun" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9a3412" />
+      <stop offset="40%" stop-color="#7c2d12" />
+      <stop offset="100%" stop-color="#431407" />
+    </linearGradient>
+    <linearGradient id="syrup" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fde047" />
+      <stop offset="100%" stop-color="#b45309" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="2" dy="5" stdDeviation="4" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect width="320" height="240" fill="url(#bg)" rx="16"/>
+  <!-- Dessert Bowl -->
+  <ellipse cx="160" cy="155" rx="115" ry="55" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2" filter="url(#shadow)"/>
+  <!-- Sugar Syrup -->
+  <ellipse cx="160" cy="148" rx="90" ry="38" fill="url(#syrup)" opacity="0.85"/>
+  <!-- Gulab Jamun 1 -->
+  <circle cx="135" cy="140" r="32" fill="url(#jamun)" filter="url(#shadow)"/>
+  <ellipse cx="125" cy="128" rx="10" ry="5" fill="#ea580c" opacity="0.6"/>
+  <circle cx="123" cy="126" r="3" fill="#ffffff" opacity="0.5"/>
+  <!-- Gulab Jamun 2 -->
+  <circle cx="185" cy="142" r="30" fill="url(#jamun)" filter="url(#shadow)"/>
+  <ellipse cx="178" cy="132" rx="9" ry="4" fill="#ea580c" opacity="0.6"/>
+  <circle cx="176" cy="130" r="2.5" fill="#ffffff" opacity="0.5"/>
+  <!-- Pistachio & Almond Slivers -->
+  <ellipse cx="135" cy="132" rx="4" ry="2" fill="#22c55e" transform="rotate(25 135 132)"/>
+  <ellipse cx="145" cy="145" rx="4" ry="2" fill="#86efac" transform="rotate(-30 145 145)"/>
+  <ellipse cx="182" cy="136" rx="4" ry="2" fill="#22c55e" transform="rotate(40 182 136)"/>
+  <ellipse cx="192" cy="148" rx="4" ry="2" fill="#86efac" transform="rotate(-15 192 148)"/>
+  <circle cx="160" cy="155" r="2" fill="#ef4444"/>
+  <!-- Title Badge -->
+  <rect x="75" y="15" width="170" height="28" rx="14" fill="#9a3412" opacity="0.95"/>
+  <text x="160" y="34" font-family="system-ui, sans-serif" font-weight="700" font-size="13" fill="#ffffff" text-anchor="middle">GULAB JAMUN (2 PCS)</text>
+</svg>

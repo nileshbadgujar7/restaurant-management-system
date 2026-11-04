@@ -74,8 +74,25 @@
                             }
                         </td>
                         <td>
-                            <div class="fw-bold text-dark fs-6">@item.Name</div>
-                            <div class="small text-muted">@item.Description</div>
+                            <div class="d-flex align-items-center gap-2">
+                                @if (!string.IsNullOrEmpty(item.ImageUrl))
+                                {
+                                    <img src="@item.ImageUrl" alt="@item.Name" class="rounded-3 border object-fit-cover flex-shrink-0" style="width: 42px; height: 42px;" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('d-none');" />
+                                    <div class="rounded-3 bg-light d-none align-items-center justify-content-center text-muted border flex-shrink-0" style="width: 42px; height: 42px;">
+                                        <i class="fa-solid fa-utensils"></i>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="rounded-3 bg-light d-flex align-items-center justify-content-center text-muted border flex-shrink-0" style="width: 42px; height: 42px;">
+                                        <i class="fa-solid fa-utensils"></i>
+                                    </div>
+                                }
+                                <div>
+                                    <div class="fw-bold text-dark fs-6">@item.Name</div>
+                                    <div class="small text-muted">@item.Description</div>
+                                </div>
+                            </div>
                         </td>
                         <td><span class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle rounded-pill px-3 py-1">@item.CategoryName</span></td>
                         <td class="fw-bold text-dark fs-6">₹@item.Price.ToString("N0")</td>
@@ -108,7 +125,7 @@
 <!-- Add Item Modal -->
 <div class="modal fade" id="addItemModal" tabindex="-1">
     <div class="modal-dialog">
-        <form asp-action="Create" method="post" class="modal-content rounded-4 border-0 shadow-lg">
+        <form asp-action="Create" method="post" enctype="multipart/form-data" class="modal-content rounded-4 border-0 shadow-lg">
             @if (!string.IsNullOrEmpty(returnUrl))
             {
                 <input type="hidden" name="returnUrl" value="@returnUrl" />
@@ -140,6 +157,11 @@
                 <div class="mb-3">
                     <label class="form-label fw-bold small">Description</label>
                     <textarea name="Description" class="form-control" rows="2" placeholder="Ingredients description..."></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small"><i class="fa-solid fa-image text-primary me-1"></i>Dish Image (Optional)</label>
+                    <input type="file" name="imageFile" class="form-control" accept="image/png, image/jpeg, image/webp, image/gif" />
+                    <div class="form-text small text-muted">Upload an appetizing photo for the matrix POS menu (JPG, PNG, WebP).</div>
                 </div>
                 <div class="row g-3 mb-3">
                     <div class="col-6">
